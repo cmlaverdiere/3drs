@@ -12,6 +12,7 @@
 #include "save_system.h"
 #include "rendering.h"
 #include "game_systems.h"
+#include "sound_system.h"
 
 int main() {
     InitWindow(1, 1, "3D RuneScape-style Game");
@@ -23,6 +24,10 @@ int main() {
     int screenHeight = monitorHeight - 80;
     InitWindow(screenWidth, screenHeight, "3D RuneScape-style Game");
     SetWindowPosition(0, 25);
+
+    // Initialize audio
+    InitAudioDevice();
+    InitSoundSystem();
 
     // Initialize player state with defaults
     PlayerState playerState = {};
@@ -245,6 +250,7 @@ int main() {
                         playerState.currentHP -= damage;
                         SpawnDamageIndicator(damageIndicators, camera.position, damage);
                         enemies[i].attackCooldown = config.attackCooldown;
+                        if (damage > 0) PlaySoundEffect(SFX_PLAYER_HURT);
 
                         if (playerState.currentHP <= 0) {
                             playerState.currentHP = 0;
@@ -314,9 +320,17 @@ int main() {
                 target->health -= damage;
                 SpawnDamageIndicator(damageIndicators, target->position, damage);
 
+                // Play hit or miss sound
+                if (damage > 0) {
+                    PlaySoundEffect(SFX_HIT);
+                } else {
+                    PlaySoundEffect(SFX_MISS);
+                }
+
                 if (target->health <= 0) {
                     target->alive = false;
                     target->respawnTimer = config.respawnTime;
+                    PlaySoundEffect(SFX_ENEMY_DEATH);
 
                     // Spawn drops
                     SpawnEnemyDrops(config, target->position, worldItems, worldItemCount);
@@ -328,12 +342,14 @@ int main() {
                     playerState.skillXP[SKILL_COMBAT] += xpGain;
                     int newLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
                     SpawnXPPopup(xpPopups, xpGain, SKILL_COMBAT);
+                    PlaySoundEffect(SFX_XP_GAIN);
 
                     if (newLevel > oldLevel) {
                         levelUpNotif.skillIndex = SKILL_COMBAT;
                         levelUpNotif.newLevel = newLevel;
                         levelUpNotif.timer = LEVEL_UP_DURATION;
                         levelUpNotif.active = true;
+                        PlaySoundEffect(SFX_LEVEL_UP);
                     }
                 }
             }
@@ -434,6 +450,7 @@ int main() {
                         targetItem->pickedUp = true;
                         showActionMenu = false;
                         targetItem = nullptr;
+                        PlaySoundEffect(SFX_PICKUP);
                         break;
                     }
                 }
@@ -883,6 +900,10 @@ int main() {
     for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
         UnloadShader(wallShaders[i]);
     }
+
+    // Cleanup audio
+    UnloadSoundSystem();
+    CloseAudioDevice();
 
     CloseWindow();
     return 0;

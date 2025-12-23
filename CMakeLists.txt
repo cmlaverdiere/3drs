@@ -22,5 +22,6 @@ add_executable(game
     src/save_system.cpp
     src/rendering.cpp
     src/game_systems.cpp
+    src/sound_system.cpp
 )
 target_link_libraries(game raylib)
