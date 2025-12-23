@@ -135,11 +135,17 @@ struct PlayerState {
     float targetX, targetY, targetZ;
     int skillXP[SKILL_COUNT];
     ItemType inventory[INV_SLOTS];
+    int inventoryCount[INV_SLOTS];  // Stack count for each slot (1 for non-stackable)
     ItemType equippedWeapon;
     bool swordPickedUp;
     int currentHP;
     int maxHP;
 };
+
+// Check if an item type is stackable
+inline bool IsItemStackable(ItemType item) {
+    return item == ITEM_GIL;
+}
 
 // Constants
 const int MAX_ENEMIES = 50;

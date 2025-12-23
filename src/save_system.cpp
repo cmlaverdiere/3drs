@@ -48,6 +48,11 @@ void SaveGame(const PlayerState& state) {
         fprintf(f, "%d%s", state.inventory[i], i < INV_SLOTS - 1 ? ", " : "");
     }
     fprintf(f, "],\n");
+    fprintf(f, "  \"inventoryCount\": [");
+    for (int i = 0; i < INV_SLOTS; i++) {
+        fprintf(f, "%d%s", state.inventoryCount[i], i < INV_SLOTS - 1 ? ", " : "");
+    }
+    fprintf(f, "],\n");
     fprintf(f, "  \"equippedWeapon\": %d,\n", state.equippedWeapon);
     fprintf(f, "  \"swordPickedUp\": %s,\n", state.swordPickedUp ? "true" : "false");
     fprintf(f, "  \"currentHP\": %d,\n", state.currentHP);
@@ -113,6 +118,26 @@ bool LoadGame(PlayerState& state) {
                 state.inventory[i] = (ItemType)atoi(p);
                 while (*p && *p != ',' && *p != ']') p++;
             }
+        }
+    }
+
+    // Parse inventory counts
+    const char* invCountSection = strstr(json, "\"inventoryCount\"");
+    if (invCountSection) {
+        const char* bracket = strchr(invCountSection, '[');
+        if (bracket) {
+            const char* p = bracket + 1;
+            for (int i = 0; i < INV_SLOTS && *p; i++) {
+                while (*p && (*p == ' ' || *p == ',')) p++;
+                if (*p == ']') break;
+                state.inventoryCount[i] = atoi(p);
+                while (*p && *p != ',' && *p != ']') p++;
+            }
+        }
+    } else {
+        // Default: set count to 1 for any existing items (backwards compatibility)
+        for (int i = 0; i < INV_SLOTS; i++) {
+            state.inventoryCount[i] = (state.inventory[i] != ITEM_NONE) ? 1 : 0;
         }
     }
 

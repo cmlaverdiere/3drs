@@ -43,6 +43,7 @@ int main() {
     playerState.skillXP[SKILL_HITPOINTS] = XP_TABLE[9];
     for (int i = 0; i < INV_SLOTS; i++) {
         playerState.inventory[i] = ITEM_NONE;
+        playerState.inventoryCount[i] = 0;
     }
     playerState.equippedWeapon = ITEM_NONE;
     playerState.swordPickedUp = false;
@@ -103,6 +104,12 @@ int main() {
     const float PICKUP_RANGE = 2.5f;
     bool showActionMenu = false;
     WorldItem* targetItem = nullptr;
+
+    // Inventory context menu state
+    bool showInvMenu = false;
+    int invMenuSlot = -1;
+    int invMenuX = 0;
+    int invMenuY = 0;
 
     // Copy walls from map data and create models
     Wall walls[MAX_WALLS] = {};
@@ -169,35 +176,154 @@ int main() {
         screenWidth = GetScreenWidth();
         screenHeight = GetScreenHeight();
 
-        if (IsKeyPressed(KEY_M)) {
-            mouseMode = !mouseMode;
-            if (mouseMode) {
-                EnableCursor();
-            } else {
-                DisableCursor();
-            }
+        // Hold shift for mouse mode
+        bool wasMouseMode = mouseMode;
+        mouseMode = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+        if (mouseMode && !wasMouseMode) {
+            EnableCursor();
+            showInvMenu = false;  // Close menu when entering mouse mode
+        } else if (!mouseMode && wasMouseMode) {
+            DisableCursor();
+            showInvMenu = false;  // Close menu when leaving mouse mode
         }
 
         // Inventory click handling (mouse mode only)
-        if (mouseMode && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (mouseMode) {
             Vector2 mouse = GetMousePosition();
             int invX = screenWidth - (INV_COLS * (SLOT_SIZE + SLOT_PADDING)) - 20;
             int invY = 60;
 
-            for (int row = 0; row < INV_ROWS; row++) {
-                for (int col = 0; col < INV_COLS; col++) {
-                    int slotIdx = row * INV_COLS + col;
-                    int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
-                    int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+            // Handle inventory context menu clicks
+            if (showInvMenu && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                const int menuWidth = 80;
+                const int menuItemHeight = 20;
+                ItemType menuItem = playerState.inventory[invMenuSlot];
+                bool isWeapon = (menuItem == ITEM_BRONZE_SHORTSWORD);
 
-                    if (mouse.x >= slotX && mouse.x <= slotX + SLOT_SIZE &&
-                        mouse.y >= slotY && mouse.y <= slotY + SLOT_SIZE) {
-                        ItemType clickedItem = playerState.inventory[slotIdx];
-                        if (clickedItem == ITEM_BRONZE_SHORTSWORD) {
-                            if (playerState.equippedWeapon == clickedItem) {
+                int optionCount = isWeapon ? 4 : 3;  // Use/Equip, Examine, Drop, Cancel vs Examine, Drop, Cancel
+                int menuHeight = menuItemHeight * optionCount;
+
+                if (mouse.x >= invMenuX && mouse.x <= invMenuX + menuWidth &&
+                    mouse.y >= invMenuY && mouse.y <= invMenuY + menuHeight) {
+                    int optionIdx = (int)(mouse.y - invMenuY) / menuItemHeight;
+
+                    if (isWeapon) {
+                        // Weapon menu: Use, Examine, Drop, Cancel
+                        if (optionIdx == 0) {
+                            // Use/Equip
+                            if (playerState.equippedWeapon == menuItem) {
                                 playerState.equippedWeapon = ITEM_NONE;
                             } else {
-                                playerState.equippedWeapon = clickedItem;
+                                playerState.equippedWeapon = menuItem;
+                            }
+                            showInvMenu = false;
+                        } else if (optionIdx == 1) {
+                            // Examine
+                            const char* itemName = ITEM_NAMES[menuItem];
+                            snprintf(screenshotMsg, sizeof(screenshotMsg), "It's a %s.", itemName);
+                            screenshotMsgTimer = 3.0f;
+                            showInvMenu = false;
+                        } else if (optionIdx == 2) {
+                            // Drop
+                            if (worldItemCount < MAX_WORLD_ITEMS) {
+                                worldItems[worldItemCount].type = menuItem;
+                                worldItems[worldItemCount].position = camera.position;
+                                worldItems[worldItemCount].position.y = 0.0f;
+                                worldItems[worldItemCount].pickedUp = false;
+                                worldItemCount++;
+
+                                if (playerState.equippedWeapon == menuItem) {
+                                    playerState.equippedWeapon = ITEM_NONE;
+                                }
+                                playerState.inventory[invMenuSlot] = ITEM_NONE;
+                                playerState.inventoryCount[invMenuSlot] = 0;
+                            }
+                            showInvMenu = false;
+                        } else {
+                            // Cancel
+                            showInvMenu = false;
+                        }
+                    } else {
+                        // Non-weapon menu: Examine, Drop, Cancel
+                        if (optionIdx == 0) {
+                            // Examine
+                            const char* itemName = ITEM_NAMES[menuItem];
+                            if (IsItemStackable(menuItem) && playerState.inventoryCount[invMenuSlot] > 1) {
+                                snprintf(screenshotMsg, sizeof(screenshotMsg), "%d x %s.", playerState.inventoryCount[invMenuSlot], itemName);
+                            } else {
+                                snprintf(screenshotMsg, sizeof(screenshotMsg), "It's a %s.", itemName);
+                            }
+                            screenshotMsgTimer = 3.0f;
+                            showInvMenu = false;
+                        } else if (optionIdx == 1) {
+                            // Drop (drop one at a time for stackable items)
+                            if (worldItemCount < MAX_WORLD_ITEMS) {
+                                worldItems[worldItemCount].type = menuItem;
+                                worldItems[worldItemCount].position = camera.position;
+                                worldItems[worldItemCount].position.y = 0.0f;
+                                worldItems[worldItemCount].pickedUp = false;
+                                worldItemCount++;
+
+                                if (IsItemStackable(menuItem) && playerState.inventoryCount[invMenuSlot] > 1) {
+                                    playerState.inventoryCount[invMenuSlot]--;
+                                } else {
+                                    playerState.inventory[invMenuSlot] = ITEM_NONE;
+                                    playerState.inventoryCount[invMenuSlot] = 0;
+                                }
+                            }
+                            showInvMenu = false;
+                        } else {
+                            // Cancel
+                            showInvMenu = false;
+                        }
+                    }
+                } else {
+                    // Clicked outside menu, close it
+                    showInvMenu = false;
+                }
+            }
+            // Right-click to open context menu
+            else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+                bool clickedSlot = false;
+                for (int row = 0; row < INV_ROWS && !clickedSlot; row++) {
+                    for (int col = 0; col < INV_COLS && !clickedSlot; col++) {
+                        int slotIdx = row * INV_COLS + col;
+                        int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
+                        int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+
+                        if (mouse.x >= slotX && mouse.x <= slotX + SLOT_SIZE &&
+                            mouse.y >= slotY && mouse.y <= slotY + SLOT_SIZE) {
+                            if (playerState.inventory[slotIdx] != ITEM_NONE) {
+                                showInvMenu = true;
+                                invMenuSlot = slotIdx;
+                                invMenuX = (int)mouse.x;
+                                invMenuY = (int)mouse.y;
+                                clickedSlot = true;
+                            }
+                        }
+                    }
+                }
+                if (!clickedSlot) {
+                    showInvMenu = false;
+                }
+            }
+            // Left-click on inventory (quick equip for weapons)
+            else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !showInvMenu) {
+                for (int row = 0; row < INV_ROWS; row++) {
+                    for (int col = 0; col < INV_COLS; col++) {
+                        int slotIdx = row * INV_COLS + col;
+                        int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
+                        int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+
+                        if (mouse.x >= slotX && mouse.x <= slotX + SLOT_SIZE &&
+                            mouse.y >= slotY && mouse.y <= slotY + SLOT_SIZE) {
+                            ItemType clickedItem = playerState.inventory[slotIdx];
+                            if (clickedItem == ITEM_BRONZE_SHORTSWORD) {
+                                if (playerState.equippedWeapon == clickedItem) {
+                                    playerState.equippedWeapon = ITEM_NONE;
+                                } else {
+                                    playerState.equippedWeapon = clickedItem;
+                                }
                             }
                         }
                     }
@@ -400,16 +526,21 @@ int main() {
 
             if (deathFadeTimer > DEATH_FADE_DURATION - dt - 0.01f) {
                 for (int i = 0; i < INV_SLOTS; i++) {
-                    if (playerState.inventory[i] != ITEM_NONE && worldItemCount < MAX_WORLD_ITEMS) {
-                        worldItems[worldItemCount].type = playerState.inventory[i];
-                        worldItems[worldItemCount].position = deathPosition;
-                        worldItems[worldItemCount].position.x += RandomFloat(-1.0f, 1.0f);
-                        worldItems[worldItemCount].position.z += RandomFloat(-1.0f, 1.0f);
-                        worldItems[worldItemCount].position.y = 0.0f;
-                        worldItems[worldItemCount].pickedUp = false;
-                        worldItemCount++;
+                    if (playerState.inventory[i] != ITEM_NONE) {
+                        // Drop items based on stack count
+                        int dropCount = playerState.inventoryCount[i];
+                        for (int j = 0; j < dropCount && worldItemCount < MAX_WORLD_ITEMS; j++) {
+                            worldItems[worldItemCount].type = playerState.inventory[i];
+                            worldItems[worldItemCount].position = deathPosition;
+                            worldItems[worldItemCount].position.x += RandomFloat(-1.0f, 1.0f);
+                            worldItems[worldItemCount].position.z += RandomFloat(-1.0f, 1.0f);
+                            worldItems[worldItemCount].position.y = 0.0f;
+                            worldItems[worldItemCount].pickedUp = false;
+                            worldItemCount++;
+                        }
 
                         playerState.inventory[i] = ITEM_NONE;
+                        playerState.inventoryCount[i] = 0;
                     }
                 }
                 playerState.equippedWeapon = ITEM_NONE;
@@ -444,15 +575,37 @@ int main() {
         // Handle action menu input
         if (showActionMenu && targetItem != nullptr) {
             if (IsKeyPressed(KEY_ONE)) {
-                for (int i = 0; i < INV_SLOTS; i++) {
-                    if (playerState.inventory[i] == ITEM_NONE) {
-                        playerState.inventory[i] = targetItem->type;
-                        targetItem->pickedUp = true;
-                        showActionMenu = false;
-                        targetItem = nullptr;
-                        PlaySoundEffect(SFX_PICKUP);
-                        break;
+                bool pickedUp = false;
+                ItemType itemType = targetItem->type;
+
+                // For stackable items, try to add to existing stack first
+                if (IsItemStackable(itemType)) {
+                    for (int i = 0; i < INV_SLOTS; i++) {
+                        if (playerState.inventory[i] == itemType) {
+                            playerState.inventoryCount[i]++;
+                            pickedUp = true;
+                            break;
+                        }
                     }
+                }
+
+                // If not stacked, find an empty slot
+                if (!pickedUp) {
+                    for (int i = 0; i < INV_SLOTS; i++) {
+                        if (playerState.inventory[i] == ITEM_NONE) {
+                            playerState.inventory[i] = itemType;
+                            playerState.inventoryCount[i] = 1;
+                            pickedUp = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (pickedUp) {
+                    targetItem->pickedUp = true;
+                    showActionMenu = false;
+                    targetItem = nullptr;
+                    PlaySoundEffect(SFX_PICKUP);
                 }
             } else if (IsKeyPressed(KEY_TWO)) {
                 // Examine item
@@ -507,9 +660,9 @@ int main() {
             EndMode3D();
 
             // HUD
-            DrawText("WASD to move, Mouse to look, M for mouse mode, LMB to attack", 10, 10, 20, WHITE);
+            DrawText("WASD to move, Mouse to look, Hold SHIFT for inventory, LMB to attack", 10, 10, 20, WHITE);
             if (mouseMode) {
-                DrawText("[MOUSE MODE]", 10, 35, 16, YELLOW);
+                DrawText("[INVENTORY MODE - Release SHIFT to resume]", 10, 35, 16, YELLOW);
             }
             DrawFPS(screenWidth - 100, 10);
 
@@ -798,6 +951,68 @@ int main() {
                         DrawCircle(cx, cy, 10, goldColor);
                         DrawCircle(cx, cy, 6, GOLD);
                     }
+
+                    // Draw stack count for stackable items
+                    if (item != ITEM_NONE && IsItemStackable(item) && playerState.inventoryCount[slotIdx] > 1) {
+                        char countText[16];
+                        snprintf(countText, sizeof(countText), "%d", playerState.inventoryCount[slotIdx]);
+                        DrawText(countText, slotX + 2, slotY + 2, 10, YELLOW);
+                    }
+                }
+            }
+
+            // Draw inventory context menu
+            if (showInvMenu && invMenuSlot >= 0 && playerState.inventory[invMenuSlot] != ITEM_NONE) {
+                const int menuWidth = 80;
+                const int menuItemHeight = 20;
+                const int menuPadding = 4;
+                ItemType menuItem = playerState.inventory[invMenuSlot];
+                bool isWeapon = (menuItem == ITEM_BRONZE_SHORTSWORD);
+
+                const char* options[4];
+                int optionCount;
+                if (isWeapon) {
+                    bool equipped = (playerState.equippedWeapon == menuItem);
+                    options[0] = equipped ? "Unequip" : "Equip";
+                    options[1] = "Examine";
+                    options[2] = "Drop";
+                    options[3] = "Cancel";
+                    optionCount = 4;
+                } else {
+                    options[0] = "Examine";
+                    options[1] = "Drop";
+                    options[2] = "Cancel";
+                    optionCount = 3;
+                }
+
+                int menuHeight = menuItemHeight * optionCount;
+
+                // Clamp menu position to screen
+                int menuX = invMenuX;
+                int menuY = invMenuY;
+                if (menuX + menuWidth > screenWidth) menuX = screenWidth - menuWidth;
+                if (menuY + menuHeight > screenHeight) menuY = screenHeight - menuHeight;
+
+                // Update stored position for click detection
+                invMenuX = menuX;
+                invMenuY = menuY;
+
+                // Draw menu background
+                DrawRectangle(menuX, menuY, menuWidth, menuHeight, (Color){40, 35, 28, 240});
+                DrawRectangleLines(menuX, menuY, menuWidth, menuHeight, (Color){86, 74, 57, 255});
+
+                // Draw menu options
+                Vector2 mouse = GetMousePosition();
+                for (int i = 0; i < optionCount; i++) {
+                    int optY = menuY + i * menuItemHeight;
+
+                    // Highlight on hover
+                    if (mouse.x >= menuX && mouse.x <= menuX + menuWidth &&
+                        mouse.y >= optY && mouse.y <= optY + menuItemHeight) {
+                        DrawRectangle(menuX + 1, optY + 1, menuWidth - 2, menuItemHeight - 2, (Color){60, 55, 45, 255});
+                    }
+
+                    DrawText(options[i], menuX + menuPadding, optY + 4, 12, (Color){255, 204, 0, 255});
                 }
             }
 
