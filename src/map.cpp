@@ -12,7 +12,7 @@ bool LoadMap(const char* filename, MapData& map) {
 
     map.playerSpawn = { 0.0f, 1.8f, 0.0f };
     map.itemCount = 0;
-    map.trollCount = 0;
+    map.enemyCount = 0;
     map.wallCount = 0;
 
     char line[256];
@@ -32,6 +32,12 @@ bool LoadMap(const char* filename, MapData& map) {
                 if (sscanf(line, "%*s %63s %f %f %f", itemName, &x, &y, &z) == 4) {
                     if (strcmp(itemName, "bronze_shortsword") == 0) {
                         map.itemTypes[map.itemCount] = ITEM_BRONZE_SHORTSWORD;
+                    } else if (strcmp(itemName, "cow_hide") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_COW_HIDE;
+                    } else if (strcmp(itemName, "bones") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_BONES;
+                    } else if (strcmp(itemName, "gil") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_GIL;
                     } else {
                         map.itemTypes[map.itemCount] = ITEM_NONE;
                     }
@@ -41,11 +47,30 @@ bool LoadMap(const char* filename, MapData& map) {
             }
         }
         else if (strcmp(type, "troll") == 0) {
-            if (map.trollCount < MAX_TROLLS) {
+            // Legacy support for "troll" keyword
+            if (map.enemyCount < MAX_ENEMIES) {
                 float x, y, z;
                 if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
-                    map.trollSpawns[map.trollCount] = { x, y, z };
-                    map.trollCount++;
+                    map.enemySpawns[map.enemyCount] = { x, y, z };
+                    map.enemyTypes[map.enemyCount] = ENEMY_TROLL;
+                    map.enemyCount++;
+                }
+            }
+        }
+        else if (strcmp(type, "enemy") == 0) {
+            if (map.enemyCount < MAX_ENEMIES) {
+                char enemyName[64];
+                float x, y, z;
+                if (sscanf(line, "%*s %63s %f %f %f", enemyName, &x, &y, &z) == 4) {
+                    EnemyType enemyType = ENEMY_TROLL; // default
+                    if (strcmp(enemyName, "troll") == 0) {
+                        enemyType = ENEMY_TROLL;
+                    } else if (strcmp(enemyName, "cow") == 0) {
+                        enemyType = ENEMY_COW;
+                    }
+                    map.enemySpawns[map.enemyCount] = { x, y, z };
+                    map.enemyTypes[map.enemyCount] = enemyType;
+                    map.enemyCount++;
                 }
             }
         }
@@ -66,6 +91,6 @@ bool LoadMap(const char* filename, MapData& map) {
     }
 
     fclose(f);
-    TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d trolls, %d walls)", filename, map.itemCount, map.trollCount, map.wallCount);
+    TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls)", filename, map.itemCount, map.enemyCount, map.wallCount);
     return true;
 }

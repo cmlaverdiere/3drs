@@ -72,8 +72,9 @@ int main() {
         mapData.itemSpawns[0] = { 0.0f, 0.0f, 3.0f };
         mapData.itemTypes[0] = ITEM_BRONZE_SHORTSWORD;
         mapData.itemCount = 1;
-        mapData.trollSpawns[0] = { 10.0f, 0.0f, 10.0f };
-        mapData.trollCount = 1;
+        mapData.enemySpawns[0] = { 10.0f, 0.0f, 10.0f };
+        mapData.enemyTypes[0] = ENEMY_TROLL;
+        mapData.enemyCount = 1;
     }
 
     // Initialize world items from map
@@ -99,20 +100,20 @@ int main() {
         walls[i] = mapData.walls[i];
     }
 
-    // Initialize trolls from map spawn points
-    Troll trolls[MAX_TROLLS] = {};
-    int trollCount = mapData.trollCount;
-    for (int i = 0; i < trollCount; i++) {
-        trolls[i].spawnPoint = mapData.trollSpawns[i];
-        trolls[i].position = mapData.trollSpawns[i];
-        trolls[i].health = TROLL_MAX_HEALTH;
-        trolls[i].maxHealth = TROLL_MAX_HEALTH;
-        trolls[i].alive = true;
-        trolls[i].respawnTimer = 0.0f;
-        trolls[i].wanderTimer = 0.0f;
-        trolls[i].wanderTarget = mapData.trollSpawns[i];
-        trolls[i].hostile = false;
-        trolls[i].attackCooldown = 0.0f;
+    // Initialize enemies from map spawn points
+    Enemy enemies[MAX_ENEMIES] = {};
+    int enemyCount = mapData.enemyCount;
+    for (int i = 0; i < enemyCount; i++) {
+        enemies[i].type = mapData.enemyTypes[i];
+        enemies[i].spawnPoint = mapData.enemySpawns[i];
+        enemies[i].position = mapData.enemySpawns[i];
+        enemies[i].health = ENEMY_CONFIGS[enemies[i].type].maxHealth;
+        enemies[i].alive = true;
+        enemies[i].respawnTimer = 0.0f;
+        enemies[i].wanderTimer = 0.0f;
+        enemies[i].wanderTarget = mapData.enemySpawns[i];
+        enemies[i].hostile = false;
+        enemies[i].attackCooldown = 0.0f;
     }
 
     // Damage indicators
@@ -209,27 +210,29 @@ int main() {
             swingTimer -= dt;
         }
 
-        // Update trolls
-        for (int i = 0; i < trollCount; i++) {
-            if (trolls[i].attackCooldown > 0) {
-                trolls[i].attackCooldown -= dt;
+        // Update enemies
+        for (int i = 0; i < enemyCount; i++) {
+            const EnemyConfig& config = ENEMY_CONFIGS[enemies[i].type];
+
+            if (enemies[i].attackCooldown > 0) {
+                enemies[i].attackCooldown -= dt;
             }
 
-            if (trolls[i].alive) {
-                if (trolls[i].hostile && !playerDead) {
-                    float dx = camera.position.x - trolls[i].position.x;
-                    float dz = camera.position.z - trolls[i].position.z;
+            if (enemies[i].alive) {
+                if (enemies[i].hostile && !playerDead) {
+                    float dx = camera.position.x - enemies[i].position.x;
+                    float dz = camera.position.z - enemies[i].position.z;
                     float dist = sqrtf(dx*dx + dz*dz);
 
-                    if (dist > TROLL_ATTACK_RANGE) {
-                        float speed = TROLL_CHASE_SPEED * dt;
-                        trolls[i].position.x += (dx / dist) * speed;
-                        trolls[i].position.z += (dz / dist) * speed;
-                    } else if (trolls[i].attackCooldown <= 0) {
-                        int damage = GetRandomValue(0, TROLL_MAX_HIT);
+                    if (dist > config.attackRange) {
+                        float speed = config.chaseSpeed * dt;
+                        enemies[i].position.x += (dx / dist) * speed;
+                        enemies[i].position.z += (dz / dist) * speed;
+                    } else if (enemies[i].attackCooldown <= 0) {
+                        int damage = GetRandomValue(0, config.maxHit);
                         playerState.currentHP -= damage;
                         SpawnDamageIndicator(damageIndicators, camera.position, damage);
-                        trolls[i].attackCooldown = TROLL_ATTACK_COOLDOWN;
+                        enemies[i].attackCooldown = config.attackCooldown;
 
                         if (playerState.currentHP <= 0) {
                             playerState.currentHP = 0;
@@ -239,33 +242,33 @@ int main() {
                         }
                     }
                 } else {
-                    trolls[i].wanderTimer -= dt;
-                    if (trolls[i].wanderTimer <= 0) {
-                        trolls[i].wanderTarget.x = trolls[i].spawnPoint.x + RandomFloat(-3.0f, 3.0f);
-                        trolls[i].wanderTarget.z = trolls[i].spawnPoint.z + RandomFloat(-3.0f, 3.0f);
-                        trolls[i].wanderTimer = RandomFloat(2.0f, 5.0f);
+                    enemies[i].wanderTimer -= dt;
+                    if (enemies[i].wanderTimer <= 0) {
+                        enemies[i].wanderTarget.x = enemies[i].spawnPoint.x + RandomFloat(-3.0f, 3.0f);
+                        enemies[i].wanderTarget.z = enemies[i].spawnPoint.z + RandomFloat(-3.0f, 3.0f);
+                        enemies[i].wanderTimer = RandomFloat(2.0f, 5.0f);
                     }
 
-                    float dx = trolls[i].wanderTarget.x - trolls[i].position.x;
-                    float dz = trolls[i].wanderTarget.z - trolls[i].position.z;
+                    float dx = enemies[i].wanderTarget.x - enemies[i].position.x;
+                    float dz = enemies[i].wanderTarget.z - enemies[i].position.z;
                     float dist = sqrtf(dx*dx + dz*dz);
                     if (dist > 0.5f) {
                         float speed = 1.0f * dt;
-                        trolls[i].position.x += (dx / dist) * speed;
-                        trolls[i].position.z += (dz / dist) * speed;
+                        enemies[i].position.x += (dx / dist) * speed;
+                        enemies[i].position.z += (dz / dist) * speed;
                     }
                 }
             } else {
-                trolls[i].respawnTimer -= dt;
-                if (trolls[i].respawnTimer <= 0) {
-                    trolls[i].position.x = trolls[i].spawnPoint.x + RandomFloat(-5.0f, 5.0f);
-                    trolls[i].position.z = trolls[i].spawnPoint.z + RandomFloat(-5.0f, 5.0f);
-                    trolls[i].position.y = 0.0f;
-                    trolls[i].health = TROLL_MAX_HEALTH;
-                    trolls[i].alive = true;
-                    trolls[i].wanderTimer = 0.0f;
-                    trolls[i].hostile = false;
-                    trolls[i].attackCooldown = 0.0f;
+                enemies[i].respawnTimer -= dt;
+                if (enemies[i].respawnTimer <= 0) {
+                    enemies[i].position.x = enemies[i].spawnPoint.x + RandomFloat(-5.0f, 5.0f);
+                    enemies[i].position.z = enemies[i].spawnPoint.z + RandomFloat(-5.0f, 5.0f);
+                    enemies[i].position.y = 0.0f;
+                    enemies[i].health = config.maxHealth;
+                    enemies[i].alive = true;
+                    enemies[i].wanderTimer = 0.0f;
+                    enemies[i].hostile = false;
+                    enemies[i].attackCooldown = 0.0f;
                 }
             }
         }
@@ -273,25 +276,26 @@ int main() {
         // Attack with mouse click
         if (!mouseMode && !playerDead && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
             swingTimer = SWING_DURATION;
-            attackCooldown = ATTACK_COOLDOWN;
+            attackCooldown = PLAYER_ATTACK_COOLDOWN;
 
             int combatLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
             int maxHit = CalculateMaxHit(combatLevel);
 
-            Troll* target = nullptr;
-            float closestDist = ATTACK_RANGE + 1.0f;
+            Enemy* target = nullptr;
+            float closestDist = PLAYER_ATTACK_RANGE + 1.0f;
 
-            for (int i = 0; i < trollCount; i++) {
-                if (trolls[i].alive) {
-                    float dist = Distance3D(camera.position, trolls[i].position);
-                    if (dist <= ATTACK_RANGE && dist < closestDist && IsFacing(camera, trolls[i].position)) {
-                        target = &trolls[i];
+            for (int i = 0; i < enemyCount; i++) {
+                if (enemies[i].alive) {
+                    float dist = Distance3D(camera.position, enemies[i].position);
+                    if (dist <= PLAYER_ATTACK_RANGE && dist < closestDist && IsFacing(camera, enemies[i].position)) {
+                        target = &enemies[i];
                         closestDist = dist;
                     }
                 }
             }
 
             if (target != nullptr) {
+                const EnemyConfig& config = ENEMY_CONFIGS[target->type];
                 target->hostile = true;
 
                 int damage = RollDamage(maxHit);
@@ -300,9 +304,13 @@ int main() {
 
                 if (target->health <= 0) {
                     target->alive = false;
-                    target->respawnTimer = TROLL_RESPAWN_TIME;
+                    target->respawnTimer = config.respawnTime;
 
-                    int xpGain = TROLL_MAX_HEALTH * 4;
+                    // Spawn drops
+                    SpawnEnemyDrops(config, target->position, worldItems, worldItemCount);
+
+                    // Award XP for kill (4 XP per hitpoint, like OSRS)
+                    int xpGain = config.maxHealth * 4;
 
                     int oldLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
                     playerState.skillXP[SKILL_COMBAT] += xpGain;
@@ -385,8 +393,8 @@ int main() {
                 camera.target = (Vector3){ mapData.playerSpawn.x, mapData.playerSpawn.y, mapData.playerSpawn.z + 1.0f };
                 playerState.maxHP = GetLevelFromXP(playerState.skillXP[SKILL_HITPOINTS]);
                 playerState.currentHP = playerState.maxHP;
-                for (int i = 0; i < trollCount; i++) {
-                    trolls[i].hostile = false;
+                for (int i = 0; i < enemyCount; i++) {
+                    enemies[i].hostile = false;
                 }
             }
         }
@@ -418,7 +426,9 @@ int main() {
                     }
                 }
             } else if (IsKeyPressed(KEY_TWO)) {
-                snprintf(screenshotMsg, sizeof(screenshotMsg), "A bronze shortsword. Not very sharp.");
+                // Examine item
+                const char* itemName = ITEM_NAMES[targetItem->type];
+                snprintf(screenshotMsg, sizeof(screenshotMsg), "It's a %s.", itemName);
                 screenshotMsgTimer = 3.0f;
             } else if (IsKeyPressed(KEY_THREE)) {
                 showActionMenu = false;
@@ -444,21 +454,19 @@ int main() {
             BeginMode3D(camera);
                 DrawModel(groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
 
+                // Draw world items
                 for (int i = 0; i < worldItemCount; i++) {
                     if (!worldItems[i].pickedUp) {
-                        if (worldItems[i].type == ITEM_BRONZE_SHORTSWORD) {
-                            Color bronzeBlade = { 205, 127, 50, 255 };
-                            Color bronzeHandle = { 139, 90, 43, 255 };
-                            DrawSword(worldItems[i].position, bronzeBlade, bronzeHandle);
-                        }
+                        DrawWorldItem(worldItems[i].type, worldItems[i].position);
                     }
                 }
 
-                for (int i = 0; i < trollCount; i++) {
-                    if (trolls[i].alive) {
-                        float dist = Distance3D(camera.position, trolls[i].position);
-                        bool inRange = (dist <= ATTACK_RANGE) && IsFacing(camera, trolls[i].position);
-                        DrawTroll(trolls[i].position, inRange);
+                // Draw enemies
+                for (int i = 0; i < enemyCount; i++) {
+                    if (enemies[i].alive) {
+                        float dist = Distance3D(camera.position, enemies[i].position);
+                        bool inRange = (dist <= PLAYER_ATTACK_RANGE) && IsFacing(camera, enemies[i].position);
+                        DrawEnemy(enemies[i], inRange);
                     }
                 }
 
@@ -492,7 +500,7 @@ int main() {
 
             // Attack cooldown indicator
             if (attackCooldown > 0) {
-                int cdWidth = (int)(100 * (attackCooldown / ATTACK_COOLDOWN));
+                int cdWidth = (int)(100 * (attackCooldown / PLAYER_ATTACK_COOLDOWN));
                 DrawRectangle(screenWidth/2 - 50, screenHeight - 40, 100, 10, DARKGRAY);
                 DrawRectangle(screenWidth/2 - 50, screenHeight - 40, cdWidth, 10, RED);
             }
@@ -541,31 +549,37 @@ int main() {
                 }
             }
 
-            // Draw troll health bars
-            for (int i = 0; i < trollCount; i++) {
-                if (trolls[i].alive) {
-                    Vector3 toTroll = {
-                        trolls[i].position.x - camera.position.x,
+            // Draw enemy health bars
+            for (int i = 0; i < enemyCount; i++) {
+                if (enemies[i].alive) {
+                    const EnemyConfig& config = ENEMY_CONFIGS[enemies[i].type];
+
+                    Vector3 toEnemy = {
+                        enemies[i].position.x - camera.position.x,
                         0,
-                        trolls[i].position.z - camera.position.z
+                        enemies[i].position.z - camera.position.z
                     };
                     Vector3 camForward = {
                         camera.target.x - camera.position.x,
                         0,
                         camera.target.z - camera.position.z
                     };
-                    if (Dot3D(toTroll, camForward) <= 0) continue;
+                    if (Dot3D(toEnemy, camForward) <= 0) continue;
 
-                    Vector3 healthBarPos = { trolls[i].position.x, trolls[i].position.y + 2.0f, trolls[i].position.z };
+                    Vector3 healthBarPos = { enemies[i].position.x, enemies[i].position.y + 2.0f, enemies[i].position.z };
                     Vector2 screenPos = GetWorldToScreen(healthBarPos, camera);
                     if (screenPos.x > 0 && screenPos.x < screenWidth &&
                         screenPos.y > 0 && screenPos.y < screenHeight) {
                         int barWidth = 40;
                         int barHeight = 6;
-                        int healthWidth = (int)(barWidth * trolls[i].health / (float)trolls[i].maxHealth);
+                        int healthWidth = (int)(barWidth * enemies[i].health / (float)config.maxHealth);
                         DrawRectangle((int)screenPos.x - barWidth/2, (int)screenPos.y, barWidth, barHeight, DARKGRAY);
                         DrawRectangle((int)screenPos.x - barWidth/2, (int)screenPos.y, healthWidth, barHeight, GREEN);
                         DrawRectangleLines((int)screenPos.x - barWidth/2, (int)screenPos.y, barWidth, barHeight, BLACK);
+
+                        // Draw enemy name above health bar
+                        int nameWidth = MeasureText(config.name, 12);
+                        DrawText(config.name, (int)screenPos.x - nameWidth/2, (int)screenPos.y - 14, 12, WHITE);
                     }
                 }
             }
@@ -689,7 +703,7 @@ int main() {
             }
 
             // Action menu overlay
-            if (showActionMenu) {
+            if (showActionMenu && targetItem != nullptr) {
                 int menuX = screenWidth / 2 - 100;
                 int menuY = screenHeight / 2 - 60;
                 int menuW = 200;
@@ -698,7 +712,8 @@ int main() {
                 DrawRectangle(menuX, menuY, menuW, menuH, (Color){0, 0, 0, 180});
                 DrawRectangleLines(menuX, menuY, menuW, menuH, GOLD);
 
-                DrawText("Bronze Shortsword", menuX + 10, menuY + 10, 18, GOLD);
+                const char* itemName = ITEM_NAMES[targetItem->type];
+                DrawText(itemName, menuX + 10, menuY + 10, 18, GOLD);
                 DrawText("1. Pickup", menuX + 10, menuY + 40, 16, WHITE);
                 DrawText("2. Examine", menuX + 10, menuY + 60, 16, WHITE);
                 DrawText("3. Cancel", menuX + 10, menuY + 80, 16, GRAY);
@@ -731,13 +746,29 @@ int main() {
                         DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, (Color){86, 74, 57, 255});
                     }
 
-                    if (playerState.inventory[slotIdx] == ITEM_BRONZE_SHORTSWORD) {
+                    // Draw inventory item icons
+                    ItemType item = playerState.inventory[slotIdx];
+                    int cx = slotX + SLOT_SIZE / 2;
+                    int cy = slotY + SLOT_SIZE / 2;
+
+                    if (item == ITEM_BRONZE_SHORTSWORD) {
                         Color bronzeColor = { 205, 127, 50, 255 };
-                        int cx = slotX + SLOT_SIZE / 2;
-                        int cy = slotY + SLOT_SIZE / 2;
                         DrawRectangle(cx - 2, cy - 14, 4, 24, bronzeColor);
                         DrawRectangle(cx - 2, cy + 10, 4, 8, BROWN);
                         DrawRectangle(cx - 8, cy + 8, 16, 3, BROWN);
+                    } else if (item == ITEM_COW_HIDE) {
+                        Color hideColor = { 139, 90, 43, 255 };
+                        DrawRectangle(cx - 12, cy - 8, 24, 16, hideColor);
+                        DrawRectangle(cx - 4, cy - 4, 6, 6, DARKBROWN);
+                    } else if (item == ITEM_BONES) {
+                        Color boneColor = { 230, 220, 200, 255 };
+                        DrawRectangle(cx - 2, cy - 10, 4, 20, boneColor);
+                        DrawCircle(cx, cy - 10, 4, boneColor);
+                        DrawCircle(cx, cy + 10, 4, boneColor);
+                    } else if (item == ITEM_GIL) {
+                        Color goldColor = { 255, 215, 0, 255 };
+                        DrawCircle(cx, cy, 10, goldColor);
+                        DrawCircle(cx, cy, 6, GOLD);
                     }
                 }
             }

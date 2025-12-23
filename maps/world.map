@@ -7,12 +7,19 @@ player_spawn 0.0 1.8 0.0
 # Items (type x y z)
 item bronze_shortsword 0.0 0.0 3.0
 
-# Trolls (x y z)
-troll 10.0 0.0 10.0
-troll -8.0 0.0 15.0
-troll 12.0 0.0 -5.0
-troll -15.0 0.0 -10.0
-troll 5.0 0.0 -12.0
+# Enemies (enemy TYPE x y z)
+# Trolls
+enemy troll 10.0 0.0 10.0
+enemy troll -8.0 0.0 15.0
+enemy troll 12.0 0.0 -5.0
+enemy troll -15.0 0.0 -10.0
+enemy troll 5.0 0.0 -12.0
+
+# Cows (cow pasture west of spawn)
+enemy cow 15.0 0.0 0.0
+enemy cow 18.0 0.0 3.0
+enemy cow 16.0 0.0 -2.0
+enemy cow 20.0 0.0 1.0
 
 # Walls: wall x y z width height depth r g b
 # Colors: Brown wood (139,90,43), Stone gray (128,128,128), Brick red (178,34,34)

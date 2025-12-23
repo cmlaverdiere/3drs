@@ -13,7 +13,20 @@ const int SLOT_PADDING = 4;
 // Item types
 enum ItemType {
     ITEM_NONE = 0,
-    ITEM_BRONZE_SHORTSWORD
+    ITEM_BRONZE_SHORTSWORD,
+    ITEM_COW_HIDE,
+    ITEM_BONES,
+    ITEM_GIL,
+    ITEM_COUNT
+};
+
+extern const char* ITEM_NAMES[ITEM_COUNT];
+
+// Enemy types
+enum EnemyType {
+    ENEMY_TROLL = 0,
+    ENEMY_COW,
+    ENEMY_TYPE_COUNT
 };
 
 // Skill indices
@@ -35,12 +48,38 @@ struct WorldItem {
     bool pickedUp;
 };
 
-// Troll NPC
-struct Troll {
+// Drop table entry
+struct DropEntry {
+    ItemType item;
+    int minAmount;
+    int maxAmount;
+    float chance;  // 0.0 to 1.0
+};
+
+const int MAX_DROPS_PER_ENEMY = 4;
+
+// Enemy type configuration
+struct EnemyConfig {
+    const char* name;
+    int maxHealth;
+    int maxHit;
+    float attackCooldown;
+    float chaseSpeed;
+    float attackRange;
+    float respawnTime;
+    bool aggressive;  // Attacks on sight vs only when attacked
+    DropEntry drops[MAX_DROPS_PER_ENEMY];
+    int dropCount;
+};
+
+extern const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT];
+
+// Generic Enemy NPC
+struct Enemy {
+    EnemyType type;
     Vector3 position;
     Vector3 spawnPoint;
     int health;
-    int maxHealth;
     bool alive;
     float respawnTimer;
     float wanderTimer;
@@ -95,20 +134,14 @@ struct PlayerState {
 };
 
 // Constants
-const int MAX_TROLLS = 20;
-const int MAX_WORLD_ITEMS = 50;
+const int MAX_ENEMIES = 50;
+const int MAX_WORLD_ITEMS = 100;
 const int MAX_WALLS = 100;
 const int MAX_DAMAGE_INDICATORS = 20;
 const int MAX_XP_POPUPS = 10;
 
-const int TROLL_MAX_HEALTH = 5;
-const float TROLL_RESPAWN_TIME = 15.0f;
-const float ATTACK_RANGE = 5.0f;
-const float ATTACK_COOLDOWN = 0.25f;
-const float TROLL_ATTACK_COOLDOWN = 1.0f;
-const float TROLL_ATTACK_RANGE = 2.0f;
-const float TROLL_CHASE_SPEED = 3.0f;
-const int TROLL_MAX_HIT = 2;
+const float PLAYER_ATTACK_RANGE = 5.0f;
+const float PLAYER_ATTACK_COOLDOWN = 0.25f;
 
 const float DAMAGE_INDICATOR_DURATION = 1.5f;
 const float XP_POPUP_DURATION = 2.0f;
@@ -120,8 +153,9 @@ struct MapData {
     Vector3 itemSpawns[MAX_WORLD_ITEMS];
     ItemType itemTypes[MAX_WORLD_ITEMS];
     int itemCount;
-    Vector3 trollSpawns[MAX_TROLLS];
-    int trollCount;
+    Vector3 enemySpawns[MAX_ENEMIES];
+    EnemyType enemyTypes[MAX_ENEMIES];
+    int enemyCount;
     Wall walls[MAX_WALLS];
     int wallCount;
 };
