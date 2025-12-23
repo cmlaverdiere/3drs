@@ -19,4 +19,5 @@ cmake --build build
 
 - WASD - Move
 - Mouse - Look
+- P - Screenshot
 - ESC - Exit

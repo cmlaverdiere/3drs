@@ -6,6 +6,7 @@ This project uses jj (Jujutsu), not git.
 
 - Create one commit per feature with `jj new -m "description"`
 - Do not commit too frequently - batch related changes together
+- When squashing, use `jj squash -m "message"`
 
 ## Raylib Documentation
 
@@ -26,4 +27,13 @@ cmake -B build && cmake --build build
 
 ```bash
 ./build/game
+```
+
+## Screenshots
+
+In-game: Press `P` to save a screenshot to `screenshots/`.
+
+View recent screenshots:
+```bash
+./last_screenshots.sh 5   # list last 5 screenshots
 ```
