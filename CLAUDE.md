@@ -17,7 +17,7 @@ Use Context7 MCP to look up Raylib docs:
 - Library ID: `/raysan5/raylib`
 - Example: `mcp__plugin_context7_context7__get-library-docs` with topic "camera first person"
 
-@raylib.h
+@raylib_no_comments.h.h
 @README.md
 
 ## Build

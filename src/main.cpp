@@ -588,11 +588,42 @@ void DrawSword(Vector3 pos, Color bladeColor, Color handleColor) {
 void DrawTroll(Vector3 pos, bool highlighted) {
     Color trollSkin = { 100, 140, 100, 255 };  // Greenish troll color
     Color trollDark = { 70, 100, 70, 255 };
+    Color eyeColor = { 200, 50, 50, 255 };     // Angry red eyes
+    Color eyeWhite = { 220, 220, 180, 255 };   // Yellowed eye whites
+    Color browColor = { 50, 70, 50, 255 };     // Dark brow ridges
+    Color mouthColor = { 40, 30, 30, 255 };    // Dark mouth
 
     // Body
     DrawCube((Vector3){pos.x, pos.y + 0.8f, pos.z}, 0.6f, 0.8f, 0.4f, trollSkin);
     // Head
     DrawSphere((Vector3){pos.x, pos.y + 1.5f, pos.z}, 0.35f, trollSkin);
+
+    // Face - angry expression
+    float headY = pos.y + 1.5f;
+    float faceZ = pos.z + 0.30f;  // Front of face
+
+    // Eye whites (slightly yellowed for menacing look)
+    DrawSphere((Vector3){pos.x - 0.10f, headY + 0.05f, faceZ}, 0.07f, eyeWhite);
+    DrawSphere((Vector3){pos.x + 0.10f, headY + 0.05f, faceZ}, 0.07f, eyeWhite);
+
+    // Pupils (red, angry)
+    DrawSphere((Vector3){pos.x - 0.10f, headY + 0.05f, faceZ + 0.04f}, 0.04f, eyeColor);
+    DrawSphere((Vector3){pos.x + 0.10f, headY + 0.05f, faceZ + 0.04f}, 0.04f, eyeColor);
+
+    // Angry eyebrows (angled downward toward center - furrowed)
+    // Left eyebrow - angled down toward nose
+    DrawCube((Vector3){pos.x - 0.12f, headY + 0.15f, faceZ}, 0.10f, 0.03f, 0.02f, browColor);
+    DrawCube((Vector3){pos.x - 0.06f, headY + 0.12f, faceZ}, 0.06f, 0.03f, 0.02f, browColor);
+    // Right eyebrow - angled down toward nose
+    DrawCube((Vector3){pos.x + 0.12f, headY + 0.15f, faceZ}, 0.10f, 0.03f, 0.02f, browColor);
+    DrawCube((Vector3){pos.x + 0.06f, headY + 0.12f, faceZ}, 0.06f, 0.03f, 0.02f, browColor);
+
+    // Scowling mouth (downturned frown)
+    DrawCube((Vector3){pos.x, headY - 0.12f, faceZ}, 0.14f, 0.03f, 0.02f, mouthColor);
+    // Mouth corners turned down
+    DrawCube((Vector3){pos.x - 0.08f, headY - 0.10f, faceZ}, 0.03f, 0.03f, 0.02f, mouthColor);
+    DrawCube((Vector3){pos.x + 0.08f, headY - 0.10f, faceZ}, 0.03f, 0.03f, 0.02f, mouthColor);
+
     // Arms
     DrawCube((Vector3){pos.x - 0.45f, pos.y + 0.8f, pos.z}, 0.2f, 0.6f, 0.2f, trollDark);
     DrawCube((Vector3){pos.x + 0.45f, pos.y + 0.8f, pos.z}, 0.2f, 0.6f, 0.2f, trollDark);
@@ -744,6 +775,10 @@ int main() {
     float deathFadeTimer = 0.0f;
     const float DEATH_FADE_DURATION = 2.0f;
     Vector3 deathPosition = { 0, 0, 0 };
+
+    // HP regeneration
+    float hpRegenTimer = 0.0f;
+    const float HP_REGEN_INTERVAL = 5.0f;
 
     bool mouseMode = false;
     DisableCursor();
@@ -975,6 +1010,17 @@ int main() {
             if (levelUpNotif.timer <= 0) {
                 levelUpNotif.active = false;
             }
+        }
+
+        // HP regeneration (only when alive and not at max HP)
+        if (!playerDead && playerState.currentHP < playerState.maxHP) {
+            hpRegenTimer += dt;
+            if (hpRegenTimer >= HP_REGEN_INTERVAL) {
+                playerState.currentHP++;
+                hpRegenTimer = 0.0f;
+            }
+        } else {
+            hpRegenTimer = 0.0f;
         }
 
         // Handle player death
