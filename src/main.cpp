@@ -35,6 +35,8 @@ struct Troll {
     float respawnTimer;
     float wanderTimer;
     Vector3 wanderTarget;
+    bool hostile;
+    float attackCooldown;
 };
 
 const int MAX_TROLLS = 20;
@@ -53,6 +55,10 @@ const int TROLL_MAX_HEALTH = 5;
 const float TROLL_RESPAWN_TIME = 15.0f;
 const float ATTACK_RANGE = 5.0f;
 const float ATTACK_COOLDOWN = 0.25f;
+const float TROLL_ATTACK_COOLDOWN = 1.0f;
+const float TROLL_ATTACK_RANGE = 2.0f;
+const float TROLL_CHASE_SPEED = 3.0f;
+const int TROLL_MAX_HIT = 2;
 
 // Floating damage indicator
 struct DamageIndicator {
@@ -303,6 +309,8 @@ struct PlayerState {
     ItemType inventory[INV_SLOTS];
     ItemType equippedWeapon;
     bool swordPickedUp;
+    int currentHP;
+    int maxHP;
 };
 
 const char* SAVE_FILE = "savegame.json";
@@ -326,7 +334,9 @@ void SaveGame(const PlayerState& state) {
     }
     fprintf(f, "],\n");
     fprintf(f, "  \"equippedWeapon\": %d,\n", state.equippedWeapon);
-    fprintf(f, "  \"swordPickedUp\": %s\n", state.swordPickedUp ? "true" : "false");
+    fprintf(f, "  \"swordPickedUp\": %s,\n", state.swordPickedUp ? "true" : "false");
+    fprintf(f, "  \"currentHP\": %d,\n", state.currentHP);
+    fprintf(f, "  \"maxHP\": %d\n", state.maxHP);
     fprintf(f, "}\n");
     fclose(f);
 }
@@ -421,6 +431,8 @@ bool LoadGame(PlayerState& state) {
 
     state.equippedWeapon = (ItemType)ParseIntAfter(json, "\"equippedWeapon\"", ITEM_NONE);
     state.swordPickedUp = ParseBoolAfter(json, "\"swordPickedUp\"", false);
+    state.currentHP = ParseIntAfter(json, "\"currentHP\"", 10);
+    state.maxHP = ParseIntAfter(json, "\"maxHP\"", 10);
 
     delete[] json;
     return true;
@@ -633,6 +645,9 @@ int main() {
     }
     playerState.equippedWeapon = ITEM_NONE;
     playerState.swordPickedUp = false;
+    // HP starts at max (level 10 = 10 HP)
+    playerState.maxHP = 10;
+    playerState.currentHP = 10;
 
     // Try to load saved game
     if (LoadGame(playerState)) {
@@ -704,6 +719,8 @@ int main() {
         trolls[i].respawnTimer = 0.0f;
         trolls[i].wanderTimer = 0.0f;
         trolls[i].wanderTarget = mapData.trollSpawns[i];
+        trolls[i].hostile = false;
+        trolls[i].attackCooldown = 0.0f;
     }
 
     // Damage indicators
@@ -721,6 +738,12 @@ int main() {
     // Weapon swing animation
     float swingTimer = 0.0f;
     const float SWING_DURATION = 0.2f;
+
+    // Death state
+    bool playerDead = false;
+    float deathFadeTimer = 0.0f;
+    const float DEATH_FADE_DURATION = 2.0f;
+    Vector3 deathPosition = { 0, 0, 0 };
 
     bool mouseMode = false;
     DisableCursor();
@@ -772,7 +795,7 @@ int main() {
             }
         }
 
-        if (!mouseMode) {
+        if (!mouseMode && !playerDead) {
             UpdateCamera(&camera, CAMERA_FIRST_PERSON);
 
             // Wall collision
@@ -801,24 +824,57 @@ int main() {
 
         // Update trolls
         for (int i = 0; i < trollCount; i++) {
-            if (trolls[i].alive) {
-                // Simple wandering behavior
-                trolls[i].wanderTimer -= dt;
-                if (trolls[i].wanderTimer <= 0) {
-                    // Pick a new wander target near spawn point
-                    trolls[i].wanderTarget.x = trolls[i].spawnPoint.x + RandomFloat(-3.0f, 3.0f);
-                    trolls[i].wanderTarget.z = trolls[i].spawnPoint.z + RandomFloat(-3.0f, 3.0f);
-                    trolls[i].wanderTimer = RandomFloat(2.0f, 5.0f);
-                }
+            // Update attack cooldown
+            if (trolls[i].attackCooldown > 0) {
+                trolls[i].attackCooldown -= dt;
+            }
 
-                // Move towards wander target slowly
-                float dx = trolls[i].wanderTarget.x - trolls[i].position.x;
-                float dz = trolls[i].wanderTarget.z - trolls[i].position.z;
-                float dist = sqrtf(dx*dx + dz*dz);
-                if (dist > 0.5f) {
-                    float speed = 1.0f * dt;
-                    trolls[i].position.x += (dx / dist) * speed;
-                    trolls[i].position.z += (dz / dist) * speed;
+            if (trolls[i].alive) {
+                if (trolls[i].hostile && !playerDead) {
+                    // Chase player
+                    float dx = camera.position.x - trolls[i].position.x;
+                    float dz = camera.position.z - trolls[i].position.z;
+                    float dist = sqrtf(dx*dx + dz*dz);
+
+                    if (dist > TROLL_ATTACK_RANGE) {
+                        // Move towards player
+                        float speed = TROLL_CHASE_SPEED * dt;
+                        trolls[i].position.x += (dx / dist) * speed;
+                        trolls[i].position.z += (dz / dist) * speed;
+                    } else if (trolls[i].attackCooldown <= 0) {
+                        // Attack player!
+                        int damage = GetRandomValue(0, TROLL_MAX_HIT);
+                        playerState.currentHP -= damage;
+                        SpawnDamageIndicator(damageIndicators, camera.position, damage);
+                        trolls[i].attackCooldown = TROLL_ATTACK_COOLDOWN;
+
+                        // Check for player death
+                        if (playerState.currentHP <= 0) {
+                            playerState.currentHP = 0;
+                            playerDead = true;
+                            deathFadeTimer = DEATH_FADE_DURATION;
+                            deathPosition = camera.position;
+                        }
+                    }
+                } else {
+                    // Simple wandering behavior
+                    trolls[i].wanderTimer -= dt;
+                    if (trolls[i].wanderTimer <= 0) {
+                        // Pick a new wander target near spawn point
+                        trolls[i].wanderTarget.x = trolls[i].spawnPoint.x + RandomFloat(-3.0f, 3.0f);
+                        trolls[i].wanderTarget.z = trolls[i].spawnPoint.z + RandomFloat(-3.0f, 3.0f);
+                        trolls[i].wanderTimer = RandomFloat(2.0f, 5.0f);
+                    }
+
+                    // Move towards wander target slowly
+                    float dx = trolls[i].wanderTarget.x - trolls[i].position.x;
+                    float dz = trolls[i].wanderTarget.z - trolls[i].position.z;
+                    float dist = sqrtf(dx*dx + dz*dz);
+                    if (dist > 0.5f) {
+                        float speed = 1.0f * dt;
+                        trolls[i].position.x += (dx / dist) * speed;
+                        trolls[i].position.z += (dz / dist) * speed;
+                    }
                 }
             } else {
                 // Respawn timer
@@ -831,12 +887,14 @@ int main() {
                     trolls[i].health = TROLL_MAX_HEALTH;
                     trolls[i].alive = true;
                     trolls[i].wanderTimer = 0.0f;
+                    trolls[i].hostile = false;  // Reset hostility on respawn
+                    trolls[i].attackCooldown = 0.0f;
                 }
             }
         }
 
-        // Attack with mouse click (when not in mouse mode and weapon equipped)
-        if (!mouseMode && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
+        // Attack with mouse click (when not in mouse mode, weapon equipped, and not dead)
+        if (!mouseMode && !playerDead && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
             // Trigger swing animation
             swingTimer = SWING_DURATION;
             attackCooldown = ATTACK_COOLDOWN;
@@ -859,6 +917,9 @@ int main() {
             }
 
             if (target != nullptr) {
+                // Make troll hostile when attacked
+                target->hostile = true;
+
                 int damage = RollDamage(maxHit);
                 target->health -= damage;
                 SpawnDamageIndicator(damageIndicators, target->position, damage);
@@ -916,20 +977,58 @@ int main() {
             }
         }
 
-        // Check proximity to world items
-        if (worldItemCount > 0 && !worldItems[0].pickedUp) {
-            float dist = Distance3D(camera.position, worldItems[0].position);
-            if (dist <= PICKUP_RANGE) {
-                showActionMenu = true;
-                targetItem = &worldItems[0];
-            } else {
-                showActionMenu = false;
-                targetItem = nullptr;
+        // Handle player death
+        if (playerDead) {
+            deathFadeTimer -= dt;
+
+            // Drop all items at first frame of death
+            if (deathFadeTimer > DEATH_FADE_DURATION - dt - 0.01f) {
+                // Drop all inventory items on the ground
+                for (int i = 0; i < INV_SLOTS; i++) {
+                    if (playerState.inventory[i] != ITEM_NONE && worldItemCount < MAX_WORLD_ITEMS) {
+                        // Add item to world at death position with slight random offset
+                        worldItems[worldItemCount].type = playerState.inventory[i];
+                        worldItems[worldItemCount].position = deathPosition;
+                        worldItems[worldItemCount].position.x += RandomFloat(-1.0f, 1.0f);
+                        worldItems[worldItemCount].position.z += RandomFloat(-1.0f, 1.0f);
+                        worldItems[worldItemCount].position.y = 0.0f;
+                        worldItems[worldItemCount].pickedUp = false;
+                        worldItemCount++;
+
+                        playerState.inventory[i] = ITEM_NONE;
+                    }
+                }
+                // Unequip weapon since it was dropped
+                playerState.equippedWeapon = ITEM_NONE;
             }
-        } else {
-            if (targetItem == &worldItems[0]) {
-                showActionMenu = false;
-                targetItem = nullptr;
+
+            // Respawn after fade completes
+            if (deathFadeTimer <= 0) {
+                playerDead = false;
+                // Respawn at spawn point
+                camera.position = mapData.playerSpawn;
+                camera.target = (Vector3){ mapData.playerSpawn.x, mapData.playerSpawn.y, mapData.playerSpawn.z + 1.0f };
+                // Reset HP to max
+                playerState.maxHP = GetLevelFromXP(playerState.skillXP[SKILL_HITPOINTS]);
+                playerState.currentHP = playerState.maxHP;
+                // Reset all troll hostility
+                for (int i = 0; i < trollCount; i++) {
+                    trolls[i].hostile = false;
+                }
+            }
+        }
+
+        // Check proximity to world items
+        showActionMenu = false;
+        targetItem = nullptr;
+        for (int i = 0; i < worldItemCount; i++) {
+            if (!worldItems[i].pickedUp) {
+                float dist = Distance3D(camera.position, worldItems[i].position);
+                if (dist <= PICKUP_RANGE) {
+                    showActionMenu = true;
+                    targetItem = &worldItems[i];
+                    break;  // Show menu for closest item we find
+                }
             }
         }
 
@@ -971,12 +1070,14 @@ int main() {
 
             BeginMode3D(camera);
                 DrawModel(groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
-                // Draw world items
+                // Draw world items (all unpicked items)
                 for (int i = 0; i < worldItemCount; i++) {
-                    if (!worldItems[i].pickedUp && worldItems[i].type == ITEM_BRONZE_SHORTSWORD) {
-                        Color bronzeBlade = { 205, 127, 50, 255 };
-                        Color bronzeHandle = { 139, 90, 43, 255 };
-                        DrawSword(worldItems[i].position, bronzeBlade, bronzeHandle);
+                    if (!worldItems[i].pickedUp) {
+                        if (worldItems[i].type == ITEM_BRONZE_SHORTSWORD) {
+                            Color bronzeBlade = { 205, 127, 50, 255 };
+                            Color bronzeHandle = { 139, 90, 43, 255 };
+                            DrawSword(worldItems[i].position, bronzeBlade, bronzeHandle);
+                        }
                     }
                 }
 
@@ -1004,6 +1105,19 @@ int main() {
                 DrawText("[MOUSE MODE]", 10, 35, 16, YELLOW);
             }
             DrawFPS(screenWidth - 100, 10);
+
+            // Player HP bar (left of screen, below skills will go here)
+            int hpBarX = 10;
+            int hpBarY = screenHeight - 50;
+            int hpBarW = 150;
+            int hpBarH = 20;
+            float hpRatio = (playerState.maxHP > 0) ? (float)playerState.currentHP / playerState.maxHP : 0.0f;
+            DrawRectangle(hpBarX, hpBarY, hpBarW, hpBarH, DARKGRAY);
+            DrawRectangle(hpBarX, hpBarY, (int)(hpBarW * hpRatio), hpBarH, RED);
+            DrawRectangleLines(hpBarX, hpBarY, hpBarW, hpBarH, BLACK);
+            char hpText[32];
+            snprintf(hpText, sizeof(hpText), "HP: %d/%d", playerState.currentHP, playerState.maxHP);
+            DrawText(hpText, hpBarX + 5, hpBarY + 3, 14, WHITE);
 
             // Attack cooldown indicator
             if (attackCooldown > 0) {
@@ -1282,7 +1396,24 @@ int main() {
             }
 
             if (screenshotMsgTimer > 0.0f) {
-                DrawText(screenshotMsg, 10, screenHeight - 30, 20, YELLOW);
+                DrawText(screenshotMsg, 10, screenHeight - 80, 20, YELLOW);
+            }
+
+            // Death blackout overlay
+            if (playerDead) {
+                // Fade from transparent to black, then stay black
+                float fadeProgress = 1.0f - (deathFadeTimer / DEATH_FADE_DURATION);
+                unsigned char alpha = (unsigned char)(255 * fadeProgress);
+                if (fadeProgress > 0.5f) alpha = 255; // Full black for second half
+                DrawRectangle(0, 0, screenWidth, screenHeight, (Color){ 0, 0, 0, alpha });
+
+                // "You died" text appears after initial fade
+                if (fadeProgress > 0.3f) {
+                    const char* deathText = "You died!";
+                    int textWidth = MeasureText(deathText, 48);
+                    unsigned char textAlpha = (unsigned char)(255 * ((fadeProgress - 0.3f) / 0.7f));
+                    DrawText(deathText, (screenWidth - textWidth) / 2, screenHeight / 2 - 24, 48, (Color){ 200, 0, 0, textAlpha });
+                }
             }
 
             // Level up parchment banner
