@@ -37,7 +37,18 @@ struct Troll {
     Vector3 wanderTarget;
 };
 
-const int TROLL_COUNT = 5;
+const int MAX_TROLLS = 20;
+const int MAX_WORLD_ITEMS = 50;
+const int MAX_WALLS = 100;
+
+// Wall structure (for buildings/barriers)
+struct Wall {
+    Vector3 position;  // Center position
+    float width;       // X dimension
+    float height;      // Y dimension
+    float depth;       // Z dimension
+    Color color;
+};
 const int TROLL_MAX_HEALTH = 5;
 const float TROLL_RESPAWN_TIME = 15.0f;
 const float ATTACK_RANGE = 5.0f;
@@ -64,6 +75,87 @@ struct XPPopup {
 
 const int MAX_XP_POPUPS = 10;
 const float XP_POPUP_DURATION = 2.0f;
+
+// Map data loaded from file
+struct MapData {
+    Vector3 playerSpawn;
+    Vector3 itemSpawns[MAX_WORLD_ITEMS];
+    ItemType itemTypes[MAX_WORLD_ITEMS];
+    int itemCount;
+    Vector3 trollSpawns[MAX_TROLLS];
+    int trollCount;
+    Wall walls[MAX_WALLS];
+    int wallCount;
+};
+
+// Load map from file
+bool LoadMap(const char* filename, MapData& map) {
+    FILE* f = fopen(filename, "r");
+    if (!f) {
+        TraceLog(LOG_ERROR, "Failed to load map: %s", filename);
+        return false;
+    }
+
+    map.playerSpawn = { 0.0f, 1.8f, 0.0f };
+    map.itemCount = 0;
+    map.trollCount = 0;
+    map.wallCount = 0;
+
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        // Skip comments and empty lines
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
+
+        char type[64];
+        if (sscanf(line, "%63s", type) != 1) continue;
+
+        if (strcmp(type, "player_spawn") == 0) {
+            sscanf(line, "%*s %f %f %f", &map.playerSpawn.x, &map.playerSpawn.y, &map.playerSpawn.z);
+        }
+        else if (strcmp(type, "item") == 0) {
+            if (map.itemCount < MAX_WORLD_ITEMS) {
+                char itemName[64];
+                float x, y, z;
+                if (sscanf(line, "%*s %63s %f %f %f", itemName, &x, &y, &z) == 4) {
+                    if (strcmp(itemName, "bronze_shortsword") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_BRONZE_SHORTSWORD;
+                    } else {
+                        map.itemTypes[map.itemCount] = ITEM_NONE;
+                    }
+                    map.itemSpawns[map.itemCount] = { x, y, z };
+                    map.itemCount++;
+                }
+            }
+        }
+        else if (strcmp(type, "troll") == 0) {
+            if (map.trollCount < MAX_TROLLS) {
+                float x, y, z;
+                if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
+                    map.trollSpawns[map.trollCount] = { x, y, z };
+                    map.trollCount++;
+                }
+            }
+        }
+        else if (strcmp(type, "wall") == 0) {
+            if (map.wallCount < MAX_WALLS) {
+                float x, y, z, w, h, d;
+                int r, g, b;
+                if (sscanf(line, "%*s %f %f %f %f %f %f %d %d %d", &x, &y, &z, &w, &h, &d, &r, &g, &b) == 9) {
+                    map.walls[map.wallCount].position = { x, y, z };
+                    map.walls[map.wallCount].width = w;
+                    map.walls[map.wallCount].height = h;
+                    map.walls[map.wallCount].depth = d;
+                    map.walls[map.wallCount].color = { (unsigned char)r, (unsigned char)g, (unsigned char)b, 255 };
+                    map.wallCount++;
+                }
+            }
+        }
+    }
+
+    fclose(f);
+    TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d trolls, %d walls)", filename, map.itemCount, map.trollCount, map.wallCount);
+    return true;
+}
 
 // OSRS XP table (XP required for each level 1-99)
 // Formula: floor(sum from x=1 to L-1 of floor(x + 300 * 2^(x/7)) / 4)
@@ -412,6 +504,56 @@ void SpawnXPPopup(XPPopup* popups, int xpAmount, int skillIndex) {
     }
 }
 
+// Check if a point is inside a wall (with padding for player radius)
+// Uses XZ collision only - player can't step over any wall regardless of height
+bool PointInWall(Vector3 point, Wall& wall, float padding) {
+    Vector3 wpos = wall.position;
+    float halfW = wall.width / 2.0f + padding;
+    float halfD = wall.depth / 2.0f + padding;
+
+    return (point.x >= wpos.x - halfW && point.x <= wpos.x + halfW &&
+            point.z >= wpos.z - halfD && point.z <= wpos.z + halfD);
+}
+
+// Resolve collision between player and wall, returns adjusted position
+Vector3 ResolveWallCollision(Vector3 pos, Wall& wall, float padding) {
+    Vector3 wpos = wall.position;
+    float halfW = wall.width / 2.0f + padding;
+    float halfD = wall.depth / 2.0f + padding;
+
+    // Find nearest edge and push out
+    float distLeft = pos.x - (wpos.x - halfW);
+    float distRight = (wpos.x + halfW) - pos.x;
+    float distBack = pos.z - (wpos.z - halfD);
+    float distFront = (wpos.z + halfD) - pos.z;
+
+    float minDist = distLeft;
+    Vector3 result = pos;
+
+    if (distRight < minDist) {
+        minDist = distRight;
+    }
+    if (distBack < minDist) {
+        minDist = distBack;
+    }
+    if (distFront < minDist) {
+        minDist = distFront;
+    }
+
+    // Push out along the minimum penetration axis
+    if (minDist == distLeft) {
+        result.x = wpos.x - halfW;
+    } else if (minDist == distRight) {
+        result.x = wpos.x + halfW;
+    } else if (minDist == distBack) {
+        result.z = wpos.z - halfD;
+    } else if (minDist == distFront) {
+        result.z = wpos.z + halfD;
+    }
+
+    return result;
+}
+
 // Draw a simple sword shape
 void DrawSword(Vector3 pos, Color bladeColor, Color handleColor) {
     DrawCube((Vector3){pos.x, pos.y + 0.05f, pos.z}, 0.08f, 0.05f, 0.6f, bladeColor);
@@ -502,34 +644,54 @@ int main() {
     float screenshotMsgTimer = 0.0f;
     char screenshotMsg[128] = "";
 
-    WorldItem sword = {
-        .type = ITEM_BRONZE_SHORTSWORD,
-        .position = { 0.0f, 0.0f, 3.0f },
-        .pickedUp = playerState.swordPickedUp
-    };
+    // Load map data
+    MapData mapData = {};
+    if (!LoadMap("maps/world.map", mapData)) {
+        // Fallback defaults if map fails to load
+        mapData.playerSpawn = { 0.0f, 1.8f, 0.0f };
+        mapData.itemSpawns[0] = { 0.0f, 0.0f, 3.0f };
+        mapData.itemTypes[0] = ITEM_BRONZE_SHORTSWORD;
+        mapData.itemCount = 1;
+        mapData.trollSpawns[0] = { 10.0f, 0.0f, 10.0f };
+        mapData.trollCount = 1;
+    }
+
+    // Initialize world items from map
+    WorldItem worldItems[MAX_WORLD_ITEMS] = {};
+    int worldItemCount = mapData.itemCount;
+    for (int i = 0; i < worldItemCount; i++) {
+        worldItems[i].type = mapData.itemTypes[i];
+        worldItems[i].position = mapData.itemSpawns[i];
+        worldItems[i].pickedUp = false;
+    }
+    // Restore picked up state from save (for now just sword at index 0)
+    if (worldItemCount > 0) {
+        worldItems[0].pickedUp = playerState.swordPickedUp;
+    }
 
     const float PICKUP_RANGE = 2.5f;
     bool showActionMenu = false;
     WorldItem* targetItem = nullptr;
 
-    // Initialize trolls at various spawn points
-    Troll trolls[TROLL_COUNT];
-    Vector3 trollSpawns[TROLL_COUNT] = {
-        { 10.0f, 0.0f, 10.0f },
-        { -8.0f, 0.0f, 15.0f },
-        { 12.0f, 0.0f, -5.0f },
-        { -15.0f, 0.0f, -10.0f },
-        { 5.0f, 0.0f, -12.0f }
-    };
-    for (int i = 0; i < TROLL_COUNT; i++) {
-        trolls[i].spawnPoint = trollSpawns[i];
-        trolls[i].position = trollSpawns[i];
+    // Copy walls from map data
+    Wall walls[MAX_WALLS] = {};
+    int wallCount = mapData.wallCount;
+    for (int i = 0; i < wallCount; i++) {
+        walls[i] = mapData.walls[i];
+    }
+
+    // Initialize trolls from map spawn points
+    Troll trolls[MAX_TROLLS] = {};
+    int trollCount = mapData.trollCount;
+    for (int i = 0; i < trollCount; i++) {
+        trolls[i].spawnPoint = mapData.trollSpawns[i];
+        trolls[i].position = mapData.trollSpawns[i];
         trolls[i].health = TROLL_MAX_HEALTH;
         trolls[i].maxHealth = TROLL_MAX_HEALTH;
         trolls[i].alive = true;
         trolls[i].respawnTimer = 0.0f;
         trolls[i].wanderTimer = 0.0f;
-        trolls[i].wanderTarget = trollSpawns[i];
+        trolls[i].wanderTarget = mapData.trollSpawns[i];
     }
 
     // Damage indicators
@@ -562,6 +724,19 @@ int main() {
 
         if (!mouseMode) {
             UpdateCamera(&camera, CAMERA_FIRST_PERSON);
+
+            // Wall collision
+            const float PLAYER_RADIUS = 0.3f;
+            for (int i = 0; i < wallCount; i++) {
+                if (PointInWall(camera.position, walls[i], PLAYER_RADIUS)) {
+                    Vector3 oldTarget = camera.target;
+                    Vector3 oldPos = camera.position;
+                    camera.position = ResolveWallCollision(camera.position, walls[i], PLAYER_RADIUS);
+                    // Maintain look direction
+                    camera.target.x += camera.position.x - oldPos.x;
+                    camera.target.z += camera.position.z - oldPos.z;
+                }
+            }
         }
 
         // Update attack cooldown
@@ -570,7 +745,7 @@ int main() {
         }
 
         // Update trolls
-        for (int i = 0; i < TROLL_COUNT; i++) {
+        for (int i = 0; i < trollCount; i++) {
             if (trolls[i].alive) {
                 // Simple wandering behavior
                 trolls[i].wanderTimer -= dt;
@@ -614,7 +789,7 @@ int main() {
             Troll* target = nullptr;
             float closestDist = ATTACK_RANGE + 1.0f;
 
-            for (int i = 0; i < TROLL_COUNT; i++) {
+            for (int i = 0; i < trollCount; i++) {
                 if (trolls[i].alive) {
                     float dist = Distance3D(camera.position, trolls[i].position);
                     if (dist <= ATTACK_RANGE && dist < closestDist && IsFacing(camera, trolls[i].position)) {
@@ -671,18 +846,18 @@ int main() {
             }
         }
 
-        // Check proximity to sword
-        if (!sword.pickedUp) {
-            float dist = Distance3D(camera.position, sword.position);
+        // Check proximity to world items
+        if (worldItemCount > 0 && !worldItems[0].pickedUp) {
+            float dist = Distance3D(camera.position, worldItems[0].position);
             if (dist <= PICKUP_RANGE) {
                 showActionMenu = true;
-                targetItem = &sword;
+                targetItem = &worldItems[0];
             } else {
                 showActionMenu = false;
                 targetItem = nullptr;
             }
         } else {
-            if (targetItem == &sword) {
+            if (targetItem == &worldItems[0]) {
                 showActionMenu = false;
                 targetItem = nullptr;
             }
@@ -726,19 +901,30 @@ int main() {
 
             BeginMode3D(camera);
                 DrawModel(groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
-                if (!sword.pickedUp) {
-                    Color bronzeBlade = { 205, 127, 50, 255 };
-                    Color bronzeHandle = { 139, 90, 43, 255 };
-                    DrawSword(sword.position, bronzeBlade, bronzeHandle);
+                // Draw world items
+                for (int i = 0; i < worldItemCount; i++) {
+                    if (!worldItems[i].pickedUp && worldItems[i].type == ITEM_BRONZE_SHORTSWORD) {
+                        Color bronzeBlade = { 205, 127, 50, 255 };
+                        Color bronzeHandle = { 139, 90, 43, 255 };
+                        DrawSword(worldItems[i].position, bronzeBlade, bronzeHandle);
+                    }
                 }
 
                 // Draw trolls
-                for (int i = 0; i < TROLL_COUNT; i++) {
+                for (int i = 0; i < trollCount; i++) {
                     if (trolls[i].alive) {
                         float dist = Distance3D(camera.position, trolls[i].position);
                         bool inRange = (dist <= ATTACK_RANGE) && IsFacing(camera, trolls[i].position);
                         DrawTroll(trolls[i].position, inRange);
                     }
+                }
+
+                // Draw walls
+                for (int i = 0; i < wallCount; i++) {
+                    Vector3 pos = walls[i].position;
+                    pos.y += walls[i].height / 2.0f; // Walls sit on ground
+                    DrawCube(pos, walls[i].width, walls[i].height, walls[i].depth, walls[i].color);
+                    DrawCubeWires(pos, walls[i].width, walls[i].height, walls[i].depth, DARKGRAY);
                 }
             EndMode3D();
 
@@ -777,7 +963,9 @@ int main() {
                         screenPos.y > 0 && screenPos.y < screenHeight) {
                         char dmgText[16];
                         snprintf(dmgText, sizeof(dmgText), "%d", damageIndicators[i].damage);
-                        float alpha = damageIndicators[i].timer / DAMAGE_INDICATOR_DURATION;
+                        // Stay solid for 80% of duration, then fade quickly
+                        float timeRatio = damageIndicators[i].timer / DAMAGE_INDICATOR_DURATION;
+                        float alpha = (timeRatio > 0.2f) ? 1.0f : (timeRatio / 0.2f);
                         int fontSize = 48; // Much larger
                         int textWidth = MeasureText(dmgText, fontSize);
                         int tx = (int)screenPos.x - textWidth/2;
@@ -803,7 +991,7 @@ int main() {
             }
 
             // Draw troll health bars (world to screen)
-            for (int i = 0; i < TROLL_COUNT; i++) {
+            for (int i = 0; i < trollCount; i++) {
                 if (trolls[i].alive) {
                     // Check if troll is in front of camera
                     Vector3 toTroll = {
@@ -844,7 +1032,9 @@ int main() {
             int xpPopupY = screenHeight / 3;
             for (int i = 0; i < MAX_XP_POPUPS; i++) {
                 if (xpPopups[i].active) {
-                    float alpha = xpPopups[i].timer / XP_POPUP_DURATION;
+                    // Stay solid for 80% of duration, then fade quickly
+                    float timeRatio = xpPopups[i].timer / XP_POPUP_DURATION;
+                    float alpha = (timeRatio > 0.2f) ? 1.0f : (timeRatio / 0.2f);
                     int skillIdx = xpPopups[i].skillIndex;
                     int currentXP = playerState.skillXP[skillIdx];
                     int currentLevel = GetLevelFromXP(currentXP);
@@ -971,7 +1161,7 @@ int main() {
     playerState.targetX = camera.target.x;
     playerState.targetY = camera.target.y;
     playerState.targetZ = camera.target.z;
-    playerState.swordPickedUp = sword.pickedUp;
+    playerState.swordPickedUp = (worldItemCount > 0) ? worldItems[0].pickedUp : false;
     SaveGame(playerState);
     TraceLog(LOG_INFO, "Game saved to %s", SAVE_FILE);
 
