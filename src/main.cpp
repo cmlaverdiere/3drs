@@ -14,6 +14,115 @@
 #include "game_systems.h"
 #include "sound_system.h"
 
+// Global heightmap data
+float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
+bool g_heightmapInitialized = false;
+
+// Initialize heightmap with procedural terrain + valleys from map data
+void InitializeHeightmap(const MapData& mapData) {
+    // Generate base procedural terrain
+    for (int z = 0; z < HEIGHTMAP_SIZE; z++) {
+        for (int x = 0; x < HEIGHTMAP_SIZE; x++) {
+            float worldX = (x * HEIGHTMAP_SCALE) - HEIGHTMAP_OFFSET;
+            float worldZ = (z * HEIGHTMAP_SCALE) - HEIGHTMAP_OFFSET;
+            g_heightmap[z][x] = GenerateProceduralHeight(worldX, worldZ);
+        }
+    }
+
+    // Apply valleys from map data
+    for (int v = 0; v < mapData.valleyCount; v++) {
+        const Valley& valley = mapData.valleys[v];
+
+        for (int z = 0; z < HEIGHTMAP_SIZE; z++) {
+            for (int x = 0; x < HEIGHTMAP_SIZE; x++) {
+                float worldX = (x * HEIGHTMAP_SCALE) - HEIGHTMAP_OFFSET;
+                float worldZ = (z * HEIGHTMAP_SCALE) - HEIGHTMAP_OFFSET;
+
+                float dist;
+                if (valley.axis == 0) {
+                    // X-axis valley (runs north-south)
+                    dist = fabsf(worldX - valley.position);
+                } else {
+                    // Z-axis valley (runs east-west)
+                    dist = fabsf(worldZ - valley.position);
+                }
+
+                if (dist < valley.width) {
+                    float t = dist / valley.width;
+                    float valleyFactor = 1.0f - t * t;  // Parabolic falloff
+                    g_heightmap[z][x] -= valley.depth * valleyFactor;
+                }
+            }
+        }
+    }
+
+    g_heightmapInitialized = true;
+}
+
+// Generate ground mesh with heights from heightmap
+Mesh GenHeightmapMesh(float sizeX, float sizeZ, int resX, int resZ) {
+    Mesh mesh = { 0 };
+
+    int vertexCount = resX * resZ;
+    int triangleCount = (resX - 1) * (resZ - 1) * 2;
+
+    mesh.vertexCount = vertexCount;
+    mesh.triangleCount = triangleCount;
+    mesh.vertices = (float*)RL_MALLOC(vertexCount * 3 * sizeof(float));
+    mesh.texcoords = (float*)RL_MALLOC(vertexCount * 2 * sizeof(float));
+    mesh.normals = (float*)RL_MALLOC(vertexCount * 3 * sizeof(float));
+    mesh.indices = (unsigned short*)RL_MALLOC(triangleCount * 3 * sizeof(unsigned short));
+
+    float halfX = sizeX / 2.0f;
+    float halfZ = sizeZ / 2.0f;
+
+    // Generate vertices
+    int vi = 0;
+    for (int z = 0; z < resZ; z++) {
+        for (int x = 0; x < resX; x++) {
+            float worldX = -halfX + (x / (float)(resX - 1)) * sizeX;
+            float worldZ = -halfZ + (z / (float)(resZ - 1)) * sizeZ;
+            float height = GetTerrainHeight(worldX, worldZ);
+
+            mesh.vertices[vi * 3 + 0] = worldX;
+            mesh.vertices[vi * 3 + 1] = height;
+            mesh.vertices[vi * 3 + 2] = worldZ;
+
+            mesh.texcoords[vi * 2 + 0] = x / (float)(resX - 1);
+            mesh.texcoords[vi * 2 + 1] = z / (float)(resZ - 1);
+
+            // Simple up normal (will be recalculated)
+            mesh.normals[vi * 3 + 0] = 0.0f;
+            mesh.normals[vi * 3 + 1] = 1.0f;
+            mesh.normals[vi * 3 + 2] = 0.0f;
+
+            vi++;
+        }
+    }
+
+    // Generate indices
+    int ii = 0;
+    for (int z = 0; z < resZ - 1; z++) {
+        for (int x = 0; x < resX - 1; x++) {
+            int topLeft = z * resX + x;
+            int topRight = topLeft + 1;
+            int bottomLeft = (z + 1) * resX + x;
+            int bottomRight = bottomLeft + 1;
+
+            mesh.indices[ii++] = topLeft;
+            mesh.indices[ii++] = bottomLeft;
+            mesh.indices[ii++] = topRight;
+
+            mesh.indices[ii++] = topRight;
+            mesh.indices[ii++] = bottomLeft;
+            mesh.indices[ii++] = bottomRight;
+        }
+    }
+
+    UploadMesh(&mesh, false);
+    return mesh;
+}
+
 int main() {
     InitWindow(1, 1, "3D RuneScape-style Game");
     int monitorWidth = GetMonitorWidth(0);
@@ -61,23 +170,12 @@ int main() {
     camera.fovy = 60.0f;
     camera.projection = CAMERA_PERSPECTIVE;
 
-    Shader grassShader = LoadShader("shaders/grass.vs", "shaders/grass.fs");
-    Mesh groundMesh = GenMeshPlane(100.0f, 100.0f, 100, 100);
-    Model groundModel = LoadModelFromMesh(groundMesh);
-    groundModel.materials[0].shader = grassShader;
-
-    // Load wall shaders
-    Shader wallShaders[WALL_MATERIAL_COUNT];
-    wallShaders[WALL_WOOD] = LoadShader("shaders/wall.vs", "shaders/wood.fs");
-    wallShaders[WALL_STONE] = LoadShader("shaders/wall.vs", "shaders/stone.fs");
-    wallShaders[WALL_BRICK] = LoadShader("shaders/wall.vs", "shaders/brick.fs");
-
     mkdir("screenshots", 0755);
 
     float screenshotMsgTimer = 0.0f;
     char screenshotMsg[128] = "";
 
-    // Load map data
+    // Load map data first (needed for heightmap valleys)
     MapData mapData = {};
     if (!LoadMap("maps/world.map", mapData)) {
         mapData.playerSpawn = { 0.0f, 1.8f, 0.0f };
@@ -88,6 +186,25 @@ int main() {
         mapData.enemyTypes[0] = ENEMY_TROLL;
         mapData.enemyCount = 1;
     }
+
+    // Initialize heightmap with valleys from map data
+    InitializeHeightmap(mapData);
+
+    // Create ground mesh from heightmap
+    Shader grassShader = LoadShader("shaders/grass.vs", "shaders/grass.fs");
+    Mesh groundMesh = GenHeightmapMesh(128.0f, 128.0f, 128, 128);
+    Model groundModel = LoadModelFromMesh(groundMesh);
+    groundModel.materials[0].shader = grassShader;
+
+    // Load wall shaders
+    Shader wallShaders[WALL_MATERIAL_COUNT];
+    wallShaders[WALL_WOOD] = LoadShader("shaders/wall.vs", "shaders/wood.fs");
+    wallShaders[WALL_STONE] = LoadShader("shaders/wall.vs", "shaders/stone.fs");
+    wallShaders[WALL_BRICK] = LoadShader("shaders/wall.vs", "shaders/brick.fs");
+
+    // Load water shader
+    Shader waterShader = LoadShader("shaders/water.vs", "shaders/water.fs");
+    int waterTimeLoc = GetShaderLocation(waterShader, "time");
 
     // Initialize world items from map
     WorldItem worldItems[MAX_WORLD_ITEMS] = {};
@@ -151,6 +268,18 @@ int main() {
         trees[i].respawnTimer = 0.0f;
     }
 
+    // Initialize water bodies from map
+    Water waterBodies[MAX_WATER] = {};
+    Model waterModels[MAX_WATER] = {};
+    int waterCount = mapData.waterCount;
+    for (int i = 0; i < waterCount; i++) {
+        waterBodies[i] = mapData.waterBodies[i];
+        // Create a plane mesh for each water body
+        Mesh waterMesh = GenMeshPlane(waterBodies[i].width, waterBodies[i].length, 20, 20);
+        waterModels[i] = LoadModelFromMesh(waterMesh);
+        waterModels[i].materials[0].shader = waterShader;
+    }
+
     // Damage indicators
     DamageIndicator damageIndicators[MAX_DAMAGE_INDICATORS] = {};
 
@@ -176,6 +305,13 @@ int main() {
     // HP regeneration
     float hpRegenTimer = 0.0f;
     const float HP_REGEN_INTERVAL = 5.0f;
+
+    // Jump physics
+    float jumpVelocity = 0.0f;
+    float jumpHeight = 0.0f;  // Height above terrain
+    const float JUMP_FORCE = 8.0f;
+    const float GRAVITY = 20.0f;
+    bool isJumping = false;
 
     bool mouseMode = false;
     DisableCursor();
@@ -346,19 +482,85 @@ int main() {
             UpdateCamera(&camera, CAMERA_FIRST_PERSON);
 
             const float PLAYER_RADIUS = 0.3f;
+            const float PLAYER_EYE_HEIGHT = 1.8f;
+            float currentTerrainY = GetTerrainHeight(camera.position.x, camera.position.z);
+            float playerFeetY = camera.position.y - PLAYER_EYE_HEIGHT;
+
             for (int i = 0; i < wallCount; i++) {
-                if (PointInWall(camera.position, walls[i], PLAYER_RADIUS)) {
-                    Vector3 oldPos = camera.position;
-                    camera.position = ResolveWallCollision(camera.position, walls[i], PLAYER_RADIUS);
-                    camera.target.x += camera.position.x - oldPos.x;
-                    camera.target.z += camera.position.z - oldPos.z;
+                // Calculate wall top height
+                float wallTerrainY = GetTerrainHeight(walls[i].position.x, walls[i].position.z);
+                float wallTop = wallTerrainY + walls[i].height;
+
+                // Only apply horizontal collision if player feet are below wall top
+                // This allows walking/jumping onto platforms
+                if (playerFeetY < wallTop - 0.1f) {
+                    if (PointInWall(camera.position, walls[i], PLAYER_RADIUS)) {
+                        Vector3 oldPos = camera.position;
+                        camera.position = ResolveWallCollision(camera.position, walls[i], PLAYER_RADIUS);
+                        camera.target.x += camera.position.x - oldPos.x;
+                        camera.target.z += camera.position.z - oldPos.z;
+                    }
                 }
             }
 
-            // Apply terrain height to player (preserve look pitch)
-            const float PLAYER_EYE_HEIGHT = 1.8f;
+            // Jump input
+            if (IsKeyPressed(KEY_SPACE) && !isJumping) {
+                jumpVelocity = JUMP_FORCE;
+                isJumping = true;
+            }
+
+            // Apply gravity and update jump
+            if (isJumping) {
+                jumpVelocity -= GRAVITY * dt;
+                jumpHeight += jumpVelocity * dt;
+
+                // Land on ground
+                if (jumpHeight <= 0.0f) {
+                    jumpHeight = 0.0f;
+                    jumpVelocity = 0.0f;
+                    isJumping = false;
+                }
+            }
+
+            // Apply terrain height + jump to player (preserve look pitch)
             float terrainY = GetTerrainHeight(camera.position.x, camera.position.z);
-            float newY = terrainY + PLAYER_EYE_HEIGHT;
+            float groundY = terrainY;  // Start with terrain as ground
+
+            // Check if player can stand on top of any wall (platform/bridge)
+            for (int i = 0; i < wallCount; i++) {
+                float wallTerrainY = GetTerrainHeight(walls[i].position.x, walls[i].position.z);
+                float wallTop = wallTerrainY + walls[i].height;
+                float halfW = walls[i].width / 2.0f;
+                float halfD = walls[i].depth / 2.0f;
+
+                // Check if player is within wall XZ bounds
+                if (camera.position.x >= walls[i].position.x - halfW &&
+                    camera.position.x <= walls[i].position.x + halfW &&
+                    camera.position.z >= walls[i].position.z - halfD &&
+                    camera.position.z <= walls[i].position.z + halfD) {
+                    // Player is above this wall - use wall top as ground if higher
+                    if (wallTop > groundY) {
+                        groundY = wallTop;
+                    }
+                }
+            }
+
+            // Land on highest surface (terrain or wall top)
+            if (isJumping && jumpVelocity < 0) {
+                float playerFeet = terrainY + jumpHeight;
+                if (playerFeet <= groundY) {
+                    jumpHeight = groundY - terrainY;
+                    if (jumpHeight < 0.01f) jumpHeight = 0.0f;
+                    jumpVelocity = 0.0f;
+                    isJumping = false;
+                }
+            } else if (!isJumping) {
+                // Walking - snap to ground surface
+                jumpHeight = groundY - terrainY;
+                if (jumpHeight < 0.01f) jumpHeight = 0.0f;
+            }
+
+            float newY = terrainY + PLAYER_EYE_HEIGHT + jumpHeight;
             float yDelta = newY - camera.position.y;
             camera.position.y = newY;
             camera.target.y += yDelta;
@@ -799,6 +1001,15 @@ int main() {
                     Vector3 pos = walls[i].position;
                     pos.y += GetTerrainHeight(pos.x, pos.z) + walls[i].height / 2.0f;
                     DrawModel(wallModels[i], pos, 1.0f, WHITE);
+                }
+
+                // Draw water bodies (at fixed Y from map, for flat river effect)
+                float gameTime = (float)GetTime();
+                SetShaderValue(waterShader, waterTimeLoc, &gameTime, SHADER_UNIFORM_FLOAT);
+                for (int i = 0; i < waterCount; i++) {
+                    Vector3 waterPos = waterBodies[i].position;
+                    // Use Y position from map file directly (river in valley)
+                    DrawModel(waterModels[i], waterPos, 1.0f, WHITE);
                 }
             EndMode3D();
 
@@ -1309,6 +1520,12 @@ int main() {
     for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
         UnloadShader(wallShaders[i]);
     }
+
+    // Unload water models and shader
+    for (int i = 0; i < waterCount; i++) {
+        UnloadModel(waterModels[i]);
+    }
+    UnloadShader(waterShader);
 
     // Cleanup audio
     UnloadSoundSystem();

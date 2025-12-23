@@ -123,7 +123,24 @@ struct Tree {
     float respawnTimer;
 };
 
+// Water body (river, lake, pond)
+struct Water {
+    Vector3 position;  // Center position
+    float width;       // X extent
+    float length;      // Z extent
+};
+
+// Terrain valley (carves into heightmap)
+struct Valley {
+    float position;    // X or Z position of valley center
+    float width;       // Half-width of valley
+    float depth;       // How deep to carve
+    int axis;          // 0 = X-axis (N-S), 1 = Z-axis (E-W)
+};
+
 const int MAX_TREES = 100;
+const int MAX_WATER = 20;
+const int MAX_VALLEYS = 10;
 const int TREE_MAX_HEALTH = 3;      // 3 chops to fell a tree
 const float TREE_RESPAWN_TIME = 30.0f;
 const int WOODCUTTING_XP = 25;       // XP per log
@@ -198,6 +215,10 @@ struct MapData {
     int wallCount;
     Vector3 treeSpawns[MAX_TREES];
     int treeCount;
+    Water waterBodies[MAX_WATER];
+    int waterCount;
+    Valley valleys[MAX_VALLEYS];
+    int valleyCount;
 };
 
 #endif

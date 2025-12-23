@@ -63,11 +63,25 @@ enemy troll 28.0 0.0 3.0
 enemy troll 24.0 0.0 12.0
 enemy troll 30.0 0.0 10.0
 
+# === TERRAIN MODIFIERS ===
+# Format: valley axis position width depth
+# axis: x = runs north-south, z = runs east-west
+# River Lum valley (carves terrain down for river)
+valley x 12.0 8.0 3.0
+
+# === RIVER LUM (runs north-south, east of castle) ===
+# Format: water x y z width length
+# Water sits at bottom of carved valley
+water 12.0 -1.0 -15.0 6.0 30.0
+water 12.0 -1.0 15.0 6.0 30.0
+water 14.0 -1.0 35.0 10.0 20.0
+
 # === BRIDGE over river (east of spawn) ===
-wall 15.0 0.0 0.0 4.0 0.3 6.0 wood
+# Bridge deck spans the valley
+wall 12.0 0.0 0.0 10.0 0.4 5.0 wood
 # Bridge railings
-wall 15.0 0.0 -3.0 4.0 1.0 0.2 wood
-wall 15.0 0.0 3.0 4.0 1.0 0.2 wood
+wall 12.0 0.4 -2.3 10.0 0.8 0.3 wood
+wall 12.0 0.4 2.3 10.0 0.8 0.3 wood
 
 # === LUMBRIDGE SWAMP ENTRANCE (southeast) ===
 # Dead trees / swamp markers

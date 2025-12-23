@@ -4,10 +4,19 @@
 #include "raylib.h"
 #include <cmath>
 
-// Terrain noise functions (must match grass.vs shader)
+// Heightmap system for terrain
+const int HEIGHTMAP_SIZE = 128;  // 128x128 grid
+const float HEIGHTMAP_SCALE = 1.0f;  // 1 unit per cell (covers -64 to +64)
+const float HEIGHTMAP_OFFSET = 64.0f;  // Center offset
+
+// Global heightmap data (initialized in main.cpp)
+extern float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
+extern bool g_heightmapInitialized;
+
+// Terrain noise functions for initial generation
 inline float TerrainHash(float x, float y) {
     float v = sinf(x * 127.1f + y * 311.7f) * 43758.5453f;
-    return v - floorf(v);  // GLSL fract equivalent
+    return v - floorf(v);
 }
 
 inline float TerrainNoise(float x, float y) {
@@ -16,7 +25,6 @@ inline float TerrainNoise(float x, float y) {
     float fx = x - ix;
     float fy = y - iy;
 
-    // Smoothstep
     fx = fx * fx * (3.0f - 2.0f * fx);
     fy = fy * fy * (3.0f - 2.0f * fy);
 
@@ -30,19 +38,45 @@ inline float TerrainNoise(float x, float y) {
     return ab + (cd - ab) * fy;
 }
 
-inline float GetTerrainHeight(float x, float z) {
+// Generate base procedural height at a point
+inline float GenerateProceduralHeight(float x, float z) {
     float height = 0.0f;
-
-    // Large rolling hills (must match shader)
-    height += TerrainNoise(x * 0.02f, z * 0.02f) * 2.5f;
-
-    // Medium bumps
-    height += TerrainNoise(x * 0.08f, z * 0.08f) * 0.8f;
-
-    // Small details
-    height += TerrainNoise(x * 0.2f, z * 0.2f) * 0.3f;
-
+    height += TerrainNoise(x * 0.02f, z * 0.02f) * 2.0f;
+    height += TerrainNoise(x * 0.08f, z * 0.08f) * 0.6f;
+    height += TerrainNoise(x * 0.2f, z * 0.2f) * 0.2f;
     return height;
+}
+
+// Sample heightmap with bilinear interpolation
+inline float GetTerrainHeight(float x, float z) {
+    if (!g_heightmapInitialized) {
+        return GenerateProceduralHeight(x, z);
+    }
+
+    // Convert world coords to heightmap coords
+    float hx = (x + HEIGHTMAP_OFFSET) / HEIGHTMAP_SCALE;
+    float hz = (z + HEIGHTMAP_OFFSET) / HEIGHTMAP_SCALE;
+
+    // Clamp to valid range
+    if (hx < 0) hx = 0;
+    if (hz < 0) hz = 0;
+    if (hx >= HEIGHTMAP_SIZE - 1) hx = HEIGHTMAP_SIZE - 1.001f;
+    if (hz >= HEIGHTMAP_SIZE - 1) hz = HEIGHTMAP_SIZE - 1.001f;
+
+    // Bilinear interpolation
+    int ix = (int)hx;
+    int iz = (int)hz;
+    float fx = hx - ix;
+    float fz = hz - iz;
+
+    float h00 = g_heightmap[iz][ix];
+    float h10 = g_heightmap[iz][ix + 1];
+    float h01 = g_heightmap[iz + 1][ix];
+    float h11 = g_heightmap[iz + 1][ix + 1];
+
+    float h0 = h00 + (h10 - h00) * fx;
+    float h1 = h01 + (h11 - h01) * fx;
+    return h0 + (h1 - h0) * fz;
 }
 
 // Distance helper

@@ -15,6 +15,8 @@ bool LoadMap(const char* filename, MapData& map) {
     map.enemyCount = 0;
     map.wallCount = 0;
     map.treeCount = 0;
+    map.waterCount = 0;
+    map.valleyCount = 0;
 
     char line[256];
     while (fgets(line, sizeof(line), f)) {
@@ -112,9 +114,36 @@ bool LoadMap(const char* filename, MapData& map) {
                 }
             }
         }
+        else if (strcmp(type, "water") == 0) {
+            // Format: water x y z width length
+            if (map.waterCount < MAX_WATER) {
+                float x, y, z, w, l;
+                if (sscanf(line, "%*s %f %f %f %f %f", &x, &y, &z, &w, &l) == 5) {
+                    map.waterBodies[map.waterCount].position = { x, y, z };
+                    map.waterBodies[map.waterCount].width = w;
+                    map.waterBodies[map.waterCount].length = l;
+                    map.waterCount++;
+                }
+            }
+        }
+        else if (strcmp(type, "valley") == 0) {
+            // Format: valley axis position width depth
+            // axis: x (north-south) or z (east-west)
+            if (map.valleyCount < MAX_VALLEYS) {
+                char axisName[16];
+                float pos, width, depth;
+                if (sscanf(line, "%*s %15s %f %f %f", axisName, &pos, &width, &depth) == 4) {
+                    map.valleys[map.valleyCount].position = pos;
+                    map.valleys[map.valleyCount].width = width;
+                    map.valleys[map.valleyCount].depth = depth;
+                    map.valleys[map.valleyCount].axis = (strcmp(axisName, "x") == 0) ? 0 : 1;
+                    map.valleyCount++;
+                }
+            }
+        }
     }
 
     fclose(f);
-    TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees)", filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount);
+    TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d valleys)", filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.valleyCount);
     return true;
 }
