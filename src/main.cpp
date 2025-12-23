@@ -138,6 +138,7 @@ int main() {
         enemies[i].wanderTarget = mapData.enemySpawns[i];
         enemies[i].hostile = false;
         enemies[i].attackCooldown = 0.0f;
+        enemies[i].facingAngle = RandomFloat(0.0f, 2.0f * PI);
     }
 
     // Damage indicators
@@ -362,10 +363,26 @@ int main() {
             }
 
             if (enemies[i].alive) {
+                const float TURN_SPEED = 5.0f;  // Radians per second
+
                 if (enemies[i].hostile && !playerDead) {
                     float dx = camera.position.x - enemies[i].position.x;
                     float dz = camera.position.z - enemies[i].position.z;
                     float dist = sqrtf(dx*dx + dz*dz);
+
+                    // Turn to face player
+                    float targetAngle = atan2f(dx, dz);
+                    float angleDiff = targetAngle - enemies[i].facingAngle;
+                    // Normalize angle difference to [-PI, PI]
+                    while (angleDiff > PI) angleDiff -= 2.0f * PI;
+                    while (angleDiff < -PI) angleDiff += 2.0f * PI;
+                    // Smooth rotation
+                    float maxTurn = TURN_SPEED * dt;
+                    if (fabsf(angleDiff) < maxTurn) {
+                        enemies[i].facingAngle = targetAngle;
+                    } else {
+                        enemies[i].facingAngle += (angleDiff > 0 ? maxTurn : -maxTurn);
+                    }
 
                     if (dist > config.attackRange) {
                         float speed = config.chaseSpeed * dt;
@@ -397,6 +414,18 @@ int main() {
                     float dz = enemies[i].wanderTarget.z - enemies[i].position.z;
                     float dist = sqrtf(dx*dx + dz*dz);
                     if (dist > 0.5f) {
+                        // Turn to face wander target
+                        float targetAngle = atan2f(dx, dz);
+                        float angleDiff = targetAngle - enemies[i].facingAngle;
+                        while (angleDiff > PI) angleDiff -= 2.0f * PI;
+                        while (angleDiff < -PI) angleDiff += 2.0f * PI;
+                        float maxTurn = TURN_SPEED * 0.5f * dt;  // Turn slower when wandering
+                        if (fabsf(angleDiff) < maxTurn) {
+                            enemies[i].facingAngle = targetAngle;
+                        } else {
+                            enemies[i].facingAngle += (angleDiff > 0 ? maxTurn : -maxTurn);
+                        }
+
                         float speed = 1.0f * dt;
                         enemies[i].position.x += (dx / dist) * speed;
                         enemies[i].position.z += (dz / dist) * speed;
@@ -413,6 +442,7 @@ int main() {
                     enemies[i].wanderTimer = 0.0f;
                     enemies[i].hostile = false;
                     enemies[i].attackCooldown = 0.0f;
+                    enemies[i].facingAngle = RandomFloat(0.0f, 2.0f * PI);
                 }
             }
         }

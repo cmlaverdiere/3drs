@@ -94,6 +94,7 @@ struct Enemy {
     Vector3 wanderTarget;
     bool hostile;
     float attackCooldown;
+    float facingAngle;  // Rotation in radians (0 = facing +Z)
 };
 
 // Wall structure (for buildings/barriers)

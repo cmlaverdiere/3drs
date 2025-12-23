@@ -8,10 +8,10 @@
 void DrawSword(Vector3 pos, Color bladeColor, Color handleColor);
 
 // Draw a troll (simple humanoid shape)
-void DrawTroll(Vector3 pos, bool highlighted);
+void DrawTroll(Vector3 pos, float facingAngle, bool highlighted);
 
 // Draw a cow
-void DrawCow(Vector3 pos, bool highlighted);
+void DrawCow(Vector3 pos, float facingAngle, bool highlighted);
 
 // Draw any enemy by type
 void DrawEnemy(const Enemy& enemy, bool highlighted);
