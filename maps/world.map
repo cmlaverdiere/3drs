@@ -21,40 +21,40 @@ enemy cow 18.0 0.0 3.0
 enemy cow 16.0 0.0 -2.0
 enemy cow 20.0 0.0 1.0
 
-# Walls: wall x y z width height depth r g b
-# Colors: Brown wood (139,90,43), Stone gray (128,128,128), Brick red (178,34,34)
+# Walls: wall x y z width height depth material
+# Materials: wood, stone, brick
 
 # === Small wooden house (east of spawn) ===
 # Back wall
-wall 8.0 0.0 5.0 4.0 3.0 0.3 139 90 43
+wall 8.0 0.0 5.0 4.0 3.0 0.3 wood
 # Front wall left
-wall 6.5 0.0 9.0 1.0 3.0 0.3 139 90 43
+wall 6.5 0.0 9.0 1.0 3.0 0.3 wood
 # Front wall right
-wall 9.5 0.0 9.0 1.0 3.0 0.3 139 90 43
+wall 9.5 0.0 9.0 1.0 3.0 0.3 wood
 # Left wall
-wall 6.0 0.0 7.0 0.3 3.0 4.0 139 90 43
+wall 6.0 0.0 7.0 0.3 3.0 4.0 wood
 # Right wall
-wall 10.0 0.0 7.0 0.3 3.0 4.0 139 90 43
+wall 10.0 0.0 7.0 0.3 3.0 4.0 wood
 
 # === Stone tavern (north of spawn) ===
 # Back wall
-wall 0.0 0.0 -10.0 8.0 4.0 0.4 128 128 128
+wall 0.0 0.0 -10.0 8.0 4.0 0.4 stone
 # Front wall left
-wall -3.0 0.0 -4.0 2.0 4.0 0.4 128 128 128
+wall -3.0 0.0 -4.0 2.0 4.0 0.4 stone
 # Front wall right
-wall 3.0 0.0 -4.0 2.0 4.0 0.4 128 128 128
+wall 3.0 0.0 -4.0 2.0 4.0 0.4 stone
 # Left wall
-wall -4.0 0.0 -7.0 0.4 4.0 6.0 128 128 128
+wall -4.0 0.0 -7.0 0.4 4.0 6.0 stone
 # Right wall
-wall 4.0 0.0 -7.0 0.4 4.0 6.0 128 128 128
+wall 4.0 0.0 -7.0 0.4 4.0 6.0 stone
 
 # === Watchtower (northwest) ===
 # Tower base (all four walls)
-wall -12.0 0.0 8.0 3.0 6.0 0.5 178 34 34
-wall -12.0 0.0 12.0 3.0 6.0 0.5 178 34 34
-wall -13.5 0.0 10.0 0.5 6.0 4.0 178 34 34
-wall -10.5 0.0 10.0 0.5 6.0 4.0 178 34 34
+wall -12.0 0.0 8.0 3.0 6.0 0.5 brick
+wall -12.0 0.0 12.0 3.0 6.0 0.5 brick
+wall -13.5 0.0 10.0 0.5 6.0 4.0 brick
+wall -10.5 0.0 10.0 0.5 6.0 4.0 brick
 
 # === Fence around spawn area ===
-wall -3.0 0.0 2.0 0.2 1.2 4.0 100 70 40
-wall 3.0 0.0 2.0 0.2 1.2 4.0 100 70 40
+wall -3.0 0.0 2.0 0.2 1.2 4.0 wood
+wall 3.0 0.0 2.0 0.2 1.2 4.0 wood

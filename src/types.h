@@ -29,6 +29,14 @@ enum EnemyType {
     ENEMY_TYPE_COUNT
 };
 
+// Wall material types
+enum WallMaterial {
+    WALL_WOOD = 0,
+    WALL_STONE,
+    WALL_BRICK,
+    WALL_MATERIAL_COUNT
+};
+
 // Skill indices
 enum Skill {
     SKILL_COMBAT = 0,
@@ -94,7 +102,7 @@ struct Wall {
     float width;
     float height;
     float depth;
-    Color color;
+    WallMaterial material;
 };
 
 // Floating damage indicator

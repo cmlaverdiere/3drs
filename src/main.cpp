@@ -60,6 +60,12 @@ int main() {
     Model groundModel = LoadModelFromMesh(groundMesh);
     groundModel.materials[0].shader = grassShader;
 
+    // Load wall shaders
+    Shader wallShaders[WALL_MATERIAL_COUNT];
+    wallShaders[WALL_WOOD] = LoadShader("shaders/wall.vs", "shaders/wood.fs");
+    wallShaders[WALL_STONE] = LoadShader("shaders/wall.vs", "shaders/stone.fs");
+    wallShaders[WALL_BRICK] = LoadShader("shaders/wall.vs", "shaders/brick.fs");
+
     mkdir("screenshots", 0755);
 
     float screenshotMsgTimer = 0.0f;
@@ -93,11 +99,17 @@ int main() {
     bool showActionMenu = false;
     WorldItem* targetItem = nullptr;
 
-    // Copy walls from map data
+    // Copy walls from map data and create models
     Wall walls[MAX_WALLS] = {};
+    Model wallModels[MAX_WALLS] = {};
     int wallCount = mapData.wallCount;
     for (int i = 0; i < wallCount; i++) {
         walls[i] = mapData.walls[i];
+
+        // Create a cube mesh for this wall
+        Mesh wallMesh = GenMeshCube(walls[i].width, walls[i].height, walls[i].depth);
+        wallModels[i] = LoadModelFromMesh(wallMesh);
+        wallModels[i].materials[0].shader = wallShaders[walls[i].material];
     }
 
     // Initialize enemies from map spawn points
@@ -473,8 +485,7 @@ int main() {
                 for (int i = 0; i < wallCount; i++) {
                     Vector3 pos = walls[i].position;
                     pos.y += walls[i].height / 2.0f;
-                    DrawCube(pos, walls[i].width, walls[i].height, walls[i].depth, walls[i].color);
-                    DrawCubeWires(pos, walls[i].width, walls[i].height, walls[i].depth, DARKGRAY);
+                    DrawModel(wallModels[i], pos, 1.0f, WHITE);
                 }
             EndMode3D();
 
@@ -864,6 +875,15 @@ int main() {
 
     UnloadModel(groundModel);
     UnloadShader(grassShader);
+
+    // Unload wall models and shaders
+    for (int i = 0; i < wallCount; i++) {
+        UnloadModel(wallModels[i]);
+    }
+    for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
+        UnloadShader(wallShaders[i]);
+    }
+
     CloseWindow();
     return 0;
 }

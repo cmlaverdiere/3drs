@@ -77,13 +77,23 @@ bool LoadMap(const char* filename, MapData& map) {
         else if (strcmp(type, "wall") == 0) {
             if (map.wallCount < MAX_WALLS) {
                 float x, y, z, w, h, d;
-                int r, g, b;
-                if (sscanf(line, "%*s %f %f %f %f %f %f %d %d %d", &x, &y, &z, &w, &h, &d, &r, &g, &b) == 9) {
+                char materialName[64];
+                if (sscanf(line, "%*s %f %f %f %f %f %f %63s", &x, &y, &z, &w, &h, &d, materialName) == 7) {
                     map.walls[map.wallCount].position = { x, y, z };
                     map.walls[map.wallCount].width = w;
                     map.walls[map.wallCount].height = h;
                     map.walls[map.wallCount].depth = d;
-                    map.walls[map.wallCount].color = { (unsigned char)r, (unsigned char)g, (unsigned char)b, 255 };
+
+                    // Parse material type
+                    if (strcmp(materialName, "wood") == 0) {
+                        map.walls[map.wallCount].material = WALL_WOOD;
+                    } else if (strcmp(materialName, "stone") == 0) {
+                        map.walls[map.wallCount].material = WALL_STONE;
+                    } else if (strcmp(materialName, "brick") == 0) {
+                        map.walls[map.wallCount].material = WALL_BRICK;
+                    } else {
+                        map.walls[map.wallCount].material = WALL_STONE; // default
+                    }
                     map.wallCount++;
                 }
             }
