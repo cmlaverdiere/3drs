@@ -62,7 +62,7 @@ int main() {
     camera.projection = CAMERA_PERSPECTIVE;
 
     Shader grassShader = LoadShader("shaders/grass.vs", "shaders/grass.fs");
-    Mesh groundMesh = GenMeshPlane(100.0f, 100.0f, 10, 10);
+    Mesh groundMesh = GenMeshPlane(100.0f, 100.0f, 100, 100);
     Model groundModel = LoadModelFromMesh(groundMesh);
     groundModel.materials[0].shader = grassShader;
 
@@ -354,6 +354,14 @@ int main() {
                     camera.target.z += camera.position.z - oldPos.z;
                 }
             }
+
+            // Apply terrain height to player (preserve look pitch)
+            const float PLAYER_EYE_HEIGHT = 1.8f;
+            float terrainY = GetTerrainHeight(camera.position.x, camera.position.z);
+            float newY = terrainY + PLAYER_EYE_HEIGHT;
+            float yDelta = newY - camera.position.y;
+            camera.position.y = newY;
+            camera.target.y += yDelta;
         }
 
         if (attackCooldown > 0) {
@@ -482,8 +490,10 @@ int main() {
 
                 for (int i = 0; i < treeCount; i++) {
                     if (trees[i].alive) {
-                        float dist = Distance3D(camera.position, trees[i].position);
-                        if (dist <= CHOP_RANGE && dist < closestTreeDist && IsFacing(camera, trees[i].position)) {
+                        Vector3 treePos = trees[i].position;
+                        treePos.y = GetTerrainHeight(treePos.x, treePos.z);
+                        float dist = Distance3D(camera.position, treePos);
+                        if (dist <= CHOP_RANGE && dist < closestTreeDist && IsFacing(camera, treePos)) {
                             targetTree = &trees[i];
                             closestTreeDist = dist;
                         }
@@ -538,8 +548,10 @@ int main() {
 
                 for (int i = 0; i < enemyCount; i++) {
                     if (enemies[i].alive) {
-                        float dist = Distance3D(camera.position, enemies[i].position);
-                        if (dist <= PLAYER_ATTACK_RANGE && dist < closestDist && IsFacing(camera, enemies[i].position)) {
+                        Vector3 enemyPos = enemies[i].position;
+                        enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
+                        float dist = Distance3D(camera.position, enemyPos);
+                        if (dist <= PLAYER_ATTACK_RANGE && dist < closestDist && IsFacing(camera, enemyPos)) {
                             target = &enemies[i];
                             closestDist = dist;
                         }
@@ -552,7 +564,9 @@ int main() {
 
                     int damage = RollDamage(maxHit);
                     target->health -= damage;
-                    SpawnDamageIndicator(damageIndicators, target->position, damage);
+                    Vector3 dmgPos = target->position;
+                    dmgPos.y = GetTerrainHeight(dmgPos.x, dmgPos.z);
+                    SpawnDamageIndicator(damageIndicators, dmgPos, damage);
 
                     // Play hit or miss sound
                     if (damage > 0) {
@@ -667,12 +681,14 @@ int main() {
             }
         }
 
-        // Check proximity to world items
+        // Check proximity to world items (adjusted for terrain)
         showActionMenu = false;
         targetItem = nullptr;
         for (int i = 0; i < worldItemCount; i++) {
             if (!worldItems[i].pickedUp) {
-                float dist = Distance3D(camera.position, worldItems[i].position);
+                Vector3 itemPos = worldItems[i].position;
+                itemPos.y += GetTerrainHeight(itemPos.x, itemPos.z);
+                float dist = Distance3D(camera.position, itemPos);
                 if (dist <= PICKUP_RANGE) {
                     showActionMenu = true;
                     targetItem = &worldItems[i];
@@ -745,34 +761,43 @@ int main() {
             BeginMode3D(camera);
                 DrawModel(groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
 
-                // Draw world items
+                // Draw world items (adjusted for terrain)
                 for (int i = 0; i < worldItemCount; i++) {
                     if (!worldItems[i].pickedUp) {
-                        DrawWorldItem(worldItems[i].type, worldItems[i].position);
+                        Vector3 itemPos = worldItems[i].position;
+                        itemPos.y += GetTerrainHeight(itemPos.x, itemPos.z);
+                        DrawWorldItem(worldItems[i].type, itemPos);
                     }
                 }
 
-                // Draw enemies
+                // Draw enemies (adjusted for terrain)
                 for (int i = 0; i < enemyCount; i++) {
                     if (enemies[i].alive) {
-                        float dist = Distance3D(camera.position, enemies[i].position);
-                        bool inRange = (dist <= PLAYER_ATTACK_RANGE) && IsFacing(camera, enemies[i].position);
-                        DrawEnemy(enemies[i], inRange);
+                        Vector3 enemyPos = enemies[i].position;
+                        enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
+                        float dist = Distance3D(camera.position, enemyPos);
+                        bool inRange = (dist <= PLAYER_ATTACK_RANGE) && IsFacing(camera, enemyPos);
+                        Enemy adjustedEnemy = enemies[i];
+                        adjustedEnemy.position = enemyPos;
+                        DrawEnemy(adjustedEnemy, inRange);
                     }
                 }
 
-                // Draw trees
+                // Draw trees (adjusted for terrain)
                 for (int i = 0; i < treeCount; i++) {
                     if (trees[i].alive) {
-                        float dist = Distance3D(camera.position, trees[i].position);
-                        bool inRange = (dist <= CHOP_RANGE) && IsFacing(camera, trees[i].position) && (playerState.equippedWeapon == ITEM_BRONZE_AXE);
-                        DrawTree(trees[i].position, inRange);
+                        Vector3 treePos = trees[i].position;
+                        treePos.y = GetTerrainHeight(treePos.x, treePos.z);
+                        float dist = Distance3D(camera.position, treePos);
+                        bool inRange = (dist <= CHOP_RANGE) && IsFacing(camera, treePos) && (playerState.equippedWeapon == ITEM_BRONZE_AXE);
+                        DrawTree(treePos, inRange);
                     }
                 }
 
+                // Draw walls (adjusted for terrain)
                 for (int i = 0; i < wallCount; i++) {
                     Vector3 pos = walls[i].position;
-                    pos.y += walls[i].height / 2.0f;
+                    pos.y += GetTerrainHeight(pos.x, pos.z) + walls[i].height / 2.0f;
                     DrawModel(wallModels[i], pos, 1.0f, WHITE);
                 }
             EndMode3D();
@@ -865,7 +890,8 @@ int main() {
                     };
                     if (Dot3D(toEnemy, camForward) <= 0) continue;
 
-                    Vector3 healthBarPos = { enemies[i].position.x, enemies[i].position.y + 2.0f, enemies[i].position.z };
+                    float enemyTerrainY = GetTerrainHeight(enemies[i].position.x, enemies[i].position.z);
+                    Vector3 healthBarPos = { enemies[i].position.x, enemyTerrainY + 2.0f, enemies[i].position.z };
                     Vector2 screenPos = GetWorldToScreen(healthBarPos, camera);
                     if (screenPos.x > 0 && screenPos.x < screenWidth &&
                         screenPos.y > 0 && screenPos.y < screenHeight) {
