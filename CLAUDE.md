@@ -4,9 +4,11 @@
 
 This project uses jj (Jujutsu), not git.
 
+**IMPORTANT: COMMIT WITH JJ AFTER EACH FEATURE IS COMPLETE. DO NOT LET CHANGES ACCUMULATE.**
+
 - Create one commit per feature with `jj new -m "description"`
-- Do not commit too frequently - batch related changes together
 - When squashing, use `jj squash -m "message"`
+- `jj status` to check for uncommitted changes
 
 ## Raylib Documentation
 
