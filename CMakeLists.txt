@@ -13,5 +13,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(raylib)
 
-add_executable(game src/main.cpp)
+add_executable(game
+    src/main.cpp
+    src/types.cpp
+    src/xp_system.cpp
+    src/collision.cpp
+    src/map.cpp
+    src/save_system.cpp
+    src/rendering.cpp
+    src/game_systems.cpp
+)
 target_link_libraries(game raylib)
