@@ -14,6 +14,7 @@ bool LoadMap(const char* filename, MapData& map) {
     map.itemCount = 0;
     map.enemyCount = 0;
     map.wallCount = 0;
+    map.treeCount = 0;
 
     char line[256];
     while (fgets(line, sizeof(line), f)) {
@@ -32,12 +33,16 @@ bool LoadMap(const char* filename, MapData& map) {
                 if (sscanf(line, "%*s %63s %f %f %f", itemName, &x, &y, &z) == 4) {
                     if (strcmp(itemName, "bronze_shortsword") == 0) {
                         map.itemTypes[map.itemCount] = ITEM_BRONZE_SHORTSWORD;
+                    } else if (strcmp(itemName, "bronze_axe") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_BRONZE_AXE;
                     } else if (strcmp(itemName, "cow_hide") == 0) {
                         map.itemTypes[map.itemCount] = ITEM_COW_HIDE;
                     } else if (strcmp(itemName, "bones") == 0) {
                         map.itemTypes[map.itemCount] = ITEM_BONES;
                     } else if (strcmp(itemName, "gil") == 0) {
                         map.itemTypes[map.itemCount] = ITEM_GIL;
+                    } else if (strcmp(itemName, "logs") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_LOGS;
                     } else {
                         map.itemTypes[map.itemCount] = ITEM_NONE;
                     }
@@ -98,9 +103,18 @@ bool LoadMap(const char* filename, MapData& map) {
                 }
             }
         }
+        else if (strcmp(type, "tree") == 0) {
+            if (map.treeCount < MAX_TREES) {
+                float x, y, z;
+                if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
+                    map.treeSpawns[map.treeCount] = { x, y, z };
+                    map.treeCount++;
+                }
+            }
+        }
     }
 
     fclose(f);
-    TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls)", filename, map.itemCount, map.enemyCount, map.wallCount);
+    TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees)", filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount);
     return true;
 }

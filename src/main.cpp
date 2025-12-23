@@ -141,6 +141,16 @@ int main() {
         enemies[i].facingAngle = RandomFloat(0.0f, 2.0f * PI);
     }
 
+    // Initialize trees from map spawn points
+    Tree trees[MAX_TREES] = {};
+    int treeCount = mapData.treeCount;
+    for (int i = 0; i < treeCount; i++) {
+        trees[i].position = mapData.treeSpawns[i];
+        trees[i].health = TREE_MAX_HEALTH;
+        trees[i].alive = true;
+        trees[i].respawnTimer = 0.0f;
+    }
+
     // Damage indicators
     DamageIndicator damageIndicators[MAX_DAMAGE_INDICATORS] = {};
 
@@ -199,7 +209,7 @@ int main() {
                 const int menuWidth = 80;
                 const int menuItemHeight = 20;
                 ItemType menuItem = playerState.inventory[invMenuSlot];
-                bool isWeapon = (menuItem == ITEM_BRONZE_SHORTSWORD);
+                bool isWeapon = (menuItem == ITEM_BRONZE_SHORTSWORD || menuItem == ITEM_BRONZE_AXE);
 
                 int optionCount = isWeapon ? 4 : 3;  // Use/Equip, Examine, Drop, Cancel vs Examine, Drop, Cancel
                 int menuHeight = menuItemHeight * optionCount;
@@ -319,7 +329,7 @@ int main() {
                         if (mouse.x >= slotX && mouse.x <= slotX + SLOT_SIZE &&
                             mouse.y >= slotY && mouse.y <= slotY + SLOT_SIZE) {
                             ItemType clickedItem = playerState.inventory[slotIdx];
-                            if (clickedItem == ITEM_BRONZE_SHORTSWORD) {
+                            if (clickedItem == ITEM_BRONZE_SHORTSWORD || clickedItem == ITEM_BRONZE_AXE) {
                                 if (playerState.equippedWeapon == clickedItem) {
                                     playerState.equippedWeapon = ITEM_NONE;
                                 } else {
@@ -447,65 +457,134 @@ int main() {
             }
         }
 
+        // Update trees (respawning)
+        for (int i = 0; i < treeCount; i++) {
+            if (!trees[i].alive) {
+                trees[i].respawnTimer -= dt;
+                if (trees[i].respawnTimer <= 0) {
+                    trees[i].health = TREE_MAX_HEALTH;
+                    trees[i].alive = true;
+                }
+            }
+        }
+
         // Attack with mouse click
         if (!mouseMode && !playerDead && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
             swingTimer = SWING_DURATION;
             attackCooldown = PLAYER_ATTACK_COOLDOWN;
 
-            int combatLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
-            int maxHit = CalculateMaxHit(combatLevel);
+            bool actionTaken = false;
 
-            Enemy* target = nullptr;
-            float closestDist = PLAYER_ATTACK_RANGE + 1.0f;
+            // If wielding axe, check for trees first
+            if (playerState.equippedWeapon == ITEM_BRONZE_AXE) {
+                Tree* targetTree = nullptr;
+                float closestTreeDist = CHOP_RANGE + 1.0f;
 
-            for (int i = 0; i < enemyCount; i++) {
-                if (enemies[i].alive) {
-                    float dist = Distance3D(camera.position, enemies[i].position);
-                    if (dist <= PLAYER_ATTACK_RANGE && dist < closestDist && IsFacing(camera, enemies[i].position)) {
-                        target = &enemies[i];
-                        closestDist = dist;
+                for (int i = 0; i < treeCount; i++) {
+                    if (trees[i].alive) {
+                        float dist = Distance3D(camera.position, trees[i].position);
+                        if (dist <= CHOP_RANGE && dist < closestTreeDist && IsFacing(camera, trees[i].position)) {
+                            targetTree = &trees[i];
+                            closestTreeDist = dist;
+                        }
+                    }
+                }
+
+                if (targetTree != nullptr) {
+                    actionTaken = true;
+                    targetTree->health--;
+                    PlaySoundEffect(SFX_HIT);
+
+                    if (targetTree->health <= 0) {
+                        targetTree->alive = false;
+                        targetTree->respawnTimer = TREE_RESPAWN_TIME;
+
+                        // Spawn logs
+                        if (worldItemCount < MAX_WORLD_ITEMS) {
+                            worldItems[worldItemCount].type = ITEM_LOGS;
+                            worldItems[worldItemCount].position = targetTree->position;
+                            worldItems[worldItemCount].position.x += RandomFloat(-0.5f, 0.5f);
+                            worldItems[worldItemCount].position.z += RandomFloat(-0.5f, 0.5f);
+                            worldItems[worldItemCount].position.y = 0.0f;
+                            worldItems[worldItemCount].pickedUp = false;
+                            worldItemCount++;
+                        }
+
+                        // Award woodcutting XP
+                        int oldLevel = GetLevelFromXP(playerState.skillXP[SKILL_WOODCUTTING]);
+                        playerState.skillXP[SKILL_WOODCUTTING] += WOODCUTTING_XP;
+                        int newLevel = GetLevelFromXP(playerState.skillXP[SKILL_WOODCUTTING]);
+                        SpawnXPPopup(xpPopups, WOODCUTTING_XP, SKILL_WOODCUTTING);
+                        PlaySoundEffect(SFX_XP_GAIN);
+
+                        if (newLevel > oldLevel) {
+                            levelUpNotif.skillIndex = SKILL_WOODCUTTING;
+                            levelUpNotif.newLevel = newLevel;
+                            levelUpNotif.timer = LEVEL_UP_DURATION;
+                            levelUpNotif.active = true;
+                            PlaySoundEffect(SFX_LEVEL_UP);
+                        }
                     }
                 }
             }
 
-            if (target != nullptr) {
-                const EnemyConfig& config = ENEMY_CONFIGS[target->type];
-                target->hostile = true;
+            // If no tree was chopped (or not wielding axe), try attacking enemies
+            if (!actionTaken) {
+                int combatLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
+                int maxHit = CalculateMaxHit(combatLevel);
 
-                int damage = RollDamage(maxHit);
-                target->health -= damage;
-                SpawnDamageIndicator(damageIndicators, target->position, damage);
+                Enemy* target = nullptr;
+                float closestDist = PLAYER_ATTACK_RANGE + 1.0f;
 
-                // Play hit or miss sound
-                if (damage > 0) {
-                    PlaySoundEffect(SFX_HIT);
-                } else {
-                    PlaySoundEffect(SFX_MISS);
+                for (int i = 0; i < enemyCount; i++) {
+                    if (enemies[i].alive) {
+                        float dist = Distance3D(camera.position, enemies[i].position);
+                        if (dist <= PLAYER_ATTACK_RANGE && dist < closestDist && IsFacing(camera, enemies[i].position)) {
+                            target = &enemies[i];
+                            closestDist = dist;
+                        }
+                    }
                 }
 
-                if (target->health <= 0) {
-                    target->alive = false;
-                    target->respawnTimer = config.respawnTime;
-                    PlaySoundEffect(SFX_ENEMY_DEATH);
+                if (target != nullptr) {
+                    const EnemyConfig& config = ENEMY_CONFIGS[target->type];
+                    target->hostile = true;
 
-                    // Spawn drops
-                    SpawnEnemyDrops(config, target->position, worldItems, worldItemCount);
+                    int damage = RollDamage(maxHit);
+                    target->health -= damage;
+                    SpawnDamageIndicator(damageIndicators, target->position, damage);
 
-                    // Award XP for kill (4 XP per hitpoint, like OSRS)
-                    int xpGain = config.maxHealth * 4;
+                    // Play hit or miss sound
+                    if (damage > 0) {
+                        PlaySoundEffect(SFX_HIT);
+                    } else {
+                        PlaySoundEffect(SFX_MISS);
+                    }
 
-                    int oldLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
-                    playerState.skillXP[SKILL_COMBAT] += xpGain;
-                    int newLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
-                    SpawnXPPopup(xpPopups, xpGain, SKILL_COMBAT);
-                    PlaySoundEffect(SFX_XP_GAIN);
+                    if (target->health <= 0) {
+                        target->alive = false;
+                        target->respawnTimer = config.respawnTime;
+                        PlaySoundEffect(SFX_ENEMY_DEATH);
 
-                    if (newLevel > oldLevel) {
-                        levelUpNotif.skillIndex = SKILL_COMBAT;
-                        levelUpNotif.newLevel = newLevel;
-                        levelUpNotif.timer = LEVEL_UP_DURATION;
-                        levelUpNotif.active = true;
-                        PlaySoundEffect(SFX_LEVEL_UP);
+                        // Spawn drops
+                        SpawnEnemyDrops(config, target->position, worldItems, worldItemCount);
+
+                        // Award XP for kill (4 XP per hitpoint, like OSRS)
+                        int xpGain = config.maxHealth * 4;
+
+                        int oldLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
+                        playerState.skillXP[SKILL_COMBAT] += xpGain;
+                        int newLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
+                        SpawnXPPopup(xpPopups, xpGain, SKILL_COMBAT);
+                        PlaySoundEffect(SFX_XP_GAIN);
+
+                        if (newLevel > oldLevel) {
+                            levelUpNotif.skillIndex = SKILL_COMBAT;
+                            levelUpNotif.newLevel = newLevel;
+                            levelUpNotif.timer = LEVEL_UP_DURATION;
+                            levelUpNotif.active = true;
+                            PlaySoundEffect(SFX_LEVEL_UP);
+                        }
                     }
                 }
             }
@@ -682,6 +761,15 @@ int main() {
                     }
                 }
 
+                // Draw trees
+                for (int i = 0; i < treeCount; i++) {
+                    if (trees[i].alive) {
+                        float dist = Distance3D(camera.position, trees[i].position);
+                        bool inRange = (dist <= CHOP_RANGE) && IsFacing(camera, trees[i].position) && (playerState.equippedWeapon == ITEM_BRONZE_AXE);
+                        DrawTree(trees[i].position, inRange);
+                    }
+                }
+
                 for (int i = 0; i < wallCount; i++) {
                     Vector3 pos = walls[i].position;
                     pos.y += walls[i].height / 2.0f;
@@ -844,6 +932,43 @@ int main() {
                 Vector2 guardLeft = { wpnX + (-15.0f * cosA), wpnY + (15.0f * sinA) };
                 Vector2 guardRight = { wpnX + (15.0f * cosA), wpnY + (-15.0f * sinA) };
                 DrawLineEx(guardLeft, guardRight, 6.0f, bronzeHandle);
+            } else if (playerState.equippedWeapon == ITEM_BRONZE_AXE) {
+                float weaponBaseX = screenWidth - 150.0f;
+                float weaponBaseY = screenHeight - 100.0f;
+
+                float swingAngle = 0.0f;
+                float swingOffsetX = 0.0f;
+                float swingOffsetY = 0.0f;
+                if (swingTimer > 0) {
+                    float swingProgress = swingTimer / SWING_DURATION;
+                    swingAngle = sinf(swingProgress * PI) * 60.0f;
+                    swingOffsetX = -sinf(swingProgress * PI) * 80.0f;
+                    swingOffsetY = -sinf(swingProgress * PI) * 40.0f;
+                }
+
+                float wpnX = weaponBaseX + swingOffsetX;
+                float wpnY = weaponBaseY + swingOffsetY;
+
+                Color bronzeHead = { 205, 127, 50, 255 };
+                Color woodHandle = { 101, 67, 33, 255 };
+
+                float radAngle = swingAngle * DEG2RAD;
+                float cosA = cosf(radAngle);
+                float sinA = sinf(radAngle);
+
+                float handleLen = 100.0f;
+                float handleWidth = 8.0f;
+
+                // Handle
+                Vector2 handleEnd = { wpnX + (-handleLen * sinA), wpnY + (-handleLen * cosA) };
+                Vector2 handleBase = { wpnX + (30.0f * sinA), wpnY + (30.0f * cosA) };
+                DrawLineEx(handleBase, handleEnd, handleWidth, woodHandle);
+
+                // Axe head (at the top of handle)
+                Vector2 headCenter = { wpnX + (-handleLen * 0.85f * sinA), wpnY + (-handleLen * 0.85f * cosA) };
+                Vector2 headLeft = { headCenter.x + (-30.0f * cosA), headCenter.y + (30.0f * sinA) };
+                Vector2 headRight = { headCenter.x + (10.0f * cosA), headCenter.y + (-10.0f * sinA) };
+                DrawLineEx(headLeft, headRight, 20.0f, bronzeHead);
             }
 
             // XP popups
@@ -967,6 +1092,13 @@ int main() {
                         DrawRectangle(cx - 2, cy - 14, 4, 24, bronzeColor);
                         DrawRectangle(cx - 2, cy + 10, 4, 8, BROWN);
                         DrawRectangle(cx - 8, cy + 8, 16, 3, BROWN);
+                    } else if (item == ITEM_BRONZE_AXE) {
+                        Color bronzeColor = { 205, 127, 50, 255 };
+                        Color woodColor = { 101, 67, 33, 255 };
+                        // Handle
+                        DrawRectangle(cx - 2, cy - 10, 4, 20, woodColor);
+                        // Axe head
+                        DrawRectangle(cx - 10, cy - 10, 12, 8, bronzeColor);
                     } else if (item == ITEM_COW_HIDE) {
                         Color hideColor = { 139, 90, 43, 255 };
                         DrawRectangle(cx - 12, cy - 8, 24, 16, hideColor);
@@ -980,6 +1112,12 @@ int main() {
                         Color goldColor = { 255, 215, 0, 255 };
                         DrawCircle(cx, cy, 10, goldColor);
                         DrawCircle(cx, cy, 6, GOLD);
+                    } else if (item == ITEM_LOGS) {
+                        Color barkColor = { 101, 67, 33, 255 };
+                        Color woodColor = { 210, 180, 140, 255 };
+                        DrawRectangle(cx - 12, cy - 4, 24, 8, barkColor);
+                        DrawCircle(cx - 12, cy, 4, woodColor);
+                        DrawCircle(cx + 12, cy, 4, woodColor);
                     }
 
                     // Draw stack count for stackable items
@@ -997,7 +1135,7 @@ int main() {
                 const int menuItemHeight = 20;
                 const int menuPadding = 4;
                 ItemType menuItem = playerState.inventory[invMenuSlot];
-                bool isWeapon = (menuItem == ITEM_BRONZE_SHORTSWORD);
+                bool isWeapon = (menuItem == ITEM_BRONZE_SHORTSWORD || menuItem == ITEM_BRONZE_AXE);
 
                 const char* options[4];
                 int optionCount;

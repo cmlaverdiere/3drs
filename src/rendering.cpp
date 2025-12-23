@@ -187,9 +187,49 @@ void DrawWorldItem(ItemType type, Vector3 pos) {
             DrawCylinder((Vector3){pos.x - 0.03f, pos.y + 0.05f, pos.z - 0.03f}, 0.08f, 0.08f, 0.03f, 8, goldColor);
             break;
         }
+        case ITEM_BRONZE_AXE: {
+            // Axe on ground
+            Color bronzeHead = { 205, 127, 50, 255 };
+            Color woodHandle = { 101, 67, 33, 255 };
+            // Handle (lying flat)
+            DrawCube((Vector3){pos.x, pos.y + 0.04f, pos.z}, 0.5f, 0.06f, 0.06f, woodHandle);
+            // Axe head
+            DrawCube((Vector3){pos.x + 0.2f, pos.y + 0.08f, pos.z}, 0.15f, 0.12f, 0.25f, bronzeHead);
+            break;
+        }
+        case ITEM_LOGS: {
+            // Wooden log on ground
+            Color barkColor = { 101, 67, 33, 255 };
+            Color woodColor = { 210, 180, 140, 255 };
+            DrawCylinder((Vector3){pos.x, pos.y, pos.z}, 0.12f, 0.12f, 0.5f, 8, barkColor);
+            // End caps
+            DrawCylinderWires((Vector3){pos.x, pos.y, pos.z}, 0.12f, 0.12f, 0.5f, 8, woodColor);
+            break;
+        }
         default:
             // Unknown item - draw small red cube
             DrawCube(pos, 0.2f, 0.2f, 0.2f, RED);
             break;
+    }
+}
+
+void DrawTree(Vector3 pos, bool highlighted) {
+    Color trunkColor = { 101, 67, 33, 255 };      // Brown trunk
+    Color leavesColor = { 34, 139, 34, 255 };     // Forest green
+    Color leavesDark = { 20, 100, 20, 255 };      // Darker green for variety
+
+    // Trunk
+    DrawCylinder((Vector3){pos.x, pos.y, pos.z}, 0.3f, 0.4f, 2.5f, 8, trunkColor);
+
+    // Leaves (layered spheres for a round tree appearance)
+    DrawSphere((Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.5f, leavesColor);
+    DrawSphere((Vector3){pos.x - 0.5f, pos.y + 3.0f, pos.z + 0.5f}, 1.0f, leavesDark);
+    DrawSphere((Vector3){pos.x + 0.5f, pos.y + 3.0f, pos.z - 0.5f}, 1.0f, leavesDark);
+    DrawSphere((Vector3){pos.x, pos.y + 4.2f, pos.z}, 0.8f, leavesColor);
+
+    if (highlighted) {
+        Color outlineColor = { 255, 255, 0, 255 };
+        DrawCylinderWires((Vector3){pos.x, pos.y, pos.z}, 0.35f, 0.45f, 2.5f, 8, outlineColor);
+        DrawSphereWires((Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.55f, 8, 8, outlineColor);
     }
 }

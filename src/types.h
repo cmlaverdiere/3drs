@@ -14,9 +14,11 @@ const int SLOT_PADDING = 4;
 enum ItemType {
     ITEM_NONE = 0,
     ITEM_BRONZE_SHORTSWORD,
+    ITEM_BRONZE_AXE,
     ITEM_COW_HIDE,
     ITEM_BONES,
     ITEM_GIL,
+    ITEM_LOGS,
     ITEM_COUNT
 };
 
@@ -44,6 +46,7 @@ enum Skill {
     SKILL_RANGED,
     SKILL_PRAYER,
     SKILL_MAGIC,
+    SKILL_WOODCUTTING,
     SKILL_COUNT
 };
 
@@ -105,6 +108,20 @@ struct Wall {
     float depth;
     WallMaterial material;
 };
+
+// Tree structure (choppable resource)
+struct Tree {
+    Vector3 position;
+    int health;       // Chops remaining before felling
+    bool alive;       // False when cut down
+    float respawnTimer;
+};
+
+const int MAX_TREES = 100;
+const int TREE_MAX_HEALTH = 3;      // 3 chops to fell a tree
+const float TREE_RESPAWN_TIME = 30.0f;
+const int WOODCUTTING_XP = 25;       // XP per log
+const float CHOP_RANGE = 3.0f;
 
 // Floating damage indicator
 struct DamageIndicator {
@@ -173,6 +190,8 @@ struct MapData {
     int enemyCount;
     Wall walls[MAX_WALLS];
     int wallCount;
+    Vector3 treeSpawns[MAX_TREES];
+    int treeCount;
 };
 
 #endif

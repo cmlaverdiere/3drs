@@ -1,15 +1,17 @@
 #include "types.h"
 
 const char* SKILL_NAMES[SKILL_COUNT] = {
-    "Combat", "Hitpoints", "Ranged", "Prayer", "Magic"
+    "Combat", "Hitpoints", "Ranged", "Prayer", "Magic", "Woodcutting"
 };
 
 const char* ITEM_NAMES[ITEM_COUNT] = {
     "Nothing",
     "Bronze Shortsword",
+    "Bronze Axe",
     "Cow Hide",
     "Bones",
-    "Gil"
+    "Gil",
+    "Logs"
 };
 
 const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {

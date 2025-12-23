@@ -19,4 +19,7 @@ void DrawEnemy(const Enemy& enemy, bool highlighted);
 // Draw item on ground
 void DrawWorldItem(ItemType type, Vector3 pos);
 
+// Draw a tree
+void DrawTree(Vector3 pos, bool highlighted);
+
 #endif
