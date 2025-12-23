@@ -52,7 +52,7 @@ struct Wall {
 const int TROLL_MAX_HEALTH = 5;
 const float TROLL_RESPAWN_TIME = 15.0f;
 const float ATTACK_RANGE = 5.0f;
-const float ATTACK_COOLDOWN = 1.0f;
+const float ATTACK_COOLDOWN = 0.25f;
 
 // Floating damage indicator
 struct DamageIndicator {
@@ -75,6 +75,16 @@ struct XPPopup {
 
 const int MAX_XP_POPUPS = 10;
 const float XP_POPUP_DURATION = 2.0f;
+
+// Level up notification
+struct LevelUpNotification {
+    int skillIndex;
+    int newLevel;
+    float timer;
+    bool active;
+};
+
+const float LEVEL_UP_DURATION = 5.0f;
 
 // Map data loaded from file
 struct MapData {
@@ -273,9 +283,7 @@ int GetLevelFromXP(int xp) {
 
 // Skill indices
 enum Skill {
-    SKILL_ATTACK = 0,
-    SKILL_STRENGTH,
-    SKILL_DEFENCE,
+    SKILL_COMBAT = 0,
     SKILL_HITPOINTS,
     SKILL_RANGED,
     SKILL_PRAYER,
@@ -284,7 +292,7 @@ enum Skill {
 };
 
 const char* SKILL_NAMES[SKILL_COUNT] = {
-    "Attack", "Strength", "Defence", "Hitpoints", "Ranged", "Prayer", "Magic"
+    "Combat", "Hitpoints", "Ranged", "Prayer", "Magic"
 };
 
 // Player state
@@ -293,6 +301,7 @@ struct PlayerState {
     float targetX, targetY, targetZ;
     int skillXP[SKILL_COUNT];
     ItemType inventory[INV_SLOTS];
+    ItemType equippedWeapon;
     bool swordPickedUp;
 };
 
@@ -316,6 +325,7 @@ void SaveGame(const PlayerState& state) {
         fprintf(f, "%d%s", state.inventory[i], i < INV_SLOTS - 1 ? ", " : "");
     }
     fprintf(f, "],\n");
+    fprintf(f, "  \"equippedWeapon\": %d,\n", state.equippedWeapon);
     fprintf(f, "  \"swordPickedUp\": %s\n", state.swordPickedUp ? "true" : "false");
     fprintf(f, "}\n");
     fclose(f);
@@ -409,6 +419,7 @@ bool LoadGame(PlayerState& state) {
         }
     }
 
+    state.equippedWeapon = (ItemType)ParseIntAfter(json, "\"equippedWeapon\"", ITEM_NONE);
     state.swordPickedUp = ParseBoolAfter(json, "\"swordPickedUp\"", false);
 
     delete[] json;
@@ -620,6 +631,7 @@ int main() {
     for (int i = 0; i < INV_SLOTS; i++) {
         playerState.inventory[i] = ITEM_NONE;
     }
+    playerState.equippedWeapon = ITEM_NONE;
     playerState.swordPickedUp = false;
 
     // Try to load saved game
@@ -700,8 +712,15 @@ int main() {
     // XP popups
     XPPopup xpPopups[MAX_XP_POPUPS] = {};
 
+    // Level up notification
+    LevelUpNotification levelUpNotif = {};
+
     // Attack cooldown
     float attackCooldown = 0.0f;
+
+    // Weapon swing animation
+    float swingTimer = 0.0f;
+    const float SWING_DURATION = 0.2f;
 
     bool mouseMode = false;
     DisableCursor();
@@ -719,6 +738,37 @@ int main() {
                 EnableCursor();
             } else {
                 DisableCursor();
+            }
+        }
+
+        // Inventory click handling (mouse mode only)
+        if (mouseMode && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            Vector2 mouse = GetMousePosition();
+            int invX = screenWidth - (INV_COLS * (SLOT_SIZE + SLOT_PADDING)) - 20;
+            int invY = 60;
+
+            for (int row = 0; row < INV_ROWS; row++) {
+                for (int col = 0; col < INV_COLS; col++) {
+                    int slotIdx = row * INV_COLS + col;
+                    int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
+                    int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+
+                    // Check if mouse is over this slot
+                    if (mouse.x >= slotX && mouse.x <= slotX + SLOT_SIZE &&
+                        mouse.y >= slotY && mouse.y <= slotY + SLOT_SIZE) {
+                        ItemType clickedItem = playerState.inventory[slotIdx];
+                        // If clicking a weapon, equip/unequip it
+                        if (clickedItem == ITEM_BRONZE_SHORTSWORD) {
+                            if (playerState.equippedWeapon == clickedItem) {
+                                // Unequip
+                                playerState.equippedWeapon = ITEM_NONE;
+                            } else {
+                                // Equip
+                                playerState.equippedWeapon = clickedItem;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -742,6 +792,11 @@ int main() {
         // Update attack cooldown
         if (attackCooldown > 0) {
             attackCooldown -= dt;
+        }
+
+        // Update swing animation
+        if (swingTimer > 0) {
+            swingTimer -= dt;
         }
 
         // Update trolls
@@ -780,10 +835,14 @@ int main() {
             }
         }
 
-        // Attack with mouse click (when not in mouse mode)
-        if (!mouseMode && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && attackCooldown <= 0) {
-            int strengthLevel = GetLevelFromXP(playerState.skillXP[SKILL_STRENGTH]);
-            int maxHit = CalculateMaxHit(strengthLevel);
+        // Attack with mouse click (when not in mouse mode and weapon equipped)
+        if (!mouseMode && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
+            // Trigger swing animation
+            swingTimer = SWING_DURATION;
+            attackCooldown = ATTACK_COOLDOWN;
+
+            int combatLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
+            int maxHit = CalculateMaxHit(combatLevel);
 
             // Find closest troll player is facing
             Troll* target = nullptr;
@@ -803,7 +862,6 @@ int main() {
                 int damage = RollDamage(maxHit);
                 target->health -= damage;
                 SpawnDamageIndicator(damageIndicators, target->position, damage);
-                attackCooldown = ATTACK_COOLDOWN;
 
                 // Check if troll died
                 if (target->health <= 0) {
@@ -812,16 +870,20 @@ int main() {
 
                     // Award XP for kill (4 XP per hitpoint, like OSRS)
                     int xpGain = TROLL_MAX_HEALTH * 4;
-                    int xpPerSkill = xpGain / 3;
 
-                    playerState.skillXP[SKILL_ATTACK] += xpPerSkill;
-                    SpawnXPPopup(xpPopups, xpPerSkill, SKILL_ATTACK);
+                    // Check for level up
+                    int oldLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
+                    playerState.skillXP[SKILL_COMBAT] += xpGain;
+                    int newLevel = GetLevelFromXP(playerState.skillXP[SKILL_COMBAT]);
+                    SpawnXPPopup(xpPopups, xpGain, SKILL_COMBAT);
 
-                    playerState.skillXP[SKILL_STRENGTH] += xpPerSkill;
-                    SpawnXPPopup(xpPopups, xpPerSkill, SKILL_STRENGTH);
-
-                    playerState.skillXP[SKILL_DEFENCE] += xpPerSkill;
-                    SpawnXPPopup(xpPopups, xpPerSkill, SKILL_DEFENCE);
+                    // Level up!
+                    if (newLevel > oldLevel) {
+                        levelUpNotif.skillIndex = SKILL_COMBAT;
+                        levelUpNotif.newLevel = newLevel;
+                        levelUpNotif.timer = LEVEL_UP_DURATION;
+                        levelUpNotif.active = true;
+                    }
                 }
             }
         }
@@ -843,6 +905,14 @@ int main() {
                 if (xpPopups[i].timer <= 0) {
                     xpPopups[i].active = false;
                 }
+            }
+        }
+
+        // Update level up notification
+        if (levelUpNotif.active) {
+            levelUpNotif.timer -= dt;
+            if (levelUpNotif.timer <= 0) {
+                levelUpNotif.active = false;
             }
         }
 
@@ -1028,6 +1098,60 @@ int main() {
                 DrawLine(cx, cy - 10, cx, cy + 10, WHITE);
             }
 
+            // FPS weapon view (bottom right)
+            if (playerState.equippedWeapon == ITEM_BRONZE_SHORTSWORD) {
+                // Base position for weapon
+                float weaponBaseX = screenWidth - 150.0f;
+                float weaponBaseY = screenHeight - 100.0f;
+
+                // Swing animation - rotate and move weapon
+                float swingAngle = 0.0f;
+                float swingOffsetX = 0.0f;
+                float swingOffsetY = 0.0f;
+                if (swingTimer > 0) {
+                    float swingProgress = swingTimer / SWING_DURATION;
+                    // Swing arc from right to left
+                    swingAngle = sinf(swingProgress * PI) * 60.0f; // degrees
+                    swingOffsetX = -sinf(swingProgress * PI) * 80.0f;
+                    swingOffsetY = -sinf(swingProgress * PI) * 40.0f;
+                }
+
+                float wpnX = weaponBaseX + swingOffsetX;
+                float wpnY = weaponBaseY + swingOffsetY;
+
+                // Draw sword (2D representation with rotation)
+                Color bronzeBlade = { 205, 127, 50, 255 };
+                Color bronzeHandle = { 139, 90, 43, 255 };
+
+                // Calculate rotated sword vertices
+                float radAngle = swingAngle * DEG2RAD;
+                float cosA = cosf(radAngle);
+                float sinA = sinf(radAngle);
+
+                // Blade dimensions
+                float bladeLen = 120.0f;
+                float bladeWidth = 12.0f;
+
+                // Blade points (relative to grip)
+                Vector2 bladeTip = { wpnX + (-bladeLen * sinA), wpnY + (-bladeLen * cosA) };
+                Vector2 bladeBase = { wpnX, wpnY };
+
+                // Draw blade as thick line
+                DrawLineEx(bladeBase, bladeTip, bladeWidth, bronzeBlade);
+                // Blade outline
+                DrawLineEx(bladeBase, bladeTip, bladeWidth + 2, DARKGRAY);
+                DrawLineEx(bladeBase, bladeTip, bladeWidth, bronzeBlade);
+
+                // Handle
+                Vector2 handleEnd = { wpnX + (30.0f * sinA), wpnY + (30.0f * cosA) };
+                DrawLineEx(bladeBase, handleEnd, 10.0f, bronzeHandle);
+
+                // Crossguard
+                Vector2 guardLeft = { wpnX + (-15.0f * cosA), wpnY + (15.0f * sinA) };
+                Vector2 guardRight = { wpnX + (15.0f * cosA), wpnY + (-15.0f * sinA) };
+                DrawLineEx(guardLeft, guardRight, 6.0f, bronzeHandle);
+            }
+
             // MW2-style XP popups (center of screen, stacked)
             int xpPopupY = screenHeight / 3;
             for (int i = 0; i < MAX_XP_POPUPS; i++) {
@@ -1135,7 +1259,16 @@ int main() {
                     int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
 
                     DrawRectangle(slotX, slotY, SLOT_SIZE, SLOT_SIZE, (Color){40, 35, 28, 255});
-                    DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, (Color){86, 74, 57, 255});
+
+                    // Highlight equipped item
+                    bool isEquipped = (playerState.inventory[slotIdx] != ITEM_NONE &&
+                                       playerState.inventory[slotIdx] == playerState.equippedWeapon);
+                    if (isEquipped) {
+                        DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, (Color){255, 215, 0, 255}); // Gold border
+                        DrawRectangleLines(slotX+1, slotY+1, SLOT_SIZE-2, SLOT_SIZE-2, (Color){255, 215, 0, 255});
+                    } else {
+                        DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, (Color){86, 74, 57, 255});
+                    }
 
                     if (playerState.inventory[slotIdx] == ITEM_BRONZE_SHORTSWORD) {
                         Color bronzeColor = { 205, 127, 50, 255 };
@@ -1150,6 +1283,72 @@ int main() {
 
             if (screenshotMsgTimer > 0.0f) {
                 DrawText(screenshotMsg, 10, screenHeight - 30, 20, YELLOW);
+            }
+
+            // Level up parchment banner
+            if (levelUpNotif.active) {
+                // Parchment colors
+                Color parchmentBg = { 222, 198, 158, 240 };     // Tan/beige parchment
+                Color parchmentBorder = { 139, 90, 43, 255 };   // Brown border
+                Color parchmentDark = { 180, 150, 100, 255 };   // Darker parchment for texture
+                Color textColor = { 60, 40, 20, 255 };          // Dark brown text
+
+                // Banner dimensions
+                int bannerW = 400;
+                int bannerH = 100;
+                int bannerX = (screenWidth - bannerW) / 2;
+                int bannerY = screenHeight - bannerH - 20;
+
+                // Fade in/out
+                float alpha = 1.0f;
+                if (levelUpNotif.timer > LEVEL_UP_DURATION - 0.3f) {
+                    alpha = (LEVEL_UP_DURATION - levelUpNotif.timer) / 0.3f;
+                } else if (levelUpNotif.timer < 0.5f) {
+                    alpha = levelUpNotif.timer / 0.5f;
+                }
+
+                // Apply alpha to colors
+                parchmentBg.a = (unsigned char)(240 * alpha);
+                parchmentBorder.a = (unsigned char)(255 * alpha);
+                parchmentDark.a = (unsigned char)(255 * alpha);
+                textColor.a = (unsigned char)(255 * alpha);
+
+                // Draw parchment background with torn edge effect
+                DrawRectangle(bannerX, bannerY, bannerW, bannerH, parchmentBg);
+
+                // Add some texture lines
+                for (int i = 0; i < 5; i++) {
+                    int lineY = bannerY + 15 + i * 18;
+                    DrawLine(bannerX + 10, lineY, bannerX + bannerW - 10, lineY, parchmentDark);
+                }
+
+                // Border (double line for scroll effect)
+                DrawRectangleLinesEx((Rectangle){(float)bannerX, (float)bannerY, (float)bannerW, (float)bannerH}, 3, parchmentBorder);
+                DrawRectangleLinesEx((Rectangle){(float)bannerX + 5, (float)bannerY + 5, (float)bannerW - 10, (float)bannerH - 10}, 1, parchmentBorder);
+
+                // Decorative corners
+                int cornerSize = 12;
+                DrawRectangle(bannerX, bannerY, cornerSize, cornerSize, parchmentBorder);
+                DrawRectangle(bannerX + bannerW - cornerSize, bannerY, cornerSize, cornerSize, parchmentBorder);
+                DrawRectangle(bannerX, bannerY + bannerH - cornerSize, cornerSize, cornerSize, parchmentBorder);
+                DrawRectangle(bannerX + bannerW - cornerSize, bannerY + bannerH - cornerSize, cornerSize, cornerSize, parchmentBorder);
+
+                // Text
+                const char* skillName = SKILL_NAMES[levelUpNotif.skillIndex];
+                char titleText[64];
+                snprintf(titleText, sizeof(titleText), "Congratulations!");
+                char levelText[64];
+                snprintf(levelText, sizeof(levelText), "You've advanced a %s level!", skillName);
+                char newLevelText[64];
+                snprintf(newLevelText, sizeof(newLevelText), "You are now level %d.", levelUpNotif.newLevel);
+
+                int titleWidth = MeasureText(titleText, 24);
+                int levelWidth = MeasureText(levelText, 20);
+                int newLevelWidth = MeasureText(newLevelText, 18);
+
+                DrawText(titleText, bannerX + (bannerW - titleWidth) / 2, bannerY + 15, 24, textColor);
+                DrawText(levelText, bannerX + (bannerW - levelWidth) / 2, bannerY + 45, 20, textColor);
+                DrawText(newLevelText, bannerX + (bannerW - newLevelWidth) / 2, bannerY + 70, 18, textColor);
             }
         EndDrawing();
     }
