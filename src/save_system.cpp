@@ -2,8 +2,68 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <ctime>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <algorithm>
+#include <vector>
+#include <string>
 
 const char* SAVE_FILE = "savegame.json";
+const char* BACKUP_DIR = "save_backups";
+const int MAX_BACKUPS = 5;
+
+// Create backup of current save file before overwriting
+static void BackupSaveFile() {
+    // Check if save file exists
+    FILE* f = fopen(SAVE_FILE, "r");
+    if (!f) return;  // No save to backup
+    fclose(f);
+
+    // Create backup directory if it doesn't exist
+    mkdir(BACKUP_DIR, 0755);
+
+    // Generate timestamp for backup filename
+    time_t now = time(nullptr);
+    char backupName[128];
+    strftime(backupName, sizeof(backupName), "save_backups/savegame_%Y%m%d_%H%M%S.json", localtime(&now));
+
+    // Copy current save to backup
+    FILE* src = fopen(SAVE_FILE, "r");
+    FILE* dst = fopen(backupName, "w");
+    if (src && dst) {
+        char buf[1024];
+        size_t n;
+        while ((n = fread(buf, 1, sizeof(buf), src)) > 0) {
+            fwrite(buf, 1, n, dst);
+        }
+    }
+    if (src) fclose(src);
+    if (dst) fclose(dst);
+
+    // Clean up old backups, keep only MAX_BACKUPS most recent
+    std::vector<std::string> backups;
+    DIR* dir = opendir(BACKUP_DIR);
+    if (dir) {
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            if (strstr(entry->d_name, "savegame_") && strstr(entry->d_name, ".json")) {
+                backups.push_back(std::string(BACKUP_DIR) + "/" + entry->d_name);
+            }
+        }
+        closedir(dir);
+    }
+
+    // Sort by name (timestamp in name means alphabetical = chronological)
+    std::sort(backups.begin(), backups.end());
+
+    // Remove oldest backups if we have too many
+    while (backups.size() > MAX_BACKUPS) {
+        remove(backups[0].c_str());
+        backups.erase(backups.begin());
+    }
+}
 
 // Helper to find a number after a key in JSON
 static int ParseIntAfter(const char* json, const char* key, int defaultVal) {
@@ -32,6 +92,9 @@ static bool ParseBoolAfter(const char* json, const char* key, bool defaultVal) {
 }
 
 void SaveGame(const PlayerState& state) {
+    // Backup existing save before overwriting
+    BackupSaveFile();
+
     FILE* f = fopen(SAVE_FILE, "w");
     if (!f) return;
 

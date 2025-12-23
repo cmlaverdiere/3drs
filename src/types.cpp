@@ -1,16 +1,18 @@
 #include "types.h"
 
+// WARNING: Keep in sync with Skill enum in types.h - add new skills at the end!
 const char* SKILL_NAMES[SKILL_COUNT] = {
     "Combat", "Hitpoints", "Ranged", "Prayer", "Magic", "Woodcutting"
 };
 
+// WARNING: Keep in sync with ItemType enum in types.h - add new items at the end!
 const char* ITEM_NAMES[ITEM_COUNT] = {
     "Nothing",
     "Bronze Shortsword",
-    "Bronze Axe",
     "Cow Hide",
     "Bones",
     "Gil",
+    "Bronze Axe",
     "Logs"
 };
 

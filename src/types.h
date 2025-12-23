@@ -11,14 +11,17 @@ const int SLOT_SIZE = 40;
 const int SLOT_PADDING = 4;
 
 // Item types
+// WARNING: Only add new items BEFORE ITEM_COUNT, never reorder existing items!
+// Reordering will corrupt existing save files since inventory stores item IDs.
 enum ItemType {
     ITEM_NONE = 0,
     ITEM_BRONZE_SHORTSWORD,
-    ITEM_BRONZE_AXE,
     ITEM_COW_HIDE,
     ITEM_BONES,
     ITEM_GIL,
+    ITEM_BRONZE_AXE,
     ITEM_LOGS,
+    // === ADD NEW ITEMS HERE ===
     ITEM_COUNT
 };
 
@@ -40,6 +43,8 @@ enum WallMaterial {
 };
 
 // Skill indices
+// WARNING: Only add new skills BEFORE SKILL_COUNT, never reorder existing skills!
+// Reordering will corrupt existing save files since skills are saved by index.
 enum Skill {
     SKILL_COMBAT = 0,
     SKILL_HITPOINTS,
@@ -47,6 +52,7 @@ enum Skill {
     SKILL_PRAYER,
     SKILL_MAGIC,
     SKILL_WOODCUTTING,
+    // === ADD NEW SKILLS HERE ===
     SKILL_COUNT
 };
 

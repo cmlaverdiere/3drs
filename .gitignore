@@ -2,3 +2,4 @@ build/
 .cache/
 screenshots/
 savegame.json
+save_backups/
