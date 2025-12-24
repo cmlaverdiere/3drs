@@ -221,6 +221,11 @@ void InitSoundSystem() {
     wave = GenerateSquareWave(NoteToFreq(84), 0.05f, 30.0f);  // C6 blip
     sounds[SFX_XP_GAIN] = LoadSoundFromWave(wave);
     UnloadWave(wave);
+
+    // SFX_BURY - Soft earthy thud for burying bones
+    wave = GenerateNoise(0.3f, 12.0f);  // Short, muffled noise
+    sounds[SFX_BURY] = LoadSoundFromWave(wave);
+    UnloadWave(wave);
 }
 
 void UnloadSoundSystem() {

@@ -313,6 +313,14 @@ int main() {
     const float GRAVITY = 20.0f;
     bool isJumping = false;
 
+    // Ducking animation (for burying bones)
+    bool isDucking = false;
+    float duckTimer = 0.0f;
+    float currentDuckOffset = 0.0f;    // Track current offset to apply delta
+    const float DUCK_DURATION = 0.6f;  // Total duck animation time
+    const float DUCK_DEPTH = 0.8f;     // How much to lower camera
+    const int BURY_XP = 5;             // Prayer XP per bone (OSRS is 4.5)
+
     bool mouseMode = false;
     DisableCursor();
     SetTargetFPS(60);
@@ -454,8 +462,8 @@ int main() {
                     showInvMenu = false;
                 }
             }
-            // Left-click on inventory (quick equip for weapons)
-            else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !showInvMenu) {
+            // Left-click on inventory (quick equip for weapons, bury bones)
+            else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !showInvMenu && !isDucking) {
                 for (int row = 0; row < INV_ROWS; row++) {
                     for (int col = 0; col < INV_COLS; col++) {
                         int slotIdx = row * INV_COLS + col;
@@ -470,6 +478,30 @@ int main() {
                                     playerState.equippedWeapon = ITEM_NONE;
                                 } else {
                                     playerState.equippedWeapon = clickedItem;
+                                }
+                            } else if (clickedItem == ITEM_BONES) {
+                                // Bury bones - start ducking animation
+                                isDucking = true;
+                                duckTimer = DUCK_DURATION;
+                                PlaySoundEffect(SFX_BURY);
+
+                                // Remove bone from inventory
+                                playerState.inventory[slotIdx] = ITEM_NONE;
+                                playerState.inventoryCount[slotIdx] = 0;
+
+                                // Award prayer XP
+                                int oldLevel = GetLevelFromXP(playerState.skillXP[SKILL_PRAYER]);
+                                playerState.skillXP[SKILL_PRAYER] += BURY_XP;
+                                int newLevel = GetLevelFromXP(playerState.skillXP[SKILL_PRAYER]);
+                                SpawnXPPopup(xpPopups, BURY_XP, SKILL_PRAYER);
+                                PlaySoundEffect(SFX_XP_GAIN);
+
+                                if (newLevel > oldLevel) {
+                                    levelUpNotif.skillIndex = SKILL_PRAYER;
+                                    levelUpNotif.newLevel = newLevel;
+                                    levelUpNotif.timer = LEVEL_UP_DURATION;
+                                    levelUpNotif.active = true;
+                                    PlaySoundEffect(SFX_LEVEL_UP);
                                 }
                             }
                         }
@@ -564,6 +596,33 @@ int main() {
             float yDelta = newY - camera.position.y;
             camera.position.y = newY;
             camera.target.y += yDelta;
+        }
+
+        // Update ducking animation (runs even in mouse mode)
+        float targetDuckOffset = 0.0f;
+        if (isDucking) {
+            duckTimer -= dt;
+            if (duckTimer <= 0.0f) {
+                isDucking = false;
+                duckTimer = 0.0f;
+            } else {
+                // Smooth duck: go down in first half, come back up in second half
+                float progress = 1.0f - (duckTimer / DUCK_DURATION);
+                if (progress < 0.5f) {
+                    // Going down
+                    targetDuckOffset = DUCK_DEPTH * (progress * 2.0f);
+                } else {
+                    // Coming back up
+                    targetDuckOffset = DUCK_DEPTH * ((1.0f - progress) * 2.0f);
+                }
+            }
+        }
+        // Apply duck offset delta to camera
+        float duckDelta = targetDuckOffset - currentDuckOffset;
+        if (duckDelta != 0.0f) {
+            camera.position.y -= duckDelta;
+            camera.target.y -= duckDelta;
+            currentDuckOffset = targetDuckOffset;
         }
 
         if (attackCooldown > 0) {
