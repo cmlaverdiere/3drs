@@ -81,6 +81,8 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         map.itemTypes[map.itemCount] = ITEM_GIL;
                     } else if (strcmp(itemName, "logs") == 0) {
                         map.itemTypes[map.itemCount] = ITEM_LOGS;
+                    } else if (strcmp(itemName, "chitin") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_CHITIN;
                     } else {
                         map.itemTypes[map.itemCount] = ITEM_NONE;
                     }
@@ -114,6 +116,8 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         enemyType = ENEMY_TROLL;
                     } else if (strcmp(enemyName, "cow") == 0) {
                         enemyType = ENEMY_COW;
+                    } else if (strcmp(enemyName, "scorpion") == 0) {
+                        enemyType = ENEMY_SCORPION;
                     }
                     map.enemySpawns[map.enemyCount] = { x + offsetX, y, z + offsetZ };
                     map.enemyTypes[map.enemyCount] = enemyType;
@@ -174,6 +178,20 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                 TraceLog(LOG_WARNING, "MAX_WATER (%d) exceeded, skipping water", MAX_WATER);
             }
         }
+        else if (strcmp(type, "sand") == 0) {
+            // Format: sand x y z width length
+            if (map.sandCount < MAX_SAND) {
+                float x, y, z, w, l;
+                if (sscanf(line, "%*s %f %f %f %f %f", &x, &y, &z, &w, &l) == 5) {
+                    map.sandZones[map.sandCount].position = { x + offsetX, y, z + offsetZ };
+                    map.sandZones[map.sandCount].width = w;
+                    map.sandZones[map.sandCount].length = l;
+                    map.sandCount++;
+                }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_SAND (%d) exceeded, skipping sand", MAX_SAND);
+            }
+        }
         else if (strcmp(type, "valley") == 0) {
             // Format: valley axis position width depth
             // axis: x (north-south) or z (east-west)
@@ -212,14 +230,15 @@ bool LoadMap(const char* filename, MapData& map) {
     map.wallCount = 0;
     map.treeCount = 0;
     map.waterCount = 0;
+    map.sandCount = 0;
     map.valleyCount = 0;
 
     // Load the root map file with no offset
     bool success = LoadMapFile(filename, map, 0.0f, 0.0f, nullptr);
 
     if (success) {
-        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d valleys)",
-            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.valleyCount);
+        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d sand, %d valleys)",
+            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.sandCount, map.valleyCount);
     }
 
     return success;

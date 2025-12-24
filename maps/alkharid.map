@@ -1,0 +1,130 @@
+# Al Kharid Region - Desert City
+# North = -Z, South = +Z, East = +X, West = -X
+# Coordinates are relative to region origin (100, 50 from world origin)
+# This places Al Kharid east and slightly south of Lumbridge
+
+# === DESERT SAND TERRAIN ===
+# Main desert area (large sand zones covering the region)
+sand 0.0 0.0 0.0 80.0 80.0
+sand 50.0 0.0 0.0 60.0 80.0
+sand 0.0 0.0 50.0 80.0 60.0
+sand -30.0 0.0 -30.0 50.0 50.0
+
+# === CITY WALLS ===
+# Al Kharid has distinctive tan/brick walls
+# West wall (faces Lumbridge)
+wall -35.0 0.0 0.0 2.0 6.0 60.0 brick
+# East wall
+wall 45.0 0.0 0.0 2.0 6.0 60.0 brick
+# North wall
+wall 5.0 0.0 -30.0 80.0 6.0 2.0 brick
+# South wall
+wall 5.0 0.0 30.0 80.0 6.0 2.0 brick
+
+# === WEST GATE (toll gate from Lumbridge) ===
+wall -35.0 0.0 -8.0 3.0 8.0 3.0 brick
+wall -35.0 0.0 8.0 3.0 8.0 3.0 brick
+
+# === AL KHARID PALACE (northeast) ===
+# Main palace building
+wall 25.0 0.0 -20.0 20.0 8.0 2.0 stone
+wall 25.0 0.0 -10.0 20.0 8.0 2.0 stone
+wall 15.0 0.0 -15.0 2.0 8.0 12.0 stone
+wall 35.0 0.0 -15.0 2.0 8.0 12.0 stone
+# Palace towers (minarets)
+wall 15.0 0.0 -20.0 4.0 12.0 4.0 brick
+wall 35.0 0.0 -20.0 4.0 12.0 4.0 brick
+wall 15.0 0.0 -10.0 4.0 12.0 4.0 brick
+wall 35.0 0.0 -10.0 4.0 12.0 4.0 brick
+
+# === BANK (center) ===
+wall 0.0 0.0 -5.0 10.0 5.0 0.5 stone
+wall 0.0 0.0 5.0 10.0 5.0 0.5 stone
+wall -5.0 0.0 0.0 0.5 5.0 10.0 stone
+wall 5.0 0.0 0.0 0.5 5.0 10.0 stone
+
+# === FURNACE/SMITHY (south) ===
+wall -15.0 0.0 15.0 8.0 4.0 0.5 brick
+wall -15.0 0.0 22.0 8.0 4.0 0.5 brick
+wall -19.0 0.0 18.5 0.5 4.0 7.0 brick
+wall -11.0 0.0 18.5 0.5 4.0 7.0 brick
+
+# === KEBAB SHOP (northwest) ===
+wall -20.0 0.0 -18.0 6.0 3.5 0.4 wood
+wall -20.0 0.0 -23.0 6.0 3.5 0.4 wood
+wall -23.0 0.0 -20.5 0.4 3.5 5.0 wood
+wall -17.0 0.0 -20.5 0.4 3.5 5.0 wood
+
+# === SILK TRADER STALL (center-west) ===
+wall -25.0 0.0 0.0 5.0 2.5 5.0 wood
+
+# === MINE ENTRANCE (southeast, outside walls) ===
+# Mine shaft walls
+wall 55.0 0.0 20.0 8.0 3.0 0.5 stone
+wall 55.0 0.0 25.0 8.0 3.0 0.5 stone
+wall 51.0 0.0 22.5 0.5 3.0 5.0 stone
+wall 59.0 0.0 22.5 0.5 3.0 5.0 stone
+
+# === SCORPIONS ===
+# Main desert area (outside city - dangerous!)
+enemy scorpion 55.0 0.0 -15.0
+enemy scorpion 60.0 0.0 0.0
+enemy scorpion 50.0 0.0 10.0
+enemy scorpion 65.0 0.0 -5.0
+
+# Near mine (extra dangerous)
+enemy scorpion 60.0 0.0 25.0
+enemy scorpion 65.0 0.0 20.0
+enemy scorpion 55.0 0.0 30.0
+enemy scorpion 70.0 0.0 15.0
+
+# South desert
+enemy scorpion 20.0 0.0 40.0
+enemy scorpion 30.0 0.0 45.0
+enemy scorpion 10.0 0.0 50.0
+enemy scorpion 40.0 0.0 35.0
+
+# West approach (between Lumbridge and Al Kharid)
+enemy scorpion -50.0 0.0 -10.0
+enemy scorpion -55.0 0.0 5.0
+enemy scorpion -45.0 0.0 15.0
+
+# === GUARDS (trolls for now) ===
+# Gate guards
+enemy troll -30.0 0.0 -5.0
+enemy troll -30.0 0.0 5.0
+
+# Palace guards
+enemy troll 20.0 0.0 -12.0
+enemy troll 30.0 0.0 -12.0
+
+# City patrol
+enemy troll 0.0 0.0 10.0
+enemy troll -10.0 0.0 -10.0
+
+# === ITEMS ===
+# Near bank
+item gil 2.0 0.0 0.0
+
+# Near mine
+item bronze_axe 52.0 0.0 22.0
+
+# Scorpion drops (chitin on ground for flavor)
+item chitin 58.0 0.0 0.0
+item bones 62.0 0.0 -10.0
+
+# === PALM TREES (sparse desert vegetation) ===
+# Oasis area (small cluster near city)
+tree -28.0 0.0 10.0
+tree -30.0 0.0 12.0
+
+# Along city walls
+tree 40.0 0.0 25.0
+tree -30.0 0.0 -25.0
+
+# Near mine
+tree 48.0 0.0 15.0
+
+# South approach
+tree 15.0 0.0 35.0
+tree -5.0 0.0 40.0

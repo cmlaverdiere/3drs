@@ -13,7 +13,8 @@ const char* ITEM_NAMES[ITEM_COUNT] = {
     "Bones",
     "Gil",
     "Bronze Axe",
-    "Logs"
+    "Logs",
+    "Chitin"
 };
 
 const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
@@ -48,5 +49,22 @@ const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
             { ITEM_BONES, 1, 1, 1.0f },      // Always drops bones
         },
         .dropCount = 2
+    },
+    // ENEMY_SCORPION
+    {
+        .name = "Scorpion",
+        .maxHealth = 15,
+        .maxHit = 4,
+        .attackCooldown = 1.5f,
+        .chaseSpeed = 2.5f,
+        .attackRange = 1.8f,
+        .respawnTime = 20.0f,
+        .aggressive = true,  // Scorpions attack on sight!
+        .drops = {
+            { ITEM_CHITIN, 1, 1, 1.0f },     // Always drops chitin
+            { ITEM_BONES, 1, 1, 1.0f },      // Always drops bones
+            { ITEM_GIL, 10, 50, 0.8f },      // 80% chance 10-50 gil
+        },
+        .dropCount = 3
     }
 };

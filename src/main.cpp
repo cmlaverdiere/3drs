@@ -152,6 +152,7 @@ int main(int argc, char* argv[]) {
         printf("  Walls: %d / %d\n", mapData.wallCount, MAX_WALLS);
         printf("  Trees: %d / %d\n", mapData.treeCount, MAX_TREES);
         printf("  Water: %d / %d\n", mapData.waterCount, MAX_WATER);
+        printf("  Sand: %d / %d\n", mapData.sandCount, MAX_SAND);
         printf("  Valleys: %d / %d\n", mapData.valleyCount, MAX_VALLEYS);
         printf("  Player spawn: (%.1f, %.1f, %.1f)\n",
                mapData.playerSpawn.x, mapData.playerSpawn.y, mapData.playerSpawn.z);
@@ -252,6 +253,9 @@ int main(int argc, char* argv[]) {
     Shader waterShader = LoadShader("shaders/water.vs", "shaders/water.fs");
     int waterTimeLoc = GetShaderLocation(waterShader, "time");
 
+    // Load sand shader (uses grass vertex shader)
+    Shader sandShader = LoadShader("shaders/grass.vs", "shaders/sand.fs");
+
     // Initialize world items from map
     WorldItem worldItems[MAX_WORLD_ITEMS] = {};
     int worldItemCount = mapData.itemCount;
@@ -324,6 +328,18 @@ int main(int argc, char* argv[]) {
         Mesh waterMesh = GenMeshPlane(waterBodies[i].width, waterBodies[i].length, 20, 20);
         waterModels[i] = LoadModelFromMesh(waterMesh);
         waterModels[i].materials[0].shader = waterShader;
+    }
+
+    // Initialize sand zones from map
+    Sand sandZones[MAX_SAND] = {};
+    Model sandModels[MAX_SAND] = {};
+    int sandCount = mapData.sandCount;
+    for (int i = 0; i < sandCount; i++) {
+        sandZones[i] = mapData.sandZones[i];
+        // Create a plane mesh for each sand zone
+        Mesh sandMesh = GenMeshPlane(sandZones[i].width, sandZones[i].length, 20, 20);
+        sandModels[i] = LoadModelFromMesh(sandMesh);
+        sandModels[i].materials[0].shader = sandShader;
     }
 
     // Populate spatial hash for O(1) proximity queries
@@ -1138,6 +1154,14 @@ int main(int argc, char* argv[]) {
                     // Use Y position from map file directly (river in valley)
                     DrawModel(waterModels[i], waterPos, 1.0f, WHITE);
                 }
+
+                // Draw sand zones (desert terrain overlay)
+                for (int i = 0; i < sandCount; i++) {
+                    Vector3 sandPos = sandZones[i].position;
+                    // Slightly above ground to avoid z-fighting
+                    sandPos.y = GetTerrainHeight(sandPos.x, sandPos.z) + 0.02f;
+                    DrawModel(sandModels[i], sandPos, 1.0f, WHITE);
+                }
             EndMode3D();
 
             // HUD
@@ -1658,6 +1682,12 @@ int main(int argc, char* argv[]) {
         UnloadModel(waterModels[i]);
     }
     UnloadShader(waterShader);
+
+    // Unload sand models and shader
+    for (int i = 0; i < sandCount; i++) {
+        UnloadModel(sandModels[i]);
+    }
+    UnloadShader(sandShader);
 
     // Cleanup audio
     UnloadSoundSystem();

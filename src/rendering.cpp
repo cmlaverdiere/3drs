@@ -124,6 +124,63 @@ void DrawCow(Vector3 pos, float facingAngle, bool highlighted) {
     rlPopMatrix();
 }
 
+void DrawScorpion(Vector3 pos, float facingAngle, bool highlighted) {
+    Color bodyColor = { 139, 90, 43, 255 };       // Dark brown
+    Color bodyDark = { 101, 67, 33, 255 };        // Darker brown
+    Color clawColor = { 160, 100, 50, 255 };      // Lighter brown for claws
+    Color stingerColor = { 80, 50, 30, 255 };     // Very dark for stinger tip
+
+    // Apply rotation around Y axis at position
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y, pos.z);
+    rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
+
+    // Draw scorpion at origin (facing +Z is forward)
+    // Body segments (low to ground)
+    DrawCube((Vector3){0, 0.15f, 0}, 0.4f, 0.15f, 0.5f, bodyColor);  // Main body
+    DrawCube((Vector3){0, 0.12f, 0.3f}, 0.3f, 0.12f, 0.2f, bodyDark); // Head
+
+    // Legs (4 pairs, low to ground)
+    float legY = 0.08f;
+    // Front legs
+    DrawCube((Vector3){-0.25f, legY, 0.15f}, 0.15f, 0.05f, 0.06f, bodyDark);
+    DrawCube((Vector3){0.25f, legY, 0.15f}, 0.15f, 0.05f, 0.06f, bodyDark);
+    // Mid-front legs
+    DrawCube((Vector3){-0.28f, legY, 0.0f}, 0.18f, 0.05f, 0.06f, bodyDark);
+    DrawCube((Vector3){0.28f, legY, 0.0f}, 0.18f, 0.05f, 0.06f, bodyDark);
+    // Mid-back legs
+    DrawCube((Vector3){-0.28f, legY, -0.15f}, 0.18f, 0.05f, 0.06f, bodyDark);
+    DrawCube((Vector3){0.28f, legY, -0.15f}, 0.18f, 0.05f, 0.06f, bodyDark);
+    // Back legs
+    DrawCube((Vector3){-0.22f, legY, -0.25f}, 0.12f, 0.05f, 0.06f, bodyDark);
+    DrawCube((Vector3){0.22f, legY, -0.25f}, 0.12f, 0.05f, 0.06f, bodyDark);
+
+    // Pincers/claws (front)
+    // Left claw arm
+    DrawCube((Vector3){-0.2f, 0.12f, 0.45f}, 0.08f, 0.08f, 0.2f, clawColor);
+    DrawCube((Vector3){-0.25f, 0.12f, 0.58f}, 0.12f, 0.06f, 0.08f, clawColor);  // Pincer
+    DrawCube((Vector3){-0.18f, 0.12f, 0.58f}, 0.06f, 0.06f, 0.1f, clawColor);   // Pincer jaw
+    // Right claw arm
+    DrawCube((Vector3){0.2f, 0.12f, 0.45f}, 0.08f, 0.08f, 0.2f, clawColor);
+    DrawCube((Vector3){0.25f, 0.12f, 0.58f}, 0.12f, 0.06f, 0.08f, clawColor);   // Pincer
+    DrawCube((Vector3){0.18f, 0.12f, 0.58f}, 0.06f, 0.06f, 0.1f, clawColor);    // Pincer jaw
+
+    // Tail (segmented, curves up and over)
+    DrawCube((Vector3){0, 0.18f, -0.35f}, 0.15f, 0.12f, 0.15f, bodyColor);  // Segment 1
+    DrawCube((Vector3){0, 0.28f, -0.48f}, 0.12f, 0.1f, 0.12f, bodyColor);   // Segment 2
+    DrawCube((Vector3){0, 0.42f, -0.55f}, 0.1f, 0.1f, 0.1f, bodyColor);     // Segment 3
+    DrawCube((Vector3){0, 0.55f, -0.55f}, 0.08f, 0.12f, 0.08f, bodyColor);  // Segment 4
+    DrawCube((Vector3){0, 0.65f, -0.50f}, 0.06f, 0.1f, 0.08f, bodyColor);   // Segment 5
+
+    // Stinger (pointing forward)
+    DrawCube((Vector3){0, 0.70f, -0.42f}, 0.05f, 0.08f, 0.1f, stingerColor);
+    DrawSphere((Vector3){0, 0.72f, -0.36f}, 0.04f, stingerColor);  // Stinger tip
+
+    (void)highlighted;  // Wireframe outline removed
+
+    rlPopMatrix();
+}
+
 void DrawEnemy(const Enemy& enemy, bool highlighted) {
     switch (enemy.type) {
         case ENEMY_TROLL:
@@ -131,6 +188,9 @@ void DrawEnemy(const Enemy& enemy, bool highlighted) {
             break;
         case ENEMY_COW:
             DrawCow(enemy.position, enemy.facingAngle, highlighted);
+            break;
+        case ENEMY_SCORPION:
+            DrawScorpion(enemy.position, enemy.facingAngle, highlighted);
             break;
         default:
             // Unknown enemy type - draw a red cube
@@ -192,6 +252,18 @@ void DrawWorldItem(ItemType type, Vector3 pos) {
             DrawCylinder((Vector3){pos.x, pos.y, pos.z}, 0.12f, 0.12f, 0.5f, 8, barkColor);
             // End caps
             DrawCylinderWires((Vector3){pos.x, pos.y, pos.z}, 0.12f, 0.12f, 0.5f, 8, woodColor);
+            break;
+        }
+        case ITEM_CHITIN: {
+            // Dark brown chitin shell piece
+            Color chitinColor = { 101, 67, 33, 255 };
+            Color chitinDark = { 70, 45, 20, 255 };
+            // Main shell piece (curved appearance via overlapping shapes)
+            DrawCube((Vector3){pos.x, pos.y + 0.04f, pos.z}, 0.25f, 0.06f, 0.35f, chitinColor);
+            DrawCube((Vector3){pos.x, pos.y + 0.07f, pos.z}, 0.2f, 0.04f, 0.3f, chitinDark);
+            // Ridges on shell
+            DrawCube((Vector3){pos.x, pos.y + 0.08f, pos.z - 0.08f}, 0.18f, 0.02f, 0.05f, chitinDark);
+            DrawCube((Vector3){pos.x, pos.y + 0.08f, pos.z + 0.08f}, 0.18f, 0.02f, 0.05f, chitinDark);
             break;
         }
         default:

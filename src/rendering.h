@@ -13,6 +13,9 @@ void DrawTroll(Vector3 pos, float facingAngle, bool highlighted);
 // Draw a cow
 void DrawCow(Vector3 pos, float facingAngle, bool highlighted);
 
+// Draw a scorpion
+void DrawScorpion(Vector3 pos, float facingAngle, bool highlighted);
+
 // Draw any enemy by type
 void DrawEnemy(const Enemy& enemy, bool highlighted);
 

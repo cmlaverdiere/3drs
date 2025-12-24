@@ -21,6 +21,7 @@ enum ItemType {
     ITEM_GIL,
     ITEM_BRONZE_AXE,
     ITEM_LOGS,
+    ITEM_CHITIN,
     // === ADD NEW ITEMS HERE ===
     ITEM_COUNT
 };
@@ -31,6 +32,7 @@ extern const char* ITEM_NAMES[ITEM_COUNT];
 enum EnemyType {
     ENEMY_TROLL = 0,
     ENEMY_COW,
+    ENEMY_SCORPION,
     ENEMY_TYPE_COUNT
 };
 
@@ -130,6 +132,13 @@ struct Water {
     float length;      // Z extent
 };
 
+// Sand zone (desert terrain)
+struct Sand {
+    Vector3 position;  // Center position
+    float width;       // X extent
+    float length;      // Z extent
+};
+
 // Terrain valley (carves into heightmap)
 struct Valley {
     float position;    // X or Z position of valley center
@@ -140,6 +149,7 @@ struct Valley {
 
 const int MAX_TREES = 1000;
 const int MAX_WATER = 100;
+const int MAX_SAND = 50;
 const int MAX_VALLEYS = 50;
 const int TREE_MAX_HEALTH = 3;      // 3 chops to fell a tree
 const float TREE_RESPAWN_TIME = 30.0f;
@@ -217,6 +227,8 @@ struct MapData {
     int treeCount;
     Water waterBodies[MAX_WATER];
     int waterCount;
+    Sand sandZones[MAX_SAND];
+    int sandCount;
     Valley valleys[MAX_VALLEYS];
     int valleyCount;
 };

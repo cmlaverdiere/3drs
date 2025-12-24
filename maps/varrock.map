@@ -1,0 +1,132 @@
+# Varrock Region
+# North = -Z, South = +Z, East = +X, West = -X
+# Coordinates are relative to region origin (0, -200 from world origin)
+
+# === CITY WALLS (outer perimeter) ===
+# South wall (facing Lumbridge)
+wall 0.0 0.0 50.0 120.0 8.0 2.0 stone
+# North wall
+wall 0.0 0.0 -60.0 120.0 8.0 2.0 stone
+# West wall
+wall -60.0 0.0 -5.0 2.0 8.0 110.0 stone
+# East wall
+wall 60.0 0.0 -5.0 2.0 8.0 110.0 stone
+
+# === SOUTH GATE (main entrance from Lumbridge) ===
+# Gate towers
+wall -8.0 0.0 50.0 4.0 10.0 4.0 brick
+wall 8.0 0.0 50.0 4.0 10.0 4.0 brick
+
+# === WEST GATE ===
+wall -60.0 0.0 10.0 4.0 10.0 4.0 brick
+wall -60.0 0.0 -10.0 4.0 10.0 4.0 brick
+
+# === EAST GATE (leads to Al Kharid desert) ===
+wall 60.0 0.0 10.0 4.0 10.0 4.0 brick
+wall 60.0 0.0 -10.0 4.0 10.0 4.0 brick
+
+# === VARROCK PALACE (north-center) ===
+# Palace main building
+wall 0.0 0.0 -45.0 30.0 10.0 2.0 stone
+wall 0.0 0.0 -55.0 30.0 10.0 2.0 stone
+wall -15.0 0.0 -50.0 2.0 10.0 12.0 stone
+wall 15.0 0.0 -50.0 2.0 10.0 12.0 stone
+# Palace towers
+wall -15.0 0.0 -45.0 5.0 14.0 5.0 brick
+wall 15.0 0.0 -45.0 5.0 14.0 5.0 brick
+wall -15.0 0.0 -55.0 5.0 14.0 5.0 brick
+wall 15.0 0.0 -55.0 5.0 14.0 5.0 brick
+# Palace courtyard walls
+wall -10.0 0.0 -38.0 22.0 3.0 0.5 stone
+wall -10.0 0.0 -35.0 0.5 3.0 6.0 stone
+wall 10.0 0.0 -35.0 0.5 3.0 6.0 stone
+
+# === VARROCK SQUARE (city center) ===
+# Fountain base (represented as stone blocks)
+wall 0.0 0.0 0.0 4.0 0.5 4.0 stone
+wall 0.0 0.5 0.0 2.0 1.5 2.0 stone
+
+# === BANK (west of square) ===
+wall -25.0 0.0 -5.0 12.0 5.0 0.5 stone
+wall -25.0 0.0 5.0 12.0 5.0 0.5 stone
+wall -31.0 0.0 0.0 0.5 5.0 10.0 stone
+wall -19.0 0.0 0.0 0.5 5.0 10.0 stone
+
+# === GENERAL STORE (east of square) ===
+wall 25.0 0.0 -5.0 10.0 4.0 0.5 wood
+wall 25.0 0.0 5.0 10.0 4.0 0.5 wood
+wall 20.0 0.0 0.0 0.5 4.0 10.0 wood
+wall 30.0 0.0 0.0 0.5 4.0 10.0 wood
+
+# === SWORD SHOP (southwest) ===
+wall -35.0 0.0 25.0 8.0 4.0 0.5 wood
+wall -35.0 0.0 32.0 8.0 4.0 0.5 wood
+wall -39.0 0.0 28.5 0.5 4.0 7.0 wood
+wall -31.0 0.0 28.5 0.5 4.0 7.0 wood
+
+# === INN (southeast) ===
+wall 35.0 0.0 25.0 10.0 5.0 0.5 wood
+wall 35.0 0.0 35.0 10.0 5.0 0.5 wood
+wall 30.0 0.0 30.0 0.5 5.0 10.0 wood
+wall 40.0 0.0 30.0 0.5 5.0 10.0 wood
+
+# === RESIDENTIAL HOUSES (various) ===
+# Northwest house
+wall -40.0 0.0 -25.0 6.0 3.5 0.4 wood
+wall -40.0 0.0 -30.0 6.0 3.5 0.4 wood
+wall -43.0 0.0 -27.5 0.4 3.5 5.0 wood
+wall -37.0 0.0 -27.5 0.4 3.5 5.0 wood
+
+# Northeast house
+wall 40.0 0.0 -25.0 6.0 3.5 0.4 wood
+wall 40.0 0.0 -30.0 6.0 3.5 0.4 wood
+wall 37.0 0.0 -27.5 0.4 3.5 5.0 wood
+wall 43.0 0.0 -27.5 0.4 3.5 5.0 wood
+
+# === GUARDS/ENEMIES ===
+# Palace guards (trolls for now)
+enemy troll -10.0 0.0 -40.0
+enemy troll 10.0 0.0 -40.0
+enemy troll 0.0 0.0 -52.0
+
+# Gate guards
+enemy troll -6.0 0.0 45.0
+enemy troll 6.0 0.0 45.0
+enemy troll -55.0 0.0 0.0
+enemy troll 55.0 0.0 0.0
+
+# City patrol
+enemy troll 0.0 0.0 20.0
+enemy troll -20.0 0.0 15.0
+enemy troll 20.0 0.0 -15.0
+
+# === ITEMS ===
+# Near bank
+item bronze_shortsword -22.0 0.0 0.0
+item gil -24.0 0.0 2.0
+
+# Near sword shop
+item bronze_axe -35.0 0.0 28.0
+
+# === TREES ===
+# Around palace
+tree -25.0 0.0 -45.0
+tree 25.0 0.0 -45.0
+tree -20.0 0.0 -35.0
+tree 20.0 0.0 -35.0
+
+# Along walls
+tree -50.0 0.0 30.0
+tree -50.0 0.0 -30.0
+tree 50.0 0.0 30.0
+tree 50.0 0.0 -30.0
+
+# City park (northeast)
+tree 45.0 0.0 -40.0
+tree 48.0 0.0 -45.0
+tree 42.0 0.0 -48.0
+tree 50.0 0.0 -42.0
+
+# Near inn
+tree 42.0 0.0 38.0
+tree 28.0 0.0 40.0
