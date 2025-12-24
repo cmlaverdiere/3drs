@@ -136,12 +136,13 @@ void DrawScorpion(Vector3 pos, float facingAngle, bool highlighted) {
     rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
 
     // Draw scorpion at origin (facing +Z is forward)
-    // Body segments (low to ground)
-    DrawCube((Vector3){0, 0.15f, 0}, 0.4f, 0.15f, 0.5f, bodyColor);  // Main body
-    DrawCube((Vector3){0, 0.12f, 0.3f}, 0.3f, 0.12f, 0.2f, bodyDark); // Head
+    // Body segments (raised slightly for visibility)
+    float baseY = 0.25f;  // Base height offset
+    DrawCube((Vector3){0, baseY, 0}, 0.4f, 0.15f, 0.5f, bodyColor);  // Main body
+    DrawCube((Vector3){0, baseY - 0.03f, 0.3f}, 0.3f, 0.12f, 0.2f, bodyDark); // Head
 
-    // Legs (4 pairs, low to ground)
-    float legY = 0.08f;
+    // Legs (4 pairs)
+    float legY = baseY - 0.07f;
     // Front legs
     DrawCube((Vector3){-0.25f, legY, 0.15f}, 0.15f, 0.05f, 0.06f, bodyDark);
     DrawCube((Vector3){0.25f, legY, 0.15f}, 0.15f, 0.05f, 0.06f, bodyDark);
@@ -156,25 +157,26 @@ void DrawScorpion(Vector3 pos, float facingAngle, bool highlighted) {
     DrawCube((Vector3){0.22f, legY, -0.25f}, 0.12f, 0.05f, 0.06f, bodyDark);
 
     // Pincers/claws (front)
+    float clawY = baseY - 0.03f;
     // Left claw arm
-    DrawCube((Vector3){-0.2f, 0.12f, 0.45f}, 0.08f, 0.08f, 0.2f, clawColor);
-    DrawCube((Vector3){-0.25f, 0.12f, 0.58f}, 0.12f, 0.06f, 0.08f, clawColor);  // Pincer
-    DrawCube((Vector3){-0.18f, 0.12f, 0.58f}, 0.06f, 0.06f, 0.1f, clawColor);   // Pincer jaw
+    DrawCube((Vector3){-0.2f, clawY, 0.45f}, 0.08f, 0.08f, 0.2f, clawColor);
+    DrawCube((Vector3){-0.25f, clawY, 0.58f}, 0.12f, 0.06f, 0.08f, clawColor);  // Pincer
+    DrawCube((Vector3){-0.18f, clawY, 0.58f}, 0.06f, 0.06f, 0.1f, clawColor);   // Pincer jaw
     // Right claw arm
-    DrawCube((Vector3){0.2f, 0.12f, 0.45f}, 0.08f, 0.08f, 0.2f, clawColor);
-    DrawCube((Vector3){0.25f, 0.12f, 0.58f}, 0.12f, 0.06f, 0.08f, clawColor);   // Pincer
-    DrawCube((Vector3){0.18f, 0.12f, 0.58f}, 0.06f, 0.06f, 0.1f, clawColor);    // Pincer jaw
+    DrawCube((Vector3){0.2f, clawY, 0.45f}, 0.08f, 0.08f, 0.2f, clawColor);
+    DrawCube((Vector3){0.25f, clawY, 0.58f}, 0.12f, 0.06f, 0.08f, clawColor);   // Pincer
+    DrawCube((Vector3){0.18f, clawY, 0.58f}, 0.06f, 0.06f, 0.1f, clawColor);    // Pincer jaw
 
     // Tail (segmented, curves up and over)
-    DrawCube((Vector3){0, 0.18f, -0.35f}, 0.15f, 0.12f, 0.15f, bodyColor);  // Segment 1
-    DrawCube((Vector3){0, 0.28f, -0.48f}, 0.12f, 0.1f, 0.12f, bodyColor);   // Segment 2
-    DrawCube((Vector3){0, 0.42f, -0.55f}, 0.1f, 0.1f, 0.1f, bodyColor);     // Segment 3
-    DrawCube((Vector3){0, 0.55f, -0.55f}, 0.08f, 0.12f, 0.08f, bodyColor);  // Segment 4
-    DrawCube((Vector3){0, 0.65f, -0.50f}, 0.06f, 0.1f, 0.08f, bodyColor);   // Segment 5
+    DrawCube((Vector3){0, baseY + 0.03f, -0.35f}, 0.15f, 0.12f, 0.15f, bodyColor);  // Segment 1
+    DrawCube((Vector3){0, baseY + 0.13f, -0.48f}, 0.12f, 0.1f, 0.12f, bodyColor);   // Segment 2
+    DrawCube((Vector3){0, baseY + 0.27f, -0.55f}, 0.1f, 0.1f, 0.1f, bodyColor);     // Segment 3
+    DrawCube((Vector3){0, baseY + 0.40f, -0.55f}, 0.08f, 0.12f, 0.08f, bodyColor);  // Segment 4
+    DrawCube((Vector3){0, baseY + 0.50f, -0.50f}, 0.06f, 0.1f, 0.08f, bodyColor);   // Segment 5
 
     // Stinger (pointing forward)
-    DrawCube((Vector3){0, 0.70f, -0.42f}, 0.05f, 0.08f, 0.1f, stingerColor);
-    DrawSphere((Vector3){0, 0.72f, -0.36f}, 0.04f, stingerColor);  // Stinger tip
+    DrawCube((Vector3){0, baseY + 0.55f, -0.42f}, 0.05f, 0.08f, 0.1f, stingerColor);
+    DrawSphere((Vector3){0, baseY + 0.57f, -0.36f}, 0.04f, stingerColor);  // Stinger tip
 
     (void)highlighted;  // Wireframe outline removed
 

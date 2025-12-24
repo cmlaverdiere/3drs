@@ -239,7 +239,7 @@ int main(int argc, char* argv[]) {
 
     // Create ground mesh from heightmap
     Shader grassShader = LoadShader("shaders/grass.vs", "shaders/grass.fs");
-    Mesh groundMesh = GenHeightmapMesh(128.0f, 128.0f, 128, 128);
+    Mesh groundMesh = GenHeightmapMesh(512.0f, 512.0f, 256, 256);
     Model groundModel = LoadModelFromMesh(groundMesh);
     groundModel.materials[0].shader = grassShader;
 

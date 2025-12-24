@@ -128,3 +128,14 @@ tree 48.0 0.0 15.0
 # South approach
 tree 15.0 0.0 35.0
 tree -5.0 0.0 40.0
+
+# === ROAD FROM LUMBRIDGE (west approach) ===
+# Trees/palms lining the road to the toll gate
+tree -45.0 0.0 -8.0
+tree -45.0 0.0 8.0
+tree -55.0 0.0 -5.0
+tree -55.0 0.0 5.0
+tree -65.0 0.0 -3.0
+tree -65.0 0.0 7.0
+tree -75.0 0.0 0.0
+tree -75.0 0.0 10.0

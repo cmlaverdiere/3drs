@@ -5,9 +5,9 @@
 #include <cmath>
 
 // Heightmap system for terrain
-const int HEIGHTMAP_SIZE = 128;  // 128x128 grid
-const float HEIGHTMAP_SCALE = 1.0f;  // 1 unit per cell (covers -64 to +64)
-const float HEIGHTMAP_OFFSET = 64.0f;  // Center offset
+const int HEIGHTMAP_SIZE = 512;  // 512x512 grid
+const float HEIGHTMAP_SCALE = 1.0f;  // 1 unit per cell (covers -256 to +256)
+const float HEIGHTMAP_OFFSET = 256.0f;  // Center offset
 
 // Global heightmap data (initialized in main.cpp)
 extern float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];

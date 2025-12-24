@@ -136,3 +136,35 @@ tree -38.0 0.0 0.0
 tree -40.0 0.0 8.0
 tree -36.0 0.0 12.0
 tree -42.0 0.0 4.0
+
+# === ROAD TO VARROCK (north) ===
+# Trees lining the road from Lumbridge to Varrock
+tree -8.0 0.0 -35.0
+tree 8.0 0.0 -35.0
+tree -8.0 0.0 -50.0
+tree 8.0 0.0 -50.0
+tree -8.0 0.0 -65.0
+tree 8.0 0.0 -65.0
+tree -8.0 0.0 -80.0
+tree 8.0 0.0 -80.0
+tree -8.0 0.0 -95.0
+tree 8.0 0.0 -95.0
+tree -8.0 0.0 -110.0
+tree 8.0 0.0 -110.0
+tree -8.0 0.0 -125.0
+tree 8.0 0.0 -125.0
+tree -8.0 0.0 -140.0
+tree 8.0 0.0 -140.0
+
+# === ROAD TO AL KHARID (east) ===
+# Trees lining the road from bridge toward Al Kharid
+tree 25.0 0.0 -5.0
+tree 25.0 0.0 5.0
+tree 40.0 0.0 -5.0
+tree 40.0 0.0 5.0
+tree 55.0 0.0 -5.0
+tree 55.0 0.0 5.0
+tree 70.0 0.0 0.0
+tree 70.0 0.0 10.0
+tree 85.0 0.0 5.0
+tree 85.0 0.0 15.0

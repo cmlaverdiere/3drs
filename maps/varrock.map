@@ -130,3 +130,18 @@ tree 50.0 0.0 -42.0
 # Near inn
 tree 42.0 0.0 38.0
 tree 28.0 0.0 40.0
+
+# === ROAD FROM LUMBRIDGE (south approach) ===
+# Trees lining the road leading to south gate
+tree -8.0 0.0 60.0
+tree 8.0 0.0 60.0
+tree -8.0 0.0 75.0
+tree 8.0 0.0 75.0
+tree -8.0 0.0 90.0
+tree 8.0 0.0 90.0
+tree -8.0 0.0 105.0
+tree 8.0 0.0 105.0
+tree -8.0 0.0 120.0
+tree 8.0 0.0 120.0
+tree -8.0 0.0 135.0
+tree 8.0 0.0 135.0
