@@ -28,11 +28,14 @@ bool g_heightmapInitialized = false;
 WorldSpatialData g_spatial;
 
 int main(int argc, char* argv[]) {
-    // Check for --test flag (headless mode for CI/testing)
+    // Check for command-line flags
     bool testMode = false;
+    bool screenshotMode = false;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--test") == 0) {
             testMode = true;
+        } else if (strcmp(argv[i], "--screenshot") == 0) {
+            screenshotMode = true;
         }
     }
 
@@ -420,6 +423,27 @@ int main(int argc, char* argv[]) {
                 screenWidth, screenHeight);
 
         EndDrawing();
+
+        // Screenshot mode: capture and exit after a few frames (allow GPU to fully render)
+        static int screenshotFrameCount = 0;
+        if (screenshotMode) {
+            screenshotFrameCount++;
+            if (screenshotFrameCount >= 3) {  // Wait 3 frames for GPU to stabilize
+                time_t now = time(nullptr);
+                char filename[64];
+                strftime(filename, sizeof(filename), "screenshots/%Y%m%d_%H%M%S.png", localtime(&now));
+                Image screenshot = LoadImageFromScreen();
+                ExportImage(screenshot, filename);
+                UnloadImage(screenshot);
+                printf("Screenshot saved: %s\n", filename);
+
+                // Cleanup and exit
+                UnloadLightingSystem(&lighting);
+                CleanupGameResources(&resources);
+                CloseWindow();
+                return 0;
+            }
+        }
     }
 
     // Save game state

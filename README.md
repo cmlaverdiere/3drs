@@ -23,6 +23,16 @@ Run headless validation (no window):
 ./build/game --test
 ```
 
+## Screenshot Mode
+
+Render one frame, save screenshot, and exit (useful for automated visual testing):
+
+```bash
+./build/game --screenshot
+```
+
+Screenshots are saved to `screenshots/` with timestamp filenames.
+
 ## Controls
 
 - WASD - Move

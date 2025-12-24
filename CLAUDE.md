@@ -63,3 +63,31 @@ View recent screenshots:
 ```bash
 ./last_screenshots.sh 5   # list last 5 screenshots
 ```
+
+## Automated Screenshot Mode
+
+**ALWAYS USE THIS** for visual debugging instead of asking the user to run the game and report back:
+
+```bash
+./build/game --screenshot && ./last_screenshots.sh 1
+```
+
+Then read the screenshot file to see the result:
+```bash
+# Get the filename from last_screenshots.sh output, then read it
+```
+
+This renders a few frames, saves a screenshot, and exits immediately. The screenshot is saved to `screenshots/` with a timestamp filename.
+
+**When to use:**
+- After modifying rendering code, shaders, HUD, or any visual elements
+- When debugging visual issues - capture before and after screenshots
+- When you need to verify a visual change worked correctly
+- **Instead of asking the user** "can you run the game and tell me what you see?"
+
+**Workflow:**
+1. Make changes
+2. Build: `cmake --build build`
+3. Screenshot: `./build/game --screenshot`
+4. Get filename: `./last_screenshots.sh 1`
+5. Read the screenshot file to visually verify
