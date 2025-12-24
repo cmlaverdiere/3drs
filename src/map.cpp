@@ -2,21 +2,41 @@
 #include "raylib.h"
 #include <cstdio>
 #include <cstring>
+#include <libgen.h>
 
-bool LoadMap(const char* filename, MapData& map) {
-    FILE* f = fopen(filename, "r");
+// Forward declaration
+static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float offsetZ, const char* baseDir);
+
+// Get directory from a file path
+static void GetDirectory(const char* filepath, char* dir, size_t dirSize) {
+    strncpy(dir, filepath, dirSize - 1);
+    dir[dirSize - 1] = '\0';
+    char* lastSlash = strrchr(dir, '/');
+    if (lastSlash) {
+        *(lastSlash + 1) = '\0';
+    } else {
+        dir[0] = '\0';
+    }
+}
+
+// Load a single map file with offset applied to all coordinates
+static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float offsetZ, const char* baseDir) {
+    // Build full path if baseDir is provided
+    char fullPath[512];
+    if (baseDir && baseDir[0] != '\0') {
+        snprintf(fullPath, sizeof(fullPath), "%s%s", baseDir, filename);
+    } else {
+        strncpy(fullPath, filename, sizeof(fullPath) - 1);
+        fullPath[sizeof(fullPath) - 1] = '\0';
+    }
+
+    FILE* f = fopen(fullPath, "r");
     if (!f) {
-        TraceLog(LOG_ERROR, "Failed to load map: %s", filename);
+        TraceLog(LOG_ERROR, "Failed to load map file: %s", fullPath);
         return false;
     }
 
-    map.playerSpawn = { 0.0f, 1.8f, 0.0f };
-    map.itemCount = 0;
-    map.enemyCount = 0;
-    map.wallCount = 0;
-    map.treeCount = 0;
-    map.waterCount = 0;
-    map.valleyCount = 0;
+    TraceLog(LOG_INFO, "Loading map file: %s (offset: %.1f, %.1f)", fullPath, offsetX, offsetZ);
 
     char line[256];
     while (fgets(line, sizeof(line), f)) {
@@ -25,8 +45,24 @@ bool LoadMap(const char* filename, MapData& map) {
         char type[64];
         if (sscanf(line, "%63s", type) != 1) continue;
 
-        if (strcmp(type, "player_spawn") == 0) {
-            sscanf(line, "%*s %f %f %f", &map.playerSpawn.x, &map.playerSpawn.y, &map.playerSpawn.z);
+        if (strcmp(type, "include") == 0) {
+            // Format: include filename.map offsetX offsetZ
+            char includeFile[128];
+            float incOffsetX = 0.0f, incOffsetZ = 0.0f;
+            if (sscanf(line, "%*s %127s %f %f", includeFile, &incOffsetX, &incOffsetZ) >= 1) {
+                // Get directory of current file for relative includes
+                char currentDir[512];
+                GetDirectory(fullPath, currentDir, sizeof(currentDir));
+
+                // Recursively load included file with combined offset
+                LoadMapFile(includeFile, map, offsetX + incOffsetX, offsetZ + incOffsetZ, currentDir);
+            }
+        }
+        else if (strcmp(type, "player_spawn") == 0) {
+            float x, y, z;
+            if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
+                map.playerSpawn = { x + offsetX, y, z + offsetZ };
+            }
         }
         else if (strcmp(type, "item") == 0) {
             if (map.itemCount < MAX_WORLD_ITEMS) {
@@ -48,9 +84,11 @@ bool LoadMap(const char* filename, MapData& map) {
                     } else {
                         map.itemTypes[map.itemCount] = ITEM_NONE;
                     }
-                    map.itemSpawns[map.itemCount] = { x, y, z };
+                    map.itemSpawns[map.itemCount] = { x + offsetX, y, z + offsetZ };
                     map.itemCount++;
                 }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_WORLD_ITEMS (%d) exceeded, skipping item", MAX_WORLD_ITEMS);
             }
         }
         else if (strcmp(type, "troll") == 0) {
@@ -58,10 +96,12 @@ bool LoadMap(const char* filename, MapData& map) {
             if (map.enemyCount < MAX_ENEMIES) {
                 float x, y, z;
                 if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
-                    map.enemySpawns[map.enemyCount] = { x, y, z };
+                    map.enemySpawns[map.enemyCount] = { x + offsetX, y, z + offsetZ };
                     map.enemyTypes[map.enemyCount] = ENEMY_TROLL;
                     map.enemyCount++;
                 }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_ENEMIES (%d) exceeded, skipping enemy", MAX_ENEMIES);
             }
         }
         else if (strcmp(type, "enemy") == 0) {
@@ -75,10 +115,12 @@ bool LoadMap(const char* filename, MapData& map) {
                     } else if (strcmp(enemyName, "cow") == 0) {
                         enemyType = ENEMY_COW;
                     }
-                    map.enemySpawns[map.enemyCount] = { x, y, z };
+                    map.enemySpawns[map.enemyCount] = { x + offsetX, y, z + offsetZ };
                     map.enemyTypes[map.enemyCount] = enemyType;
                     map.enemyCount++;
                 }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_ENEMIES (%d) exceeded, skipping enemy", MAX_ENEMIES);
             }
         }
         else if (strcmp(type, "wall") == 0) {
@@ -86,7 +128,7 @@ bool LoadMap(const char* filename, MapData& map) {
                 float x, y, z, w, h, d;
                 char materialName[64];
                 if (sscanf(line, "%*s %f %f %f %f %f %f %63s", &x, &y, &z, &w, &h, &d, materialName) == 7) {
-                    map.walls[map.wallCount].position = { x, y, z };
+                    map.walls[map.wallCount].position = { x + offsetX, y, z + offsetZ };
                     map.walls[map.wallCount].width = w;
                     map.walls[map.wallCount].height = h;
                     map.walls[map.wallCount].depth = d;
@@ -103,15 +145,19 @@ bool LoadMap(const char* filename, MapData& map) {
                     }
                     map.wallCount++;
                 }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_WALLS (%d) exceeded, skipping wall", MAX_WALLS);
             }
         }
         else if (strcmp(type, "tree") == 0) {
             if (map.treeCount < MAX_TREES) {
                 float x, y, z;
                 if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
-                    map.treeSpawns[map.treeCount] = { x, y, z };
+                    map.treeSpawns[map.treeCount] = { x + offsetX, y, z + offsetZ };
                     map.treeCount++;
                 }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_TREES (%d) exceeded, skipping tree", MAX_TREES);
             }
         }
         else if (strcmp(type, "water") == 0) {
@@ -119,11 +165,13 @@ bool LoadMap(const char* filename, MapData& map) {
             if (map.waterCount < MAX_WATER) {
                 float x, y, z, w, l;
                 if (sscanf(line, "%*s %f %f %f %f %f", &x, &y, &z, &w, &l) == 5) {
-                    map.waterBodies[map.waterCount].position = { x, y, z };
+                    map.waterBodies[map.waterCount].position = { x + offsetX, y, z + offsetZ };
                     map.waterBodies[map.waterCount].width = w;
                     map.waterBodies[map.waterCount].length = l;
                     map.waterCount++;
                 }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_WATER (%d) exceeded, skipping water", MAX_WATER);
             }
         }
         else if (strcmp(type, "valley") == 0) {
@@ -133,17 +181,46 @@ bool LoadMap(const char* filename, MapData& map) {
                 char axisName[16];
                 float pos, width, depth;
                 if (sscanf(line, "%*s %15s %f %f %f", axisName, &pos, &width, &depth) == 4) {
-                    map.valleys[map.valleyCount].position = pos;
+                    // Apply offset based on axis
+                    float adjustedPos = pos;
+                    if (strcmp(axisName, "x") == 0) {
+                        adjustedPos = pos + offsetX;
+                    } else {
+                        adjustedPos = pos + offsetZ;
+                    }
+                    map.valleys[map.valleyCount].position = adjustedPos;
                     map.valleys[map.valleyCount].width = width;
                     map.valleys[map.valleyCount].depth = depth;
                     map.valleys[map.valleyCount].axis = (strcmp(axisName, "x") == 0) ? 0 : 1;
                     map.valleyCount++;
                 }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_VALLEYS (%d) exceeded, skipping valley", MAX_VALLEYS);
             }
         }
     }
 
     fclose(f);
-    TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d valleys)", filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.valleyCount);
     return true;
+}
+
+bool LoadMap(const char* filename, MapData& map) {
+    // Initialize map data
+    map.playerSpawn = { 0.0f, 1.8f, 0.0f };
+    map.itemCount = 0;
+    map.enemyCount = 0;
+    map.wallCount = 0;
+    map.treeCount = 0;
+    map.waterCount = 0;
+    map.valleyCount = 0;
+
+    // Load the root map file with no offset
+    bool success = LoadMapFile(filename, map, 0.0f, 0.0f, nullptr);
+
+    if (success) {
+        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d valleys)",
+            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.valleyCount);
+    }
+
+    return success;
 }

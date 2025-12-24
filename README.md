@@ -15,6 +15,14 @@ cmake --build build
 ./build/game
 ```
 
+## Test Mode
+
+Run headless validation (no window):
+
+```bash
+./build/game --test
+```
+
 ## Controls
 
 - WASD - Move

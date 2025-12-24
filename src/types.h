@@ -138,9 +138,9 @@ struct Valley {
     int axis;          // 0 = X-axis (N-S), 1 = Z-axis (E-W)
 };
 
-const int MAX_TREES = 100;
-const int MAX_WATER = 20;
-const int MAX_VALLEYS = 10;
+const int MAX_TREES = 1000;
+const int MAX_WATER = 100;
+const int MAX_VALLEYS = 50;
 const int TREE_MAX_HEALTH = 3;      // 3 chops to fell a tree
 const float TREE_RESPAWN_TIME = 30.0f;
 const int WOODCUTTING_XP = 25;       // XP per log
@@ -189,9 +189,9 @@ inline bool IsItemStackable(ItemType item) {
 }
 
 // Constants
-const int MAX_ENEMIES = 50;
-const int MAX_WORLD_ITEMS = 100;
-const int MAX_WALLS = 100;
+const int MAX_ENEMIES = 500;
+const int MAX_WORLD_ITEMS = 500;
+const int MAX_WALLS = 1000;
 const int MAX_DAMAGE_INDICATORS = 20;
 const int MAX_XP_POPUPS = 10;
 

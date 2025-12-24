@@ -32,6 +32,40 @@ cmake -B build && cmake --build build
 ./build/game
 ```
 
+## Headless Test Mode
+
+**USE THIS** to verify map loading and systems without opening a window:
+
+```bash
+./build/game --test
+```
+
+This validates:
+- Map file parsing (including `include` directives)
+- Entity counts and limits
+- Spatial hash population
+
+**When to use:** After modifying map files or map.cpp, run `--test` to verify loading works before launching the full game.
+
+## Map System
+
+Maps use a text-based format in `maps/`:
+- `world.map` - master file with `include` directives
+- `lumbridge.map` - Lumbridge region content
+
+**Include directive:** `include filename.map offsetX offsetZ`
+
+**Entity types:**
+- `player_spawn x y z`
+- `item <type> x y z`
+- `enemy <type> x y z`
+- `wall x y z width height depth <material>`
+- `tree x y z`
+- `water x y z width length`
+- `valley <axis> position width depth`
+
+Coordinates: North=-Z, South=+Z, East=+X, West=-X
+
 ## Screenshots
 
 In-game: Press `P` to save a screenshot to `screenshots/`.

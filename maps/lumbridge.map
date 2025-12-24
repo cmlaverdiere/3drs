@@ -1,0 +1,138 @@
+# Lumbridge Region
+# North = -Z, South = +Z, East = +X, West = -X
+# Coordinates are relative to region origin (0, 0)
+
+# Player spawn (Lumbridge Castle courtyard)
+player_spawn 0.0 1.8 0.0
+
+# Starting items near spawn
+item bronze_shortsword 2.0 0.0 1.0
+item bronze_axe -2.0 0.0 1.0
+
+# === LUMBRIDGE CASTLE (center-north) ===
+# Main castle back wall (north)
+wall 0.0 0.0 -12.0 16.0 6.0 0.6 stone
+# Castle left wing
+wall -8.0 0.0 -8.0 0.6 6.0 8.0 stone
+# Castle right wing
+wall 8.0 0.0 -8.0 0.6 6.0 8.0 stone
+# Castle front left wall
+wall -6.0 0.0 -4.0 4.0 5.0 0.5 stone
+# Castle front right wall
+wall 6.0 0.0 -4.0 4.0 5.0 0.5 stone
+# Castle towers (corners)
+wall -8.0 0.0 -12.0 2.5 8.0 2.5 brick
+wall 8.0 0.0 -12.0 2.5 8.0 2.5 brick
+wall -8.0 0.0 -4.0 2.0 7.0 2.0 brick
+wall 8.0 0.0 -4.0 2.0 7.0 2.0 brick
+
+# === GENERAL STORE (west of castle) ===
+wall -18.0 0.0 -6.0 6.0 3.5 0.3 wood
+wall -18.0 0.0 -2.0 6.0 3.5 0.3 wood
+wall -21.0 0.0 -4.0 0.3 3.5 4.0 wood
+wall -15.0 0.0 -4.0 0.3 3.5 4.0 wood
+
+# === CHURCH (northwest) ===
+# Church main building
+wall -25.0 0.0 -18.0 8.0 5.0 0.4 stone
+wall -25.0 0.0 -12.0 8.0 5.0 0.4 stone
+wall -29.0 0.0 -15.0 0.4 5.0 6.0 stone
+wall -21.0 0.0 -15.0 0.4 5.0 6.0 stone
+# Church steeple
+wall -25.0 0.0 -15.0 3.0 8.0 3.0 brick
+
+# === COW PASTURE (northeast) ===
+# Fence around cow pasture
+wall 20.0 0.0 -20.0 0.2 1.5 16.0 wood
+wall 35.0 0.0 -20.0 0.2 1.5 16.0 wood
+wall 27.5 0.0 -28.0 15.0 1.5 0.2 wood
+wall 27.5 0.0 -12.0 15.0 1.5 0.2 wood
+
+# Cows in pasture
+enemy cow 24.0 0.0 -22.0
+enemy cow 28.0 0.0 -18.0
+enemy cow 26.0 0.0 -24.0
+enemy cow 30.0 0.0 -22.0
+enemy cow 32.0 0.0 -16.0
+enemy cow 25.0 0.0 -16.0
+
+# === GOBLINS (east, across the "river") ===
+# The river would be around X=15, goblins are beyond
+enemy troll 22.0 0.0 5.0
+enemy troll 25.0 0.0 8.0
+enemy troll 28.0 0.0 3.0
+enemy troll 24.0 0.0 12.0
+enemy troll 30.0 0.0 10.0
+
+# === TERRAIN MODIFIERS ===
+# Format: valley axis position width depth
+# axis: x = runs north-south, z = runs east-west
+# River Lum valley (carves terrain down for river)
+valley x 12.0 8.0 3.0
+
+# === RIVER LUM (runs north-south, east of castle) ===
+# Format: water x y z width length
+# Water sits at bottom of carved valley
+water 12.0 -1.0 -15.0 6.0 30.0
+water 12.0 -1.0 15.0 6.0 30.0
+water 14.0 -1.0 35.0 10.0 20.0
+
+# === BRIDGE over river (east of spawn) ===
+# Bridge deck spans the valley (raised above water)
+wall 12.0 1.5 0.0 10.0 0.4 5.0 wood
+# Bridge railings
+wall 12.0 1.9 -2.3 10.0 0.8 0.3 wood
+wall 12.0 1.9 2.3 10.0 0.8 0.3 wood
+
+# === LUMBRIDGE SWAMP ENTRANCE (southeast) ===
+# Dead trees / swamp markers
+enemy troll 18.0 0.0 25.0
+enemy troll 22.0 0.0 30.0
+enemy troll 15.0 0.0 32.0
+
+# === TREES ===
+# West forest (between spawn and general store)
+tree -12.0 0.0 0.0
+tree -10.0 0.0 4.0
+tree -14.0 0.0 -2.0
+tree -11.0 0.0 6.0
+
+# Southwest forest
+tree -15.0 0.0 10.0
+tree -18.0 0.0 14.0
+tree -12.0 0.0 16.0
+tree -20.0 0.0 8.0
+tree -22.0 0.0 12.0
+tree -16.0 0.0 18.0
+tree -10.0 0.0 20.0
+
+# South of castle (path to Al Kharid)
+tree 5.0 0.0 8.0
+tree -5.0 0.0 10.0
+tree 8.0 0.0 12.0
+tree -3.0 0.0 15.0
+tree 10.0 0.0 18.0
+
+# East of river (goblin territory)
+tree 32.0 0.0 0.0
+tree 35.0 0.0 5.0
+tree 30.0 0.0 -5.0
+tree 38.0 0.0 8.0
+
+# North of castle
+tree -5.0 0.0 -18.0
+tree 5.0 0.0 -20.0
+tree -10.0 0.0 -22.0
+tree 10.0 0.0 -18.0
+
+# Near church (graveyard area)
+tree -30.0 0.0 -22.0
+tree -32.0 0.0 -10.0
+tree -35.0 0.0 -15.0
+
+# Dense forest far west
+tree -35.0 0.0 5.0
+tree -38.0 0.0 0.0
+tree -40.0 0.0 8.0
+tree -36.0 0.0 12.0
+tree -42.0 0.0 4.0

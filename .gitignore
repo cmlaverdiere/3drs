@@ -3,3 +3,4 @@ build/
 screenshots/
 savegame.json
 save_backups/
+compile_commands.json

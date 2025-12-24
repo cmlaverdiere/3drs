@@ -13,10 +13,14 @@
 #include "rendering.h"
 #include "game_systems.h"
 #include "sound_system.h"
+#include "spatial_hash.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
 bool g_heightmapInitialized = false;
+
+// Global spatial hash for O(1) proximity queries
+WorldSpatialData g_spatial;
 
 // Initialize heightmap with procedural terrain + valleys from map data
 void InitializeHeightmap(const MapData& mapData) {
@@ -123,7 +127,49 @@ Mesh GenHeightmapMesh(float sizeX, float sizeZ, int resX, int resZ) {
     return mesh;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    // Check for --test flag (headless mode for CI/testing)
+    bool testMode = false;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--test") == 0) {
+            testMode = true;
+        }
+    }
+
+    if (testMode) {
+        // Headless test mode - just load map and validate, no window
+        printf("=== HEADLESS TEST MODE ===\n");
+
+        MapData mapData = {};
+        if (!LoadMap("maps/world.map", mapData)) {
+            printf("FAIL: Could not load map\n");
+            return 1;
+        }
+
+        printf("Map loaded successfully:\n");
+        printf("  Items: %d / %d\n", mapData.itemCount, MAX_WORLD_ITEMS);
+        printf("  Enemies: %d / %d\n", mapData.enemyCount, MAX_ENEMIES);
+        printf("  Walls: %d / %d\n", mapData.wallCount, MAX_WALLS);
+        printf("  Trees: %d / %d\n", mapData.treeCount, MAX_TREES);
+        printf("  Water: %d / %d\n", mapData.waterCount, MAX_WATER);
+        printf("  Valleys: %d / %d\n", mapData.valleyCount, MAX_VALLEYS);
+        printf("  Player spawn: (%.1f, %.1f, %.1f)\n",
+               mapData.playerSpawn.x, mapData.playerSpawn.y, mapData.playerSpawn.z);
+
+        // Test spatial hash
+        g_spatial.Clear();
+        for (int i = 0; i < mapData.wallCount; i++) {
+            g_spatial.walls.InsertBox(i, mapData.walls[i].position.x, mapData.walls[i].position.z,
+                                      mapData.walls[i].width, mapData.walls[i].depth);
+        }
+        std::vector<int> nearby;
+        g_spatial.walls.Query(0.0f, 0.0f, 20.0f, nearby);
+        printf("  Spatial hash test: %zu walls near origin\n", nearby.size());
+
+        printf("=== TEST PASSED ===\n");
+        return 0;
+    }
+
     InitWindow(1, 1, "3D RuneScape-style Game");
     int monitorWidth = GetMonitorWidth(0);
     int monitorHeight = GetMonitorHeight(0);
@@ -279,6 +325,21 @@ int main() {
         waterModels[i] = LoadModelFromMesh(waterMesh);
         waterModels[i].materials[0].shader = waterShader;
     }
+
+    // Populate spatial hash for O(1) proximity queries
+    g_spatial.Clear();
+    for (int i = 0; i < wallCount; i++) {
+        g_spatial.walls.InsertBox(i, walls[i].position.x, walls[i].position.z,
+                                  walls[i].width, walls[i].depth);
+    }
+    for (int i = 0; i < enemyCount; i++) {
+        g_spatial.enemies.Insert(i, enemies[i].position.x, enemies[i].position.z);
+    }
+    for (int i = 0; i < treeCount; i++) {
+        g_spatial.trees.Insert(i, trees[i].position.x, trees[i].position.z);
+    }
+    TraceLog(LOG_INFO, "Spatial hash populated: %d walls, %d enemies, %d trees",
+             wallCount, enemyCount, treeCount);
 
     // Damage indicators
     DamageIndicator damageIndicators[MAX_DAMAGE_INDICATORS] = {};
@@ -518,7 +579,12 @@ int main() {
             float currentTerrainY = GetTerrainHeight(camera.position.x, camera.position.z);
             float playerFeetY = camera.position.y - PLAYER_EYE_HEIGHT;
 
-            for (int i = 0; i < wallCount; i++) {
+            // Query spatial hash for nearby walls (much faster than checking all walls)
+            std::vector<int> nearbyWalls;
+            g_spatial.walls.Query(camera.position.x, camera.position.z, PLAYER_RADIUS + 20.0f, nearbyWalls);
+
+            for (int idx : nearbyWalls) {
+                int i = idx;  // Wall index
                 // Calculate wall top height (terrain + wall Y offset + wall height)
                 float wallTerrainY = GetTerrainHeight(walls[i].position.x, walls[i].position.z);
                 float wallTop = wallTerrainY + walls[i].position.y + walls[i].height;
@@ -559,7 +625,9 @@ int main() {
             float groundY = terrainY;  // Start with terrain as ground
 
             // Check if player can stand on top of any wall (platform/bridge)
-            for (int i = 0; i < wallCount; i++) {
+            // Use spatial query for nearby walls only
+            for (int idx : nearbyWalls) {
+                int i = idx;
                 float wallTerrainY = GetTerrainHeight(walls[i].position.x, walls[i].position.z);
                 float wallTop = wallTerrainY + walls[i].position.y + walls[i].height;
                 float halfW = walls[i].width / 2.0f;
