@@ -31,5 +31,6 @@ add_executable(game
     src/hud.cpp
     src/game_init.cpp
     src/lighting.cpp
+    src/quest_system.cpp
 )
 target_link_libraries(game raylib)

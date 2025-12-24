@@ -120,7 +120,15 @@ void SaveGame(const PlayerState& state) {
     fprintf(f, "  \"swordPickedUp\": %s,\n", state.swordPickedUp ? "true" : "false");
     fprintf(f, "  \"currentHP\": %d,\n", state.currentHP);
     fprintf(f, "  \"maxHP\": %d,\n", state.maxHP);
-    fprintf(f, "  \"timeOfDay\": %.6f\n", state.timeOfDay);
+    fprintf(f, "  \"timeOfDay\": %.6f,\n", state.timeOfDay);
+    fprintf(f, "  \"questPoints\": %d,\n", state.questPoints);
+    fprintf(f, "  \"questProgress\": [\n");
+    for (int i = 0; i < MAX_QUESTS; i++) {
+        fprintf(f, "    { \"state\": %d, \"objective\": %d }%s\n",
+                state.questProgress[i].state, state.questProgress[i].currentObjective,
+                i < MAX_QUESTS - 1 ? "," : "");
+    }
+    fprintf(f, "  ]\n");
     fprintf(f, "}\n");
     fclose(f);
 }
@@ -210,6 +218,29 @@ bool LoadGame(PlayerState& state) {
     state.currentHP = ParseIntAfter(json, "\"currentHP\"", 10);
     state.maxHP = ParseIntAfter(json, "\"maxHP\"", 10);
     state.timeOfDay = ParseFloatAfter(json, "\"timeOfDay\"", 0.5f);  // Default to midday
+    state.questPoints = ParseIntAfter(json, "\"questPoints\"", 0);
+
+    // Parse quest progress
+    const char* questSection = strstr(json, "\"questProgress\"");
+    if (questSection) {
+        const char* bracket = strchr(questSection, '[');
+        if (bracket) {
+            const char* p = bracket + 1;
+            for (int i = 0; i < MAX_QUESTS && *p; i++) {
+                // Find next { for this entry
+                const char* objStart = strchr(p, '{');
+                if (!objStart) break;
+                const char* objEnd = strchr(objStart, '}');
+                if (!objEnd) break;
+
+                // Parse state and objective within this object
+                state.questProgress[i].state = (QuestState)ParseIntAfter(objStart, "\"state\"", QUEST_NOT_STARTED);
+                state.questProgress[i].currentObjective = ParseIntAfter(objStart, "\"objective\"", 0);
+
+                p = objEnd + 1;
+            }
+        }
+    }
 
     delete[] json;
     return true;

@@ -262,6 +262,55 @@ struct LevelUpNotification {
     bool active;
 };
 
+// ============================================================================
+// QUEST SYSTEM
+// ============================================================================
+
+// Quest state
+enum QuestState {
+    QUEST_NOT_STARTED = 0,
+    QUEST_IN_PROGRESS,
+    QUEST_COMPLETE
+};
+
+// Quest limits
+constexpr int MAX_QUESTS = 32;
+constexpr int MAX_QUEST_OBJECTIVES = 8;
+constexpr int MAX_QUEST_DIALOGUE_LINES = 16;
+
+// Quest definition (loaded from file)
+struct Quest {
+    char id[32];                    // "pest_control"
+    char name[64];                  // "Pest Control"
+    NPCType npc;                    // Which NPC gives this quest
+
+    // Objectives (sequential item turn-ins)
+    ItemType objectives[MAX_QUEST_OBJECTIVES];
+    int objectiveCount;
+
+    // Rewards
+    int rewardGil;
+    int rewardQuestPoints;
+
+    // Dialogue storage (heap allocated during load)
+    char** dialogueStart;
+    int dialogueStartCount;
+    char** dialogueStage[MAX_QUEST_OBJECTIVES];
+    int dialogueStageCount[MAX_QUEST_OBJECTIVES];
+    char** dialogueTurnin[MAX_QUEST_OBJECTIVES];
+    int dialogueTurninCount[MAX_QUEST_OBJECTIVES];
+    char** dialogueComplete;
+    int dialogueCompleteCount;
+
+    bool loaded;
+};
+
+// Player's quest progress (per quest, by quest index)
+struct QuestProgress {
+    QuestState state;
+    int currentObjective;  // Which objective (0-indexed)
+};
+
 // Player state
 struct PlayerState {
     float posX, posY, posZ;
@@ -274,6 +323,8 @@ struct PlayerState {
     int currentHP;
     int maxHP;
     float timeOfDay;  // 0.0 to 1.0, for day/night cycle persistence
+    int questPoints;
+    QuestProgress questProgress[MAX_QUESTS];
 };
 
 // Check if an item type is stackable

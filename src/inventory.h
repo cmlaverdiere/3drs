@@ -44,4 +44,13 @@ void DropFromInventory(PlayerState* state, int slot,
 // Get inventory UI position
 void GetInventoryPosition(int screenWidth, int* outX, int* outY);
 
+// Check if player has at least 1 of item
+bool HasItem(const PlayerState* state, ItemType item);
+
+// Remove one item from inventory (returns false if not found)
+bool RemoveItem(PlayerState* state, ItemType item);
+
+// Add gil to inventory (handles stacking)
+bool AddGil(PlayerState* state, int amount);
+
 #endif

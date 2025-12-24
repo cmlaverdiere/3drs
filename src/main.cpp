@@ -19,6 +19,7 @@
 #include "game_init.h"
 #include "game_systems.h"
 #include "lighting.h"
+#include "quest_system.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -142,6 +143,12 @@ int main(int argc, char* argv[]) {
         npcCount++;
     }
 
+    // Load quests
+    Quest quests[MAX_QUESTS] = {};
+    int questCount = LoadAllQuests(quests, MAX_QUESTS);
+
+    // Note: Quest progress is already loaded from save file (or zeroed by PlayerState default init)
+
     // Populate spatial hash
     PopulateSpatialHash(&g_spatial, walls, resources.wallCount, enemies, enemyCount, trees, treeCount);
 
@@ -152,6 +159,12 @@ int main(int argc, char* argv[]) {
     XPPopup xpPopups[MAX_XP_POPUPS] = {};
     LevelUpNotification levelUpNotif = {};
     DialogueState dialogueState = {false, -1, 0};
+
+    // Quest dialogue state
+    int activeQuestIndex = -1;              // Which quest is active in current dialogue
+    const char** questDialogueLines = nullptr;  // Current quest dialogue lines
+    int questDialogueCount = 0;             // Number of lines
+    bool showQuestAcceptPrompt = false;     // Show accept/decline buttons
 
     float attackCooldown = 0.0f;
     float swingTimer = 0.0f;
@@ -306,26 +319,134 @@ int main(int argc, char* argv[]) {
                     dialogueState.npcIndex = nearestNPCIndex;
                     dialogueState.currentLine = 0;
                     EnableCursor();
+
+                    // Check if this NPC has a quest
+                    NPCType npcType = npcs[nearestNPCIndex].type;
+                    activeQuestIndex = FindQuestByNPC(quests, questCount, npcType);
+
+                    if (activeQuestIndex >= 0) {
+                        // Get quest dialogue
+                        questDialogueLines = GetQuestDialogue(
+                            &quests[activeQuestIndex],
+                            &playerState.questProgress[activeQuestIndex],
+                            &playerState,
+                            &questDialogueCount,
+                            &showQuestAcceptPrompt
+                        );
+                    } else {
+                        questDialogueLines = nullptr;
+                        questDialogueCount = 0;
+                        showQuestAcceptPrompt = false;
+                    }
                 }
             }
         } else {
-            // In dialogue - handle advancement
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
-                IsKeyPressed(KEY_SPACE) ||
-                IsKeyPressed(KEY_E)) {
+            // In dialogue - determine current dialogue source
+            bool isQuestDialogue = (activeQuestIndex >= 0 && questDialogueLines != nullptr);
+            int totalLines = isQuestDialogue ? questDialogueCount :
+                             NPC_CONFIGS[npcs[dialogueState.npcIndex].type].dialogueCount;
 
-                const NPCConfig& config = NPC_CONFIGS[npcs[dialogueState.npcIndex].type];
+            // Check for accept/decline button clicks (only on last line of quest intro)
+            bool onLastLine = (dialogueState.currentLine >= totalLines - 1);
+            bool acceptClicked = false;
+            bool declineClicked = false;
 
-                if (dialogueState.currentLine < config.dialogueCount - 1) {
-                    // Advance to next line
-                    dialogueState.currentLine++;
-                } else {
-                    // End dialogue
-                    dialogueState.active = false;
-                    dialogueState.npcIndex = -1;
-                    dialogueState.currentLine = 0;
-                    if (!mouseMode) {
-                        DisableCursor();
+            if (showQuestAcceptPrompt && onLastLine) {
+                Vector2 mouse = GetMousePosition();
+
+                // Accept button bounds (approximate - will match HUD rendering)
+                int dialogueBoxY = screenHeight - 180 - 40;
+                int buttonY = dialogueBoxY + 130;
+                int acceptX = screenWidth / 2 - 120;
+                int declineX = screenWidth / 2 + 20;
+                int buttonW = 100;
+                int buttonH = 30;
+
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    if (mouse.x >= acceptX && mouse.x <= acceptX + buttonW &&
+                        mouse.y >= buttonY && mouse.y <= buttonY + buttonH) {
+                        acceptClicked = true;
+                    } else if (mouse.x >= declineX && mouse.x <= declineX + buttonW &&
+                               mouse.y >= buttonY && mouse.y <= buttonY + buttonH) {
+                        declineClicked = true;
+                    }
+                }
+            }
+
+            if (acceptClicked) {
+                // Accept quest
+                AdvanceQuest(&quests[activeQuestIndex],
+                            &playerState.questProgress[activeQuestIndex],
+                            &playerState);
+
+                // Show "Quest started" message
+                snprintf(screenshotMsg, sizeof(screenshotMsg), "Quest started: %s",
+                         quests[activeQuestIndex].name);
+                screenshotMsgTimer = 3.0f;
+
+                // Close dialogue
+                dialogueState.active = false;
+                dialogueState.npcIndex = -1;
+                dialogueState.currentLine = 0;
+                activeQuestIndex = -1;
+                questDialogueLines = nullptr;
+                showQuestAcceptPrompt = false;
+                if (!mouseMode) {
+                    DisableCursor();
+                }
+            } else if (declineClicked) {
+                // Decline - just close dialogue
+                dialogueState.active = false;
+                dialogueState.npcIndex = -1;
+                dialogueState.currentLine = 0;
+                activeQuestIndex = -1;
+                questDialogueLines = nullptr;
+                showQuestAcceptPrompt = false;
+                if (!mouseMode) {
+                    DisableCursor();
+                }
+            } else if (!showQuestAcceptPrompt || !onLastLine) {
+                // Normal dialogue advancement (click/space/E)
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
+                    IsKeyPressed(KEY_SPACE) ||
+                    IsKeyPressed(KEY_E)) {
+
+                    if (dialogueState.currentLine < totalLines - 1) {
+                        // Advance to next line
+                        dialogueState.currentLine++;
+                    } else {
+                        // Last line - handle quest advancement or close
+                        if (isQuestDialogue && activeQuestIndex >= 0) {
+                            QuestProgress* progress = &playerState.questProgress[activeQuestIndex];
+
+                            // If in progress and can turn in, do it
+                            if (progress->state == QUEST_IN_PROGRESS &&
+                                CanAdvanceQuest(&quests[activeQuestIndex], progress, &playerState)) {
+
+                                bool completed = AdvanceQuest(&quests[activeQuestIndex],
+                                                              progress, &playerState);
+
+                                if (completed) {
+                                    snprintf(screenshotMsg, sizeof(screenshotMsg),
+                                             "Quest complete: %s! +%d gold, +%d QP",
+                                             quests[activeQuestIndex].name,
+                                             quests[activeQuestIndex].rewardGil,
+                                             quests[activeQuestIndex].rewardQuestPoints);
+                                    screenshotMsgTimer = 4.0f;
+                                }
+                            }
+                        }
+
+                        // End dialogue
+                        dialogueState.active = false;
+                        dialogueState.npcIndex = -1;
+                        dialogueState.currentLine = 0;
+                        activeQuestIndex = -1;
+                        questDialogueLines = nullptr;
+                        showQuestAcceptPrompt = false;
+                        if (!mouseMode) {
+                            DisableCursor();
+                        }
                     }
                 }
             }
@@ -335,6 +456,9 @@ int main(int argc, char* argv[]) {
                 dialogueState.active = false;
                 dialogueState.npcIndex = -1;
                 dialogueState.currentLine = 0;
+                activeQuestIndex = -1;
+                questDialogueLines = nullptr;
+                showQuestAcceptPrompt = false;
                 if (!mouseMode) {
                     DisableCursor();
                 }
@@ -541,7 +665,8 @@ int main(int argc, char* argv[]) {
         }
 
         // Draw dialogue box (when in dialogue)
-        DrawDialogueBox(&dialogueState, npcs, screenWidth, screenHeight);
+        DrawDialogueBox(&dialogueState, npcs, questDialogueLines, questDialogueCount,
+                        showQuestAcceptPrompt, screenWidth, screenHeight);
 
         EndDrawing();
 

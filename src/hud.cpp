@@ -166,6 +166,11 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
         skillY += 18;
     }
 
+    // Quest points display
+    char qpText[32];
+    snprintf(qpText, sizeof(qpText), "Quest Points: %d", state->questPoints);
+    DrawText(qpText, 10, skillY + 5, 14, (Color){100, 200, 255, 255});
+
     // Action menu overlay
     if (showActionMenu && targetItem != nullptr) {
         int menuX = screenWidth / 2 - 100;
@@ -640,11 +645,17 @@ void UpdateHUDTimers(DamageIndicator* damageIndicators,
 }
 
 void DrawDialogueBox(const DialogueState* dialogue, const NPC* npcs,
+                     const char** questDialogue, int questDialogueCount,
+                     bool showAcceptPrompt,
                      int screenWidth, int screenHeight) {
     if (!dialogue->active || dialogue->npcIndex < 0) return;
 
     const NPC& npc = npcs[dialogue->npcIndex];
     const NPCConfig& config = NPC_CONFIGS[npc.type];
+
+    // Use quest dialogue if provided, otherwise NPC's default
+    bool useQuestDialogue = (questDialogue != nullptr && questDialogueCount > 0);
+    int totalLines = useQuestDialogue ? questDialogueCount : config.dialogueCount;
 
     // Dialogue box dimensions - large parchment at bottom of screen
     const int BOX_MARGIN = 40;
@@ -709,8 +720,10 @@ void DrawDialogueBox(const DialogueState* dialogue, const NPC* npcs,
     DrawRectangle(BOX_X + PADDING, separatorY, BOX_WIDTH - PADDING * 2, 2, PARCHMENT_BORDER);
 
     // Dialogue text
-    if (dialogue->currentLine < config.dialogueCount) {
-        const char* dialogueText = config.dialogueLines[dialogue->currentLine];
+    if (dialogue->currentLine < totalLines) {
+        const char* dialogueText = useQuestDialogue ?
+            questDialogue[dialogue->currentLine] :
+            config.dialogueLines[dialogue->currentLine];
         int textX = BOX_X + PADDING;
         int textY = separatorY + 15;
 
@@ -718,25 +731,60 @@ void DrawDialogueBox(const DialogueState* dialogue, const NPC* npcs,
         DrawText(dialogueText, textX, textY, 22, PARCHMENT_TEXT);
     }
 
-    // "Click to continue" / "Click to close" prompt (blinking)
-    const char* prompt;
-    if (dialogue->currentLine < config.dialogueCount - 1) {
-        prompt = "Click to continue...";
+    // Check if on last line
+    bool onLastLine = (dialogue->currentLine >= totalLines - 1);
+
+    // Show accept/decline buttons if this is a quest intro on the last line
+    if (showAcceptPrompt && onLastLine) {
+        // Button dimensions
+        const int BUTTON_W = 100;
+        const int BUTTON_H = 30;
+        const int BUTTON_Y = BOX_Y + BOX_HEIGHT - PADDING - BUTTON_H - 5;
+        const int ACCEPT_X = screenWidth / 2 - 120;
+        const int DECLINE_X = screenWidth / 2 + 20;
+
+        Vector2 mouse = GetMousePosition();
+
+        // Accept button
+        bool acceptHover = (mouse.x >= ACCEPT_X && mouse.x <= ACCEPT_X + BUTTON_W &&
+                           mouse.y >= BUTTON_Y && mouse.y <= BUTTON_Y + BUTTON_H);
+        Color acceptBg = acceptHover ? (Color){100, 160, 100, 255} : (Color){80, 130, 80, 255};
+        DrawRectangle(ACCEPT_X, BUTTON_Y, BUTTON_W, BUTTON_H, acceptBg);
+        DrawRectangleLines(ACCEPT_X, BUTTON_Y, BUTTON_W, BUTTON_H, PARCHMENT_BORDER);
+        const char* acceptText = "Accept";
+        int acceptTextW = MeasureText(acceptText, 18);
+        DrawText(acceptText, ACCEPT_X + (BUTTON_W - acceptTextW) / 2, BUTTON_Y + 6, 18, WHITE);
+
+        // Decline button
+        bool declineHover = (mouse.x >= DECLINE_X && mouse.x <= DECLINE_X + BUTTON_W &&
+                            mouse.y >= BUTTON_Y && mouse.y <= BUTTON_Y + BUTTON_H);
+        Color declineBg = declineHover ? (Color){160, 100, 100, 255} : (Color){130, 80, 80, 255};
+        DrawRectangle(DECLINE_X, BUTTON_Y, BUTTON_W, BUTTON_H, declineBg);
+        DrawRectangleLines(DECLINE_X, BUTTON_Y, BUTTON_W, BUTTON_H, PARCHMENT_BORDER);
+        const char* declineText = "Decline";
+        int declineTextW = MeasureText(declineText, 18);
+        DrawText(declineText, DECLINE_X + (BUTTON_W - declineTextW) / 2, BUTTON_Y + 6, 18, WHITE);
     } else {
-        prompt = "Click to close";
-    }
+        // "Click to continue" / "Click to close" prompt (blinking)
+        const char* prompt;
+        if (!onLastLine) {
+            prompt = "Click to continue...";
+        } else {
+            prompt = "Click to close";
+        }
 
-    int promptFontSize = 18;
-    int promptWidth = MeasureText(prompt, promptFontSize);
-    int promptX = BOX_X + BOX_WIDTH - PADDING - promptWidth;
-    int promptY = BOX_Y + BOX_HEIGHT - PADDING - promptFontSize;
+        int promptFontSize = 18;
+        int promptWidth = MeasureText(prompt, promptFontSize);
+        int promptX = BOX_X + BOX_WIDTH - PADDING - promptWidth;
+        int promptY = BOX_Y + BOX_HEIGHT - PADDING - promptFontSize;
 
-    // Blinking effect (visible 70% of the time)
-    float time = (float)GetTime();
-    if (fmodf(time, 1.0f) < 0.7f) {
-        Color promptColor = PARCHMENT_TEXT;
-        promptColor.a = 180;
-        DrawText(prompt, promptX, promptY, promptFontSize, promptColor);
+        // Blinking effect (visible 70% of the time)
+        float time = (float)GetTime();
+        if (fmodf(time, 1.0f) < 0.7f) {
+            Color promptColor = PARCHMENT_TEXT;
+            promptColor.a = 180;
+            DrawText(prompt, promptX, promptY, promptFontSize, promptColor);
+        }
     }
 }
 

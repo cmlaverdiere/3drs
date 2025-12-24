@@ -39,6 +39,7 @@ Screenshots are saved to `screenshots/` with timestamp filenames.
 - Mouse - Look
 - R - Toggle run
 - SHIFT - Inventory
+- E - Talk to NPC
 - LMB - Attack/chop
 - P - Screenshot
 - ESC - Exit
@@ -57,7 +58,8 @@ Screenshots are saved to `screenshots/` with timestamp filenames.
 - **src/inventory.cpp** - Inventory management, item pickup/drop, context menus, drag-and-swap
 - **src/player.cpp** - Movement, jumping, running, death/respawn
 - **src/xp_system.cpp** - OSRS-style XP table, level calculation, damage rolls
-- **src/save_system.cpp** - Binary save/load of player state
+- **src/save_system.cpp** - JSON save/load of player state
+- **src/quest_system.cpp** - Data-driven quest loading and state management
 
 ### World
 
@@ -94,3 +96,66 @@ include <file.map> offsetX offsetZ
 ```
 
 See `maps/lumbridge.map` for examples.
+
+## Quest System
+
+Quests are data-driven, defined in text files rather than code. Each quest lives in `quests/*.quest`.
+
+### How It Works
+
+1. **Quest files** define objectives (item turn-ins), rewards, and dialogue for each state
+2. **NPCs** are linked to quests by type (e.g., `npc guard` in the quest file)
+3. **Dialogue changes** based on quest state (not started, in progress, complete)
+4. **Item turn-ins** are sequential - player must complete objectives in order
+5. **Progress persists** in the save file
+
+### Quest Flow
+
+```
+Talk to NPC → Intro dialogue → [Accept] / [Decline]
+                                   ↓
+                            Quest starts
+                                   ↓
+              Kill enemy, collect item (e.g., chitin)
+                                   ↓
+                Return to NPC → Turn in item
+                                   ↓
+                        Next objective...
+                                   ↓
+                Final turn-in → Rewards given
+                                   ↓
+                          Quest complete
+```
+
+### Quest File Format
+
+```
+quest <id>
+name <display name>
+npc <npc_type>
+
+objective <item_type>
+objective <item_type>
+
+reward_gil <amount>
+reward_quest_points <amount>
+
+dialogue_start
+Line 1
+Line 2
+.
+
+dialogue_stage_1
+Reminder text when player doesn't have item.
+.
+
+dialogue_turnin_1
+Text when player has the item to turn in.
+.
+
+dialogue_complete
+Text after quest is finished.
+.
+```
+
+See `quests/pest_control.quest` for a complete example.

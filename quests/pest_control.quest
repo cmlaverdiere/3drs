@@ -1,0 +1,56 @@
+# Pest Control Quest
+# Given by the Guard NPC
+
+quest pest_control
+name Pest Control
+npc guard
+
+# Sequential objectives - player must turn in each item in order
+objective chitin
+objective bones
+
+# Rewards given on completion
+reward_gil 50
+reward_quest_points 1
+
+# Dialogue when quest is not started (intro)
+dialogue_start
+Halt, adventurer. I have a task for you.
+The area has been plagued by dangerous creatures lately.
+Scorpions lurk to the east, and trolls roam the northern hills.
+Slay one of each and bring me proof - their chitin and bones.
+I'll pay you 50 gold for your trouble.
+.
+
+# Dialogue when on stage 1 (need chitin) and player doesn't have it
+dialogue_stage_1
+Have you killed a scorpion yet?
+Bring me its chitin as proof. They're to the east.
+.
+
+# Dialogue when on stage 1 and player HAS chitin
+dialogue_turnin_1
+Excellent work! You've proven yourself against the scorpion.
+I'll take that chitin.
+Now deal with a troll to the north and bring me its bones.
+.
+
+# Dialogue when on stage 2 (need bones) and player doesn't have it
+dialogue_stage_2
+Have you slain a troll yet?
+Bring me its bones as proof. They're to the north.
+.
+
+# Dialogue when on stage 2 and player HAS bones
+dialogue_turnin_2
+Well done, adventurer! The area is much safer now.
+I'll take those bones.
+Here's 50 gold and a quest point for your service.
+You've proven yourself a capable warrior.
+.
+
+# Dialogue after quest is complete
+dialogue_complete
+Thank you again for dealing with those pests.
+The people of Lumbridge sleep safer because of you.
+.

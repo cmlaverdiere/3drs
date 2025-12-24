@@ -40,7 +40,11 @@ void UpdateHUDTimers(DamageIndicator* damageIndicators,
                      float dt);
 
 // Draw NPC dialogue box (parchment style)
+// questDialogue: if not null, use these lines instead of NPC's default dialogue
+// showAcceptPrompt: if true, show Accept/Decline buttons on last line
 void DrawDialogueBox(const DialogueState* dialogue, const NPC* npcs,
+                     const char** questDialogue, int questDialogueCount,
+                     bool showAcceptPrompt,
                      int screenWidth, int screenHeight);
 
 // Draw NPC interaction prompt (when near an NPC)

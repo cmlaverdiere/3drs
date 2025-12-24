@@ -249,3 +249,48 @@ void DropFromInventory(PlayerState* state, int slot,
     state->inventory[slot] = ITEM_NONE;
     state->inventoryCount[slot] = 0;
 }
+
+bool HasItem(const PlayerState* state, ItemType item) {
+    for (int i = 0; i < INV_SLOTS; i++) {
+        if (state->inventory[i] == item && state->inventoryCount[i] > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool RemoveItem(PlayerState* state, ItemType item) {
+    for (int i = 0; i < INV_SLOTS; i++) {
+        if (state->inventory[i] == item && state->inventoryCount[i] > 0) {
+            if (IsItemStackable(item) && state->inventoryCount[i] > 1) {
+                state->inventoryCount[i]--;
+            } else {
+                state->inventory[i] = ITEM_NONE;
+                state->inventoryCount[i] = 0;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AddGil(PlayerState* state, int amount) {
+    // Find existing gil stack
+    for (int i = 0; i < INV_SLOTS; i++) {
+        if (state->inventory[i] == ITEM_GIL) {
+            state->inventoryCount[i] += amount;
+            return true;
+        }
+    }
+
+    // Find empty slot for new gil stack
+    for (int i = 0; i < INV_SLOTS; i++) {
+        if (state->inventory[i] == ITEM_NONE) {
+            state->inventory[i] = ITEM_GIL;
+            state->inventoryCount[i] = amount;
+            return true;
+        }
+    }
+
+    return false;  // No room
+}
