@@ -110,6 +110,9 @@ int main(int argc, char* argv[]) {
     LightingSystem lighting = {};
     InitLightingSystem(&lighting);
 
+    // Apply saved time of day
+    lighting.timeOfDay = playerState.timeOfDay;
+
     Enemy enemies[MAX_ENEMIES] = {};
     int enemyCount = 0;
     InitEnemiesFromMap(enemies, &enemyCount, mapData);
@@ -423,6 +426,7 @@ int main(int argc, char* argv[]) {
     playerState.targetY = camera.target.y;
     playerState.targetZ = camera.target.z;
     playerState.swordPickedUp = (worldItemCount > 0) ? worldItems[0].pickedUp : false;
+    playerState.timeOfDay = lighting.timeOfDay;
     SaveGame(playerState);
     TraceLog(LOG_INFO, "Game saved to %s", SAVE_FILE);
 

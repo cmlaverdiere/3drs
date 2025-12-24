@@ -224,6 +224,7 @@ struct PlayerState {
     bool swordPickedUp;
     int currentHP;
     int maxHP;
+    float timeOfDay;  // 0.0 to 1.0, for day/night cycle persistence
 };
 
 // Check if an item type is stackable

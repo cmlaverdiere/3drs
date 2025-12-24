@@ -119,7 +119,8 @@ void SaveGame(const PlayerState& state) {
     fprintf(f, "  \"equippedWeapon\": %d,\n", state.equippedWeapon);
     fprintf(f, "  \"swordPickedUp\": %s,\n", state.swordPickedUp ? "true" : "false");
     fprintf(f, "  \"currentHP\": %d,\n", state.currentHP);
-    fprintf(f, "  \"maxHP\": %d\n", state.maxHP);
+    fprintf(f, "  \"maxHP\": %d,\n", state.maxHP);
+    fprintf(f, "  \"timeOfDay\": %.6f\n", state.timeOfDay);
     fprintf(f, "}\n");
     fclose(f);
 }
@@ -208,6 +209,7 @@ bool LoadGame(PlayerState& state) {
     state.swordPickedUp = ParseBoolAfter(json, "\"swordPickedUp\"", false);
     state.currentHP = ParseIntAfter(json, "\"currentHP\"", 10);
     state.maxHP = ParseIntAfter(json, "\"maxHP\"", 10);
+    state.timeOfDay = ParseFloatAfter(json, "\"timeOfDay\"", 0.5f);  // Default to midday
 
     delete[] json;
     return true;

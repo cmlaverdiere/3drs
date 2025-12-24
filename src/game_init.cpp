@@ -42,6 +42,7 @@ void InitPlayerState(PlayerState* state) {
     state->swordPickedUp = false;
     state->maxHP = 10;
     state->currentHP = 10;
+    state->timeOfDay = 0.5f;  // Start at midday
 }
 
 void InitCamera(Camera3D* camera, const PlayerState* state) {
