@@ -1211,10 +1211,16 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            // Draw enemy health bars
+            // Draw enemy health bars (only when in attack range)
             for (int i = 0; i < enemyCount; i++) {
                 if (enemies[i].alive) {
                     const EnemyConfig& config = ENEMY_CONFIGS[enemies[i].type];
+
+                    // Check distance - only show UI when in attack range
+                    float enemyTerrainY = GetTerrainHeight(enemies[i].position.x, enemies[i].position.z);
+                    Vector3 enemyPos = { enemies[i].position.x, enemyTerrainY, enemies[i].position.z };
+                    float dist = Distance3D(camera.position, enemyPos);
+                    if (dist > PLAYER_ATTACK_RANGE) continue;
 
                     Vector3 toEnemy = {
                         enemies[i].position.x - camera.position.x,
@@ -1228,7 +1234,6 @@ int main(int argc, char* argv[]) {
                     };
                     if (Dot3D(toEnemy, camForward) <= 0) continue;
 
-                    float enemyTerrainY = GetTerrainHeight(enemies[i].position.x, enemies[i].position.z);
                     Vector3 healthBarPos = { enemies[i].position.x, enemyTerrainY + 2.0f, enemies[i].position.z };
                     Vector2 screenPos = GetWorldToScreen(healthBarPos, camera);
                     if (screenPos.x > 0 && screenPos.x < screenWidth &&

@@ -57,15 +57,7 @@ void DrawTroll(Vector3 pos, float facingAngle, bool highlighted) {
     DrawCube((Vector3){-0.15f, 0.2f, 0}, 0.2f, 0.4f, 0.2f, trollDark);
     DrawCube((Vector3){0.15f, 0.2f, 0}, 0.2f, 0.4f, 0.2f, trollDark);
 
-    if (highlighted) {
-        Color outlineColor = { 255, 255, 0, 255 };
-        DrawCubeWires((Vector3){0, 0.8f, 0}, 0.65f, 0.85f, 0.45f, outlineColor);
-        DrawSphereWires((Vector3){0, 1.5f, 0}, 0.38f, 8, 8, outlineColor);
-        DrawCubeWires((Vector3){-0.45f, 0.8f, 0}, 0.25f, 0.65f, 0.25f, outlineColor);
-        DrawCubeWires((Vector3){0.45f, 0.8f, 0}, 0.25f, 0.65f, 0.25f, outlineColor);
-        DrawCubeWires((Vector3){-0.15f, 0.2f, 0}, 0.25f, 0.45f, 0.25f, outlineColor);
-        DrawCubeWires((Vector3){0.15f, 0.2f, 0}, 0.25f, 0.45f, 0.25f, outlineColor);
-    }
+    (void)highlighted;  // Wireframe outline removed
 
     rlPopMatrix();
 }
@@ -127,11 +119,7 @@ void DrawCow(Vector3 pos, float facingAngle, bool highlighted) {
     DrawCube((Vector3){0, 0.7f, -0.6f}, 0.04f, 0.04f, 0.2f, cowBody);
     DrawCube((Vector3){0, 0.5f, -0.7f}, 0.06f, 0.15f, 0.04f, cowSpots);
 
-    if (highlighted) {
-        Color outlineColor = { 255, 255, 0, 255 };
-        DrawCubeWires((Vector3){0, 0.6f, 0}, 0.65f, 0.55f, 1.05f, outlineColor);
-        DrawCubeWires((Vector3){0, 0.7f, 0.65f}, 0.4f, 0.4f, 0.35f, outlineColor);
-    }
+    (void)highlighted;  // Wireframe outline removed
 
     rlPopMatrix();
 }
