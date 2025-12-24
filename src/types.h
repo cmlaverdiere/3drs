@@ -120,6 +120,7 @@ const int MAX_DROPS_PER_ENEMY = 4;
 // Enemy type configuration
 struct EnemyConfig {
     const char* name;
+    int combatLevel;
     int maxHealth;
     int maxHit;
     float attackCooldown;

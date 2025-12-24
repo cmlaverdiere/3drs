@@ -83,7 +83,11 @@ This renders a few frames, saves a screenshot, and exits immediately. The screen
 - After modifying rendering code, shaders, HUD, or any visual elements
 - When debugging visual issues - capture before and after screenshots
 - When you need to verify a visual change worked correctly
-- **Instead of asking the user** "can you run the game and tell me what you see?"
+
+**When NOT to use:**
+- Features that require player position (e.g., being near an enemy, in a specific location)
+- Features that require interaction (e.g., attacking, opening menus, picking up items)
+- For these cases, just verify the code compiles and trust the implementation
 
 **Workflow:**
 1. Make changes

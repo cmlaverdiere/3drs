@@ -22,6 +22,7 @@ const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
     // ENEMY_TROLL
     {
         .name = "Troll",
+        .combatLevel = 3,
         .maxHealth = 5,
         .maxHit = 2,
         .attackCooldown = 1.0f,
@@ -38,6 +39,7 @@ const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
     // ENEMY_COW
     {
         .name = "Cow",
+        .combatLevel = 2,
         .maxHealth = 8,
         .maxHit = 1,
         .attackCooldown = 2.0f,
@@ -54,6 +56,7 @@ const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
     // ENEMY_SCORPION
     {
         .name = "Scorpion",
+        .combatLevel = 14,
         .maxHealth = 15,
         .maxHit = 4,
         .attackCooldown = 1.5f,

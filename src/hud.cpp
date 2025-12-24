@@ -95,7 +95,8 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
     DrawDamageIndicators(camera, damageIndicators, screenWidth, screenHeight);
 
     // Enemy health bars
-    DrawEnemyHealthBars(camera, enemies, enemyCount, screenWidth, screenHeight);
+    int playerCombatLevel = GetLevelFromXP(state->skillXP[SKILL_COMBAT]);
+    DrawEnemyHealthBars(camera, enemies, enemyCount, playerCombatLevel, screenWidth, screenHeight);
 
     // Crosshair
     if (!mouseMode) {
@@ -554,7 +555,7 @@ void DrawDamageIndicators(const Camera3D* camera, const DamageIndicator* indicat
 }
 
 void DrawEnemyHealthBars(const Camera3D* camera, const Enemy* enemies, int enemyCount,
-                         int screenWidth, int screenHeight) {
+                         int playerCombatLevel, int screenWidth, int screenHeight) {
     for (int i = 0; i < enemyCount; i++) {
         if (!enemies[i].alive) continue;
 
@@ -587,8 +588,24 @@ void DrawEnemyHealthBars(const Camera3D* camera, const Enemy* enemies, int enemy
         DrawRectangle((int)screenPos.x - barWidth/2, (int)screenPos.y, healthWidth, barHeight, GREEN);
         DrawRectangleLines((int)screenPos.x - barWidth/2, (int)screenPos.y, barWidth, barHeight, BLACK);
 
-        int nameWidth = MeasureText(config.name, 12);
-        DrawText(config.name, (int)screenPos.x - nameWidth/2, (int)screenPos.y - 14, 12, WHITE);
+        // OSRS-style level color coding
+        int levelDiff = config.combatLevel - playerCombatLevel;
+        Color levelColor;
+        if (levelDiff < -5) {
+            levelColor = (Color){ 0, 255, 0, 255 };       // Green - much lower level
+        } else if (levelDiff <= 0) {
+            levelColor = (Color){ 255, 255, 0, 255 };     // Yellow - slightly lower or equal
+        } else if (levelDiff <= 5) {
+            levelColor = (Color){ 255, 128, 0, 255 };     // Orange - slightly higher
+        } else {
+            levelColor = (Color){ 255, 0, 0, 255 };       // Red - much higher level
+        }
+
+        char nameText[64];
+        snprintf(nameText, sizeof(nameText), "Level %d %s", config.combatLevel, config.name);
+        int fontSize = 18;
+        int nameWidth = MeasureText(nameText, fontSize);
+        DrawText(nameText, (int)screenPos.x - nameWidth/2, (int)screenPos.y - 20, fontSize, levelColor);
     }
 }
 

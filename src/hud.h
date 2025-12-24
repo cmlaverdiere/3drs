@@ -31,7 +31,7 @@ void DrawDamageIndicators(const Camera3D* camera, const DamageIndicator* indicat
 
 // Draw enemy health bars (when in range)
 void DrawEnemyHealthBars(const Camera3D* camera, const Enemy* enemies, int enemyCount,
-                         int screenWidth, int screenHeight);
+                         int playerCombatLevel, int screenWidth, int screenHeight);
 
 // Update timers for damage indicators, XP popups, level up notifications
 void UpdateHUDTimers(DamageIndicator* damageIndicators,
