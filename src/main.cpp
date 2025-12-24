@@ -278,7 +278,7 @@ int main(int argc, char* argv[]) {
         }
 
         // ========== SHADOW PASS ==========
-        BeginShadowPass(&lighting, camera.position);
+        BeginShadowPass(&lighting, camera.position, resources.depthShader);
             // Draw shadow-casting geometry
             DrawModel(resources.groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
 

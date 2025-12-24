@@ -3,6 +3,7 @@
 out vec4 fragColor;
 
 void main() {
-    // Depth is written automatically, but we need some output for the shader to compile
-    fragColor = vec4(1.0);
+    // Write depth to color channel (for shadow map sampling)
+    float depth = gl_FragCoord.z;
+    fragColor = vec4(depth, depth, depth, 1.0);
 }

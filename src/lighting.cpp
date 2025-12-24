@@ -108,35 +108,11 @@ static TimeColors InterpolateTimeColors(float timeOfDay) {
     return result;
 }
 
-// Create a depth-only render texture for shadow mapping
+// Create shadow map render texture (uses color texture to store depth)
 static RenderTexture2D LoadShadowmapRenderTexture(int width, int height) {
-    RenderTexture2D target = { 0 };
-
-    target.id = rlLoadFramebuffer();
-    target.texture.width = width;
-    target.texture.height = height;
-
-    if (target.id > 0) {
-        rlEnableFramebuffer(target.id);
-
-        // Create depth texture
-        target.depth.id = rlLoadTextureDepth(width, height, false);
-        target.depth.width = width;
-        target.depth.height = height;
-        target.depth.format = 19;  // DEPTH_COMPONENT_24BIT
-        target.depth.mipmaps = 1;
-
-        // Attach depth texture to FBO
-        rlFramebufferAttach(target.id, target.depth.id, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_TEXTURE2D, 0);
-
-        // Check if FBO is complete
-        if (rlFramebufferComplete(target.id)) {
-            TraceLog(LOG_INFO, "Shadow map FBO created successfully (%dx%d)", width, height);
-        }
-
-        rlDisableFramebuffer();
-    }
-
+    // Use standard render texture - we'll write depth to color in the shader
+    RenderTexture2D target = LoadRenderTexture(width, height);
+    TraceLog(LOG_INFO, "Shadow map render texture created (%dx%d)", width, height);
     return target;
 }
 
@@ -236,7 +212,7 @@ void SetShaderLightingUniforms(LightingSystem* lighting, Shader shader, Vector3 
     SetShaderValueMatrix(shader, lightVPLoc, lighting->lightViewProj);
 }
 
-void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos) {
+void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos, Shader depthShader) {
     // Update light camera
     float shadowDistance = SHADOW_ORTHO_SIZE * 0.5f;
     lighting->lightCamera.position = Vector3Add(
@@ -261,7 +237,7 @@ void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos) {
 
     // Begin rendering to shadow map
     BeginTextureMode(lighting->shadowMap);
-    ClearBackground(WHITE);
+    ClearBackground(WHITE);  // Clear to white (max depth = 1.0)
 
     // Set up 3D mode with light's view
     rlDrawRenderBatchActive();
@@ -276,9 +252,15 @@ void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos) {
     // Enable front-face culling to reduce shadow acne
     rlEnableBackfaceCulling();
     rlSetCullFace(RL_CULL_FACE_FRONT);
+
+    // Set depth shader AFTER matrix setup
+    BeginShaderMode(depthShader);
 }
 
 void EndShadowPass(LightingSystem* lighting) {
+    // End depth shader
+    EndShaderMode();
+
     // Reset culling
     rlSetCullFace(RL_CULL_FACE_BACK);
 
@@ -295,9 +277,9 @@ void BindShadowMapToShader(LightingSystem* lighting, Shader shader) {
     int shadowMapLoc = GetShaderLocation(shader, "shadowMap");
     int shadowResLoc = GetShaderLocation(shader, "shadowMapResolution");
 
-    // Bind shadow map to texture slot 1
+    // Bind shadow map color texture to texture slot 1
     rlActiveTextureSlot(1);
-    rlEnableTexture(lighting->shadowMap.depth.id);
+    rlEnableTexture(lighting->shadowMap.texture.id);
     SetShaderValue(shader, shadowMapLoc, (int[]){1}, SHADER_UNIFORM_INT);
     SetShaderValue(shader, shadowResLoc, (int[]){SHADOW_MAP_RESOLUTION}, SHADER_UNIFORM_INT);
 }

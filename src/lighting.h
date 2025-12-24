@@ -65,8 +65,8 @@ void CacheShaderLightingLocs(LightingSystem* lighting, Shader shader);
 // Set lighting uniforms on a shader (call each frame)
 void SetShaderLightingUniforms(LightingSystem* lighting, Shader shader, Vector3 viewPos);
 
-// Begin shadow map render pass
-void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos);
+// Begin shadow map render pass (pass depth shader to use)
+void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos, Shader depthShader);
 
 // End shadow map render pass
 void EndShadowPass(LightingSystem* lighting);
