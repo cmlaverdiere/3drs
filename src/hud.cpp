@@ -85,7 +85,8 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
 
     // Attack cooldown
     if (attackCooldown > 0) {
-        int cdWidth = (int)(100 * (attackCooldown / PLAYER_ATTACK_COOLDOWN));
+        float maxCooldown = GetWeaponCooldown(state->equippedWeapon);
+        int cdWidth = (int)(100 * (attackCooldown / maxCooldown));
         DrawRectangle(screenWidth/2 - 50, screenHeight - 40, 100, 10, DARKGRAY);
         DrawRectangle(screenWidth/2 - 50, screenHeight - 40, cdWidth, 10, RED);
     }
@@ -304,6 +305,33 @@ void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int scre
         Vector2 headLeft = { headCenter.x + (-30.0f * cosA), headCenter.y + (30.0f * sinA) };
         Vector2 headRight = { headCenter.x + (10.0f * cosA), headCenter.y + (-10.0f * sinA) };
         DrawLineEx(headLeft, headRight, 20.0f, BRONZE);
+    } else if (weapon == ITEM_IRON_2H_SWORD) {
+        Color ironBlade = { 180, 180, 190, 255 };
+        Color ironDark = { 120, 120, 130, 255 };
+        Color leatherGrip = { 80, 50, 30, 255 };
+
+        // Longer blade for 2H sword
+        float bladeLen = 180.0f, bladeWidth = 16.0f;
+        Vector2 bladeTip = { wpnX + (-bladeLen * sinA), wpnY + (-bladeLen * cosA) };
+        Vector2 bladeBase = { wpnX, wpnY };
+
+        DrawLineEx(bladeBase, bladeTip, bladeWidth + 2, DARKGRAY);
+        DrawLineEx(bladeBase, bladeTip, bladeWidth, ironBlade);
+        // Fuller (groove)
+        DrawLineEx(bladeBase, bladeTip, 4.0f, ironDark);
+
+        // Longer handle for two hands
+        Vector2 handleEnd = { wpnX + (50.0f * sinA), wpnY + (50.0f * cosA) };
+        DrawLineEx(bladeBase, handleEnd, 12.0f, leatherGrip);
+
+        // Larger crossguard
+        Vector2 guardLeft = { wpnX + (-25.0f * cosA), wpnY + (25.0f * sinA) };
+        Vector2 guardRight = { wpnX + (25.0f * cosA), wpnY + (-25.0f * sinA) };
+        DrawLineEx(guardLeft, guardRight, 8.0f, ironDark);
+
+        // Pommel
+        Vector2 pommelPos = { wpnX + (55.0f * sinA), wpnY + (55.0f * cosA) };
+        DrawCircleV(pommelPos, 8.0f, ironDark);
     }
 }
 
@@ -366,6 +394,25 @@ void DrawInventoryUI(const PlayerState* state, const InventoryMenu* menu,
                 DrawRectangle(cx - 12, cy - 4, 24, 8, barkColor);
                 DrawCircle(cx - 12, cy, 4, woodColor);
                 DrawCircle(cx + 12, cy, 4, woodColor);
+            } else if (item == ITEM_CHITIN) {
+                Color chitinColor = { 101, 67, 33, 255 };
+                DrawRectangle(cx - 10, cy - 6, 20, 12, chitinColor);
+                DrawRectangle(cx - 8, cy - 8, 4, 4, chitinColor);
+                DrawRectangle(cx + 4, cy - 8, 4, 4, chitinColor);
+            } else if (item == ITEM_IRON_2H_SWORD) {
+                Color ironBlade = { 180, 180, 190, 255 };
+                Color ironDark = { 120, 120, 130, 255 };
+                Color leatherGrip = { 80, 50, 30, 255 };
+                // Longer blade
+                DrawRectangle(cx - 3, cy - 16, 6, 28, ironBlade);
+                // Fuller
+                DrawRectangle(cx - 1, cy - 14, 2, 20, ironDark);
+                // Handle
+                DrawRectangle(cx - 2, cy + 12, 4, 10, leatherGrip);
+                // Crossguard
+                DrawRectangle(cx - 10, cy + 10, 20, 4, ironDark);
+                // Pommel
+                DrawCircle(cx, cy + 24, 3, ironDark);
             }
 
             // Stack count

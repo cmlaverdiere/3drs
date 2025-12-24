@@ -254,7 +254,10 @@ void InitItemsFromMap(WorldItem* items, int* itemCount, const MapData& mapData, 
     for (int i = 0; i < *itemCount; i++) {
         items[i].type = mapData.itemTypes[i];
         items[i].position = mapData.itemSpawns[i];
+        items[i].spawnPosition = mapData.itemSpawns[i];
         items[i].pickedUp = false;
+        items[i].respawnTimer = 0.0f;
+        items[i].canRespawn = true;  // Map-spawned items respawn
     }
     if (*itemCount > 0) {
         items[0].pickedUp = swordPickedUp;

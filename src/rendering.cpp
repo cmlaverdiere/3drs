@@ -265,6 +265,23 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
             DrawModelCube(models, (Vector3){pos.x, pos.y + 0.08f, pos.z + 0.08f}, 0.18f, 0.02f, 0.05f, chitinDark);
             break;
         }
+        case ITEM_IRON_2H_SWORD: {
+            // Iron 2H sword - larger blade, steel coloring
+            Color ironBlade = { 180, 180, 190, 255 };
+            Color ironDark = { 120, 120, 130, 255 };
+            Color leatherGrip = { 80, 50, 30, 255 };
+            // Long blade
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.06f, pos.z + 0.1f}, 0.12f, 0.06f, 0.9f, ironBlade);
+            // Fuller (groove in blade)
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.07f, pos.z + 0.15f}, 0.04f, 0.02f, 0.7f, ironDark);
+            // Crossguard
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.06f, pos.z - 0.38f}, 0.35f, 0.05f, 0.08f, ironDark);
+            // Long grip (two-handed)
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.06f, pos.z - 0.55f}, 0.07f, 0.07f, 0.28f, leatherGrip);
+            // Pommel
+            DrawModelSphere(models, (Vector3){pos.x, pos.y + 0.06f, pos.z - 0.72f}, 0.06f, ironDark);
+            break;
+        }
         default:
             DrawModelCube(models, pos, 0.2f, 0.2f, 0.2f, RED);
             break;

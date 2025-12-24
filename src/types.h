@@ -29,6 +29,9 @@ constexpr int BURY_XP = 5;
 // Combat
 constexpr float SWING_DURATION = 0.2f;
 constexpr float PICKUP_RANGE = 2.5f;
+constexpr float DEFAULT_ATTACK_COOLDOWN = 0.25f;
+constexpr float IRON_2H_ATTACK_COOLDOWN = 0.5f;
+constexpr float IRON_2H_DAMAGE_MULTIPLIER = 2.5f;
 
 // HP regeneration
 constexpr float HP_REGEN_INTERVAL = 5.0f;
@@ -55,6 +58,7 @@ enum ItemType {
     ITEM_BRONZE_AXE,
     ITEM_LOGS,
     ITEM_CHITIN,
+    ITEM_IRON_2H_SWORD,
     // === ADD NEW ITEMS HERE ===
     ITEM_COUNT
 };
@@ -98,6 +102,9 @@ struct WorldItem {
     ItemType type;
     Vector3 position;
     bool pickedUp;
+    float respawnTimer;      // Time until respawn (0 = no respawn)
+    Vector3 spawnPosition;   // Original spawn point for respawning items
+    bool canRespawn;         // True for map-spawned items
 };
 
 // Drop table entry
@@ -182,6 +189,7 @@ struct Valley {
 
 const int MAX_TREES = 1000;
 const int MAX_WATER = 100;
+const float ITEM_RESPAWN_TIME = 60.0f;  // 60 seconds for respawning items
 const int MAX_SAND = 50;
 const int MAX_VALLEYS = 50;
 const int TREE_MAX_HEALTH = 3;      // 3 chops to fell a tree
@@ -234,7 +242,19 @@ inline bool IsItemStackable(ItemType item) {
 
 // Check if an item is a weapon
 inline bool IsWeapon(ItemType item) {
-    return item == ITEM_BRONZE_SHORTSWORD || item == ITEM_BRONZE_AXE;
+    return item == ITEM_BRONZE_SHORTSWORD || item == ITEM_BRONZE_AXE || item == ITEM_IRON_2H_SWORD;
+}
+
+// Get weapon attack cooldown
+inline float GetWeaponCooldown(ItemType item) {
+    if (item == ITEM_IRON_2H_SWORD) return IRON_2H_ATTACK_COOLDOWN;
+    return DEFAULT_ATTACK_COOLDOWN;
+}
+
+// Get weapon damage multiplier
+inline float GetWeaponDamageMultiplier(ItemType item) {
+    if (item == ITEM_IRON_2H_SWORD) return IRON_2H_DAMAGE_MULTIPLIER;
+    return 1.0f;
 }
 
 // Normalize angle to [-PI, PI]
@@ -259,7 +279,6 @@ const int MAX_DAMAGE_INDICATORS = 20;
 const int MAX_XP_POPUPS = 10;
 
 const float PLAYER_ATTACK_RANGE = 5.0f;
-const float PLAYER_ATTACK_COOLDOWN = 0.25f;
 
 const float DAMAGE_INDICATOR_DURATION = 1.5f;
 const float XP_POPUP_DURATION = 2.0f;

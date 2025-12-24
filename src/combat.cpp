@@ -51,6 +51,8 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                     worldItems[*worldItemCount].position.z += RandomFloat(-0.5f, 0.5f);
                     worldItems[*worldItemCount].position.y = 0.0f;
                     worldItems[*worldItemCount].pickedUp = false;
+                    worldItems[*worldItemCount].canRespawn = false;  // Logs don't respawn
+                    worldItems[*worldItemCount].respawnTimer = 0.0f;
                     (*worldItemCount)++;
                 }
 
@@ -83,7 +85,7 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
             const EnemyConfig& config = ENEMY_CONFIGS[target->type];
             target->hostile = true;
 
-            int damage = RollDamage(maxHit);
+            int damage = (int)(RollDamage(maxHit) * GetWeaponDamageMultiplier(state->equippedWeapon));
             target->health -= damage;
             Vector3 dmgPos = target->position;
             dmgPos.y = GetTerrainHeight(dmgPos.x, dmgPos.z);

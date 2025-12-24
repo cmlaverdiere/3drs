@@ -12,4 +12,7 @@ void SpawnXPPopup(XPPopup* popups, int xpAmount, int skillIndex);
 // Spawn drops from an enemy death
 void SpawnEnemyDrops(const EnemyConfig& config, Vector3 pos, WorldItem* worldItems, int& worldItemCount);
 
+// Update respawn timers for map-spawned items
+void UpdateItemRespawns(WorldItem* items, int itemCount, float dt);
+
 #endif

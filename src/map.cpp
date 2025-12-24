@@ -83,6 +83,8 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         map.itemTypes[map.itemCount] = ITEM_LOGS;
                     } else if (strcmp(itemName, "chitin") == 0) {
                         map.itemTypes[map.itemCount] = ITEM_CHITIN;
+                    } else if (strcmp(itemName, "iron_2h_sword") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_IRON_2H_SWORD;
                     } else {
                         map.itemTypes[map.itemCount] = ITEM_NONE;
                     }

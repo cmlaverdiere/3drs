@@ -49,6 +49,8 @@ void SpawnEnemyDrops(const EnemyConfig& config, Vector3 pos, WorldItem* worldIte
                 worldItems[worldItemCount].position.z += RandomFloat(-0.5f, 0.5f);
                 worldItems[worldItemCount].position.y = 0.0f;
                 worldItems[worldItemCount].pickedUp = false;
+                worldItems[worldItemCount].canRespawn = false;  // Drops don't respawn
+                worldItems[worldItemCount].respawnTimer = 0.0f;
                 worldItemCount++;
             }
         } else {
@@ -60,7 +62,21 @@ void SpawnEnemyDrops(const EnemyConfig& config, Vector3 pos, WorldItem* worldIte
                 worldItems[worldItemCount].position.z += RandomFloat(-0.5f, 0.5f);
                 worldItems[worldItemCount].position.y = 0.0f;
                 worldItems[worldItemCount].pickedUp = false;
+                worldItems[worldItemCount].canRespawn = false;  // Drops don't respawn
+                worldItems[worldItemCount].respawnTimer = 0.0f;
                 worldItemCount++;
+            }
+        }
+    }
+}
+
+void UpdateItemRespawns(WorldItem* items, int itemCount, float dt) {
+    for (int i = 0; i < itemCount; i++) {
+        if (items[i].pickedUp && items[i].canRespawn && items[i].respawnTimer > 0) {
+            items[i].respawnTimer -= dt;
+            if (items[i].respawnTimer <= 0) {
+                items[i].pickedUp = false;
+                items[i].position = items[i].spawnPosition;
             }
         }
     }

@@ -71,6 +71,8 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
                         worldItems[*worldItemCount].position = playerPos;
                         worldItems[*worldItemCount].position.y = 0.0f;
                         worldItems[*worldItemCount].pickedUp = false;
+                        worldItems[*worldItemCount].canRespawn = false;  // Dropped items don't respawn
+                        worldItems[*worldItemCount].respawnTimer = 0.0f;
                         (*worldItemCount)++;
 
                         if (IsItemStackable(menuItem) && state->inventoryCount[menu->contextSlot] > 1) {
@@ -155,6 +157,9 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
 bool HandleItemPickup(PlayerState* state, WorldItem* targetItem) {
     if (AddToInventory(state, targetItem->type)) {
         targetItem->pickedUp = true;
+        if (targetItem->canRespawn) {
+            targetItem->respawnTimer = ITEM_RESPAWN_TIME;
+        }
         PlaySoundEffect(SFX_PICKUP);
         return true;
     }

@@ -212,6 +212,8 @@ void UpdatePlayerDeath(Camera3D* camera, PlayerState* state, PlayerRuntime* runt
                     worldItems[*worldItemCount].position.z += RandomFloat(-1.0f, 1.0f);
                     worldItems[*worldItemCount].position.y = 0.0f;
                     worldItems[*worldItemCount].pickedUp = false;
+                    worldItems[*worldItemCount].canRespawn = false;  // Death drops don't respawn
+                    worldItems[*worldItemCount].respawnTimer = 0.0f;
                     (*worldItemCount)++;
                 }
                 state->inventory[i] = ITEM_NONE;

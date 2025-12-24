@@ -17,6 +17,7 @@
 #include "inventory.h"
 #include "hud.h"
 #include "game_init.h"
+#include "game_systems.h"
 #include "lighting.h"
 
 // Global heightmap data
@@ -211,13 +212,16 @@ int main(int argc, char* argv[]) {
         // Tree respawning
         UpdateTrees(trees, treeCount, dt);
 
+        // Item respawning
+        UpdateItemRespawns(worldItems, worldItemCount, dt);
+
         // Player attack
         if (!mouseMode && !playerRuntime.isDead && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
             attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
             ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
                                 trees, treeCount, worldItems, &worldItemCount,
                                 damageIndicators, xpPopups, &levelUpNotif, &swingTimer);
-            attackCooldown = PLAYER_ATTACK_COOLDOWN;
+            attackCooldown = GetWeaponCooldown(playerState.equippedWeapon);
         }
 
         // HUD timers

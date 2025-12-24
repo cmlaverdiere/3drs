@@ -14,7 +14,8 @@ const char* ITEM_NAMES[ITEM_COUNT] = {
     "Gil",
     "Bronze Axe",
     "Logs",
-    "Chitin"
+    "Chitin",
+    "Iron 2H Sword"
 };
 
 const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
