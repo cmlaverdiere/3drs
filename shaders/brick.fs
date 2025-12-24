@@ -6,6 +6,17 @@ in vec3 fragNormal;
 
 out vec4 finalColor;
 
+// Lighting uniforms
+uniform vec3 sunDirection;
+uniform vec3 sunColor;
+uniform vec3 ambientColor;
+uniform vec3 fogColor;
+uniform float fogDensity;
+uniform vec3 viewPos;
+uniform mat4 lightVP;
+uniform sampler2D shadowMap;
+uniform int shadowMapResolution;
+
 // Hash function for noise
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -69,6 +80,38 @@ vec2 brick(vec2 uv, float brickWidth, float brickHeight, float mortarWidth) {
     return vec2(brickMask, brickID);
 }
 
+// Calculate shadow factor (0.0 = full shadow, 1.0 = no shadow)
+float CalculateShadow(vec3 fragPos, vec3 normal) {
+    vec4 fragPosLightSpace = lightVP * vec4(fragPos, 1.0);
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
+        projCoords.y < 0.0 || projCoords.y > 1.0 ||
+        projCoords.z > 1.0) {
+        return 1.0;
+    }
+
+    float currentDepth = projCoords.z;
+    float bias = max(0.005 * (1.0 - dot(normal, -sunDirection)), 0.001);
+
+    float shadow = 0.0;
+    vec2 texelSize = vec2(1.0 / float(shadowMapResolution));
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            float sampleDepth = texture(shadowMap, projCoords.xy + texelSize * vec2(x, y)).r;
+            shadow += (currentDepth - bias > sampleDepth) ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9.0;
+
+    float fadeStart = 0.85;
+    float fadeEdge = max(abs(projCoords.x * 2.0 - 1.0), abs(projCoords.y * 2.0 - 1.0));
+    shadow *= 1.0 - smoothstep(fadeStart, 1.0, fadeEdge);
+
+    return 1.0 - shadow;
+}
+
 void main() {
     // Brick color palette
     vec3 darkBrick = vec3(0.5, 0.2, 0.15);    // Dark red-brown
@@ -122,9 +165,20 @@ void main() {
     // Blend brick and mortar
     vec3 surfaceColor = mix(finalMortar, brickColor, brickMask);
 
-    // Simple lighting
-    float light = max(dot(fragNormal, normalize(vec3(0.3, 1.0, 0.5))), 0.35);
-    surfaceColor *= light;
+    // Calculate lighting
+    vec3 normal = normalize(fragNormal);
+    float shadow = CalculateShadow(fragWorldPos, normal);
 
-    finalColor = vec4(surfaceColor, 1.0);
+    float NdotL = max(dot(normal, -sunDirection), 0.0);
+    vec3 diffuse = sunColor * NdotL * shadow;
+
+    vec3 litColor = surfaceColor * (ambientColor + diffuse);
+
+    // Apply fog
+    float dist = length(viewPos - fragWorldPos);
+    float fogFactor = exp(-pow(dist * fogDensity, 2.0));
+    fogFactor = clamp(fogFactor, 0.0, 1.0);
+    litColor = mix(fogColor, litColor, fogFactor);
+
+    finalColor = vec4(litColor, 1.0);
 }

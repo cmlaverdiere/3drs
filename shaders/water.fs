@@ -2,8 +2,20 @@
 
 in vec2 fragTexCoord;
 in vec3 fragWorldPos;
+in vec3 fragNormal;
 
 uniform float time;
+
+// Lighting uniforms
+uniform vec3 sunDirection;
+uniform vec3 sunColor;
+uniform vec3 ambientColor;
+uniform vec3 fogColor;
+uniform float fogDensity;
+uniform vec3 viewPos;
+uniform mat4 lightVP;
+uniform sampler2D shadowMap;
+uniform int shadowMapResolution;
 
 out vec4 finalColor;
 
@@ -24,6 +36,41 @@ float noise(vec2 p) {
     float d = hash(i + vec2(1.0, 1.0));
 
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+// Calculate shadow factor with reduced intensity for water
+float CalculateShadow(vec3 fragPos, vec3 normal) {
+    vec4 fragPosLightSpace = lightVP * vec4(fragPos, 1.0);
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
+        projCoords.y < 0.0 || projCoords.y > 1.0 ||
+        projCoords.z > 1.0) {
+        return 1.0;
+    }
+
+    float currentDepth = projCoords.z;
+    float bias = max(0.005 * (1.0 - dot(normal, -sunDirection)), 0.001);
+
+    float shadow = 0.0;
+    vec2 texelSize = vec2(1.0 / float(shadowMapResolution));
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            float sampleDepth = texture(shadowMap, projCoords.xy + texelSize * vec2(x, y)).r;
+            shadow += (currentDepth - bias > sampleDepth) ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9.0;
+
+    // Reduce shadow intensity for water (it's reflective)
+    shadow *= 0.5;
+
+    float fadeStart = 0.85;
+    float fadeEdge = max(abs(projCoords.x * 2.0 - 1.0), abs(projCoords.y * 2.0 - 1.0));
+    shadow *= 1.0 - smoothstep(fadeStart, 1.0, fadeEdge);
+
+    return 1.0 - shadow;
 }
 
 void main() {
@@ -50,8 +97,31 @@ void main() {
         waterColor = mix(waterColor, highlight, (sparkle - 0.85) * 6.0);
     }
 
+    // Calculate lighting
+    vec3 normal = normalize(fragNormal);
+    float shadow = CalculateShadow(fragWorldPos, normal);
+
+    // Diffuse lighting
+    float NdotL = max(dot(normal, -sunDirection), 0.0);
+    vec3 diffuse = sunColor * NdotL * shadow;
+
+    // Simple specular for water shininess
+    vec3 viewDir = normalize(viewPos - fragWorldPos);
+    vec3 reflectDir = reflect(sunDirection, normal);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
+    vec3 specular = sunColor * spec * 0.5 * shadow;
+
+    // Combine lighting
+    vec3 litColor = waterColor * (ambientColor + diffuse) + specular;
+
+    // Apply fog
+    float dist = length(viewPos - fragWorldPos);
+    float fogFactor = exp(-pow(dist * fogDensity, 2.0));
+    fogFactor = clamp(fogFactor, 0.0, 1.0);
+    litColor = mix(fogColor, litColor, fogFactor);
+
     // Semi-transparent
     float alpha = 0.75 + combined * 0.15;
 
-    finalColor = vec4(waterColor, alpha);
+    finalColor = vec4(litColor, alpha);
 }

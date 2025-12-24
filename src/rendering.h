@@ -4,25 +4,33 @@
 #include "raylib.h"
 #include "types.h"
 
+// Forward declare EntityModels (defined in game_init.h)
+struct EntityModels;
+
+// Draw primitives using models (proper normals for lighting)
+void DrawModelCube(const EntityModels* models, Vector3 pos, float width, float height, float depth, Color color);
+void DrawModelSphere(const EntityModels* models, Vector3 pos, float radius, Color color);
+void DrawModelCylinder(const EntityModels* models, Vector3 pos, float radiusBottom, float radiusTop, float height, Color color);
+
 // Draw a simple sword shape
-void DrawSword(Vector3 pos, Color bladeColor, Color handleColor);
+void DrawSword(const EntityModels* models, Vector3 pos, Color bladeColor, Color handleColor);
 
 // Draw a troll (simple humanoid shape)
-void DrawTroll(Vector3 pos, float facingAngle, bool highlighted);
+void DrawTroll(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted);
 
 // Draw a cow
-void DrawCow(Vector3 pos, float facingAngle, bool highlighted);
+void DrawCow(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted);
 
 // Draw a scorpion
-void DrawScorpion(Vector3 pos, float facingAngle, bool highlighted);
+void DrawScorpion(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted);
 
 // Draw any enemy by type
-void DrawEnemy(const Enemy& enemy, bool highlighted);
+void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted);
 
 // Draw item on ground
-void DrawWorldItem(ItemType type, Vector3 pos);
+void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos);
 
 // Draw a tree
-void DrawTree(Vector3 pos, bool highlighted);
+void DrawTree(const EntityModels* models, Vector3 pos, bool highlighted);
 
 #endif

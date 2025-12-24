@@ -2,9 +2,21 @@
 
 in vec2 fragTexCoord;
 in vec3 fragWorldPos;
+in vec3 fragNormal;
 
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
+
+// Lighting uniforms
+uniform vec3 sunDirection;
+uniform vec3 sunColor;
+uniform vec3 ambientColor;
+uniform vec3 fogColor;
+uniform float fogDensity;
+uniform vec3 viewPos;
+uniform mat4 lightVP;
+uniform sampler2D shadowMap;
+uniform int shadowMapResolution;
 
 out vec4 finalColor;
 
@@ -39,6 +51,43 @@ float fbm(vec2 p) {
     return value;
 }
 
+// Calculate shadow factor (0.0 = full shadow, 1.0 = no shadow)
+float CalculateShadow(vec3 fragPos, vec3 normal) {
+    vec4 fragPosLightSpace = lightVP * vec4(fragPos, 1.0);
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    // Check if fragment is outside shadow map
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
+        projCoords.y < 0.0 || projCoords.y > 1.0 ||
+        projCoords.z > 1.0) {
+        return 1.0;
+    }
+
+    float currentDepth = projCoords.z;
+
+    // Bias based on surface angle to sun
+    float bias = max(0.005 * (1.0 - dot(normal, -sunDirection)), 0.001);
+
+    // PCF (3x3 kernel) for soft shadows
+    float shadow = 0.0;
+    vec2 texelSize = vec2(1.0 / float(shadowMapResolution));
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            float sampleDepth = texture(shadowMap, projCoords.xy + texelSize * vec2(x, y)).r;
+            shadow += (currentDepth - bias > sampleDepth) ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9.0;
+
+    // Fade shadows at edge of shadow map
+    float fadeStart = 0.85;
+    float fadeEdge = max(abs(projCoords.x * 2.0 - 1.0), abs(projCoords.y * 2.0 - 1.0));
+    shadow *= 1.0 - smoothstep(fadeStart, 1.0, fadeEdge);
+
+    return 1.0 - shadow;
+}
+
 void main() {
     vec2 worldXZ = fragWorldPos.xz;
 
@@ -65,5 +114,22 @@ void main() {
     // Add subtle variation
     grassColor += (n3 - 0.5) * 0.08;
 
-    finalColor = vec4(grassColor, 1.0);
+    // Calculate lighting
+    vec3 normal = normalize(fragNormal);
+    float shadow = CalculateShadow(fragWorldPos, normal);
+
+    // Diffuse lighting
+    float NdotL = max(dot(normal, -sunDirection), 0.0);
+    vec3 diffuse = sunColor * NdotL * shadow;
+
+    // Combine ambient and diffuse
+    vec3 litColor = grassColor * (ambientColor + diffuse);
+
+    // Apply distance fog
+    float dist = length(viewPos - fragWorldPos);
+    float fogFactor = exp(-pow(dist * fogDensity, 2.0));
+    fogFactor = clamp(fogFactor, 0.0, 1.0);
+    litColor = mix(fogColor, litColor, fogFactor);
+
+    finalColor = vec4(litColor, 1.0);
 }

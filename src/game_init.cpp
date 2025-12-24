@@ -73,6 +73,30 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     // Sand shader
     res.sandShader = LoadShader("shaders/grass.vs", "shaders/sand.fs");
 
+    // Entity shader for lit enemies/trees/items
+    res.entityShader = LoadShader("shaders/entity.vs", "shaders/entity.fs");
+
+    // Depth shader for shadow map pass
+    res.depthShader = LoadShader("shaders/depth.vs", "shaders/depth.fs");
+
+    // Create primitive models for entity rendering (with proper normals)
+    // Unit cube (1x1x1), will be scaled per draw call
+    Mesh cubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
+    res.entityModels.cube = LoadModelFromMesh(cubeMesh);
+    res.entityModels.cube.materials[0].shader = res.entityShader;
+
+    // Unit sphere (radius 1), will be scaled per draw call
+    Mesh sphereMesh = GenMeshSphere(1.0f, 16, 16);
+    res.entityModels.sphere = LoadModelFromMesh(sphereMesh);
+    res.entityModels.sphere.materials[0].shader = res.entityShader;
+
+    // Unit cylinder (radius 1, height 1), will be scaled per draw call
+    Mesh cylinderMesh = GenMeshCylinder(1.0f, 1.0f, 16);
+    res.entityModels.cylinder = LoadModelFromMesh(cylinderMesh);
+    res.entityModels.cylinder.materials[0].shader = res.entityShader;
+
+    res.entityModels.initialized = true;
+
     // Create wall models
     res.wallCount = mapData.wallCount;
     for (int i = 0; i < res.wallCount; i++) {
@@ -268,6 +292,16 @@ void CleanupGameResources(GameResources* res) {
         UnloadModel(res->sandModels[i]);
     }
     UnloadShader(res->sandShader);
+
+    UnloadShader(res->entityShader);
+    UnloadShader(res->depthShader);
+
+    // Unload entity primitive models
+    if (res->entityModels.initialized) {
+        UnloadModel(res->entityModels.cube);
+        UnloadModel(res->entityModels.sphere);
+        UnloadModel(res->entityModels.cylinder);
+    }
 
     UnloadSoundSystem();
     CloseAudioDevice();

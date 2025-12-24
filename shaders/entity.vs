@@ -8,14 +8,20 @@ in vec4 vertexColor;
 uniform mat4 mvp;
 uniform mat4 matModel;
 
-out vec2 fragTexCoord;
 out vec3 fragWorldPos;
 out vec3 fragNormal;
+out vec4 fragColor;
+out vec3 fragLocalPos;
 
 void main() {
-    // Mesh already has terrain heights baked in - no displacement needed
-    fragTexCoord = vertexTexCoord;
+    // For immediate-mode (DrawCube etc), matModel is identity and
+    // transforms are baked into MVP. Store local pos for approximate fog.
+    fragLocalPos = vertexPosition;
+
+    // Try to compute world position (works for DrawModel, approximate for immediate)
     fragWorldPos = (matModel * vec4(vertexPosition, 1.0)).xyz;
     fragNormal = normalize(mat3(matModel) * vertexNormal);
+
+    fragColor = vertexColor;
     gl_Position = mvp * vec4(vertexPosition, 1.0);
 }

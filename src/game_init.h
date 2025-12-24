@@ -5,6 +5,14 @@
 #include "types.h"
 #include "spatial_hash.h"
 
+// Primitive models for entity rendering (with proper normals)
+struct EntityModels {
+    Model cube;
+    Model sphere;
+    Model cylinder;
+    bool initialized;
+};
+
 // All game resources that need cleanup
 struct GameResources {
     // Shaders
@@ -12,6 +20,8 @@ struct GameResources {
     Shader wallShaders[WALL_MATERIAL_COUNT];
     Shader waterShader;
     Shader sandShader;
+    Shader entityShader;  // For lit entities (enemies, trees, items)
+    Shader depthShader;   // For shadow map pass
     int waterTimeLoc;
 
     // Models
@@ -19,6 +29,9 @@ struct GameResources {
     Model wallModels[MAX_WALLS];
     Model waterModels[MAX_WATER];
     Model sandModels[MAX_SAND];
+
+    // Entity primitive models (for DrawModelEx-based rendering)
+    EntityModels entityModels;
 
     // Counts for cleanup
     int wallCount;

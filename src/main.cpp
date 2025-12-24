@@ -17,6 +17,7 @@
 #include "inventory.h"
 #include "hud.h"
 #include "game_init.h"
+#include "lighting.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -105,6 +106,10 @@ int main(int argc, char* argv[]) {
 
     GameResources resources = LoadGameResources(mapData, walls, waterBodies, sandZones);
 
+    // Initialize lighting system
+    LightingSystem lighting = {};
+    InitLightingSystem(&lighting);
+
     Enemy enemies[MAX_ENEMIES] = {};
     int enemyCount = 0;
     InitEnemiesFromMap(enemies, &enemyCount, mapData);
@@ -145,6 +150,9 @@ int main(int argc, char* argv[]) {
         float dt = GetFrameTime();
         screenWidth = GetScreenWidth();
         screenHeight = GetScreenHeight();
+
+        // Update lighting system (day/night cycle, sun position)
+        UpdateLightingSystem(&lighting, dt, camera.position);
 
         // Mouse mode toggle (hold shift for inventory)
         bool wasMouseMode = mouseMode;
@@ -269,19 +277,74 @@ int main(int argc, char* argv[]) {
             statusMessage = nullptr;
         }
 
-        // Rendering
-        BeginDrawing();
-        ClearBackground(SKYBLUE);
-
-        BeginMode3D(camera);
+        // ========== SHADOW PASS ==========
+        BeginShadowPass(&lighting, camera.position);
+            // Draw shadow-casting geometry
             DrawModel(resources.groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
 
+            // Walls cast shadows
+            for (int i = 0; i < resources.wallCount; i++) {
+                Vector3 pos = walls[i].position;
+                pos.y += GetTerrainHeight(pos.x, pos.z) + walls[i].height / 2.0f;
+                DrawModel(resources.wallModels[i], pos, 1.0f, WHITE);
+            }
+
+            // Trees cast shadows
+            for (int i = 0; i < treeCount; i++) {
+                if (trees[i].alive) {
+                    Vector3 treePos = trees[i].position;
+                    treePos.y = GetTerrainHeight(treePos.x, treePos.z);
+                    DrawTree(&resources.entityModels, treePos, false);
+                }
+            }
+
+            // Enemies cast shadows
+            for (int i = 0; i < enemyCount; i++) {
+                if (enemies[i].alive) {
+                    Vector3 enemyPos = enemies[i].position;
+                    enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
+                    Enemy adjustedEnemy = enemies[i];
+                    adjustedEnemy.position = enemyPos;
+                    DrawEnemy(&resources.entityModels, adjustedEnemy, false);
+                }
+            }
+        EndShadowPass(&lighting);
+
+        // ========== MAIN PASS ==========
+        // Set lighting uniforms for all shaders
+        SetShaderLightingUniforms(&lighting, resources.grassShader, camera.position);
+        SetShaderLightingUniforms(&lighting, resources.sandShader, camera.position);
+        SetShaderLightingUniforms(&lighting, resources.waterShader, camera.position);
+        SetShaderLightingUniforms(&lighting, resources.entityShader, camera.position);
+        for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
+            SetShaderLightingUniforms(&lighting, resources.wallShaders[i], camera.position);
+        }
+
+        // Bind shadow map to all shaders
+        BindShadowMapToShader(&lighting, resources.grassShader);
+        BindShadowMapToShader(&lighting, resources.sandShader);
+        BindShadowMapToShader(&lighting, resources.waterShader);
+        BindShadowMapToShader(&lighting, resources.entityShader);
+        for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
+            BindShadowMapToShader(&lighting, resources.wallShaders[i]);
+        }
+
+        // Rendering
+        BeginDrawing();
+        Color skyColor = GetSkyColor(lighting.timeOfDay);
+        ClearBackground(skyColor);
+
+        BeginMode3D(camera);
+            // Draw terrain
+            DrawModel(resources.groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
+
+            // Draw entities (models have entity shader assigned)
             // World items
             for (int i = 0; i < worldItemCount; i++) {
                 if (!worldItems[i].pickedUp) {
                     Vector3 itemPos = worldItems[i].position;
                     itemPos.y += GetTerrainHeight(itemPos.x, itemPos.z);
-                    DrawWorldItem(worldItems[i].type, itemPos);
+                    DrawWorldItem(&resources.entityModels, worldItems[i].type, itemPos);
                 }
             }
 
@@ -294,7 +357,7 @@ int main(int argc, char* argv[]) {
                     bool inRange = (dist <= PLAYER_ATTACK_RANGE) && IsFacing(camera, enemyPos);
                     Enemy adjustedEnemy = enemies[i];
                     adjustedEnemy.position = enemyPos;
-                    DrawEnemy(adjustedEnemy, inRange);
+                    DrawEnemy(&resources.entityModels, adjustedEnemy, inRange);
                 }
             }
 
@@ -306,11 +369,11 @@ int main(int argc, char* argv[]) {
                     float dist = Distance3D(camera.position, treePos);
                     bool inRange = (dist <= CHOP_RANGE) && IsFacing(camera, treePos) &&
                                    (playerState.equippedWeapon == ITEM_BRONZE_AXE);
-                    DrawTree(treePos, inRange);
+                    DrawTree(&resources.entityModels, treePos, inRange);
                 }
             }
 
-            // Walls
+            // Walls (have their own shaders)
             for (int i = 0; i < resources.wallCount; i++) {
                 Vector3 pos = walls[i].position;
                 pos.y += GetTerrainHeight(pos.x, pos.z) + walls[i].height / 2.0f;
@@ -356,6 +419,7 @@ int main(int argc, char* argv[]) {
     TraceLog(LOG_INFO, "Game saved to %s", SAVE_FILE);
 
     // Cleanup
+    UnloadLightingSystem(&lighting);
     CleanupGameResources(&resources);
     CloseWindow();
     return 0;
