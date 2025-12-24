@@ -37,36 +37,36 @@ Run headless validation (no window):
 
 ### Core
 
-- **main.cpp** - Game loop, input handling, system orchestration
-- **types.h/cpp** - Game constants, enums (items, enemies, skills), structs (WorldItem, Enemy, Wall, PlayerState)
+- **src/main.cpp** - Game loop, input handling, system orchestration
+- **src/types.h/cpp** - Game constants, enums (items, enemies, skills), structs (WorldItem, Enemy, Wall, PlayerState)
 
 ### Systems
 
-- **combat.cpp** - Player attacks, weapon damage, tree chopping
-- **enemy_ai.cpp** - Enemy behavior: wandering, chasing, attacking
-- **inventory.cpp** - Inventory management, item pickup/drop, context menus
-- **player.cpp** - Movement, jumping, running, death/respawn
-- **xp_system.cpp** - OSRS-style XP table, level calculation, damage rolls
-- **save_system.cpp** - Binary save/load of player state
+- **src/combat.cpp** - Player attacks, weapon damage, tree chopping
+- **src/enemy_ai.cpp** - Enemy behavior: wandering, chasing, attacking
+- **src/inventory.cpp** - Inventory management, item pickup/drop, context menus, drag-and-swap
+- **src/player.cpp** - Movement, jumping, running, death/respawn
+- **src/xp_system.cpp** - OSRS-style XP table, level calculation, damage rolls
+- **src/save_system.cpp** - Binary save/load of player state
 
 ### World
 
-- **map.cpp** - Text-based map parser with include support
-- **game_init.cpp** - Entity initialization from map data
-- **game_systems.cpp** - Item/enemy drops, damage indicators, respawning
-- **spatial_hash.h** - Grid-based spatial partitioning for collision queries
+- **src/map.cpp** - Text-based map parser with include support
+- **src/game_init.cpp** - Entity initialization from map data
+- **src/game_systems.cpp** - Item/enemy drops, damage indicators, respawning
+- **src/spatial_hash.h** - Grid-based spatial partitioning for collision queries
 
 ### Rendering
 
-- **rendering.cpp** - 3D world rendering (terrain, walls, trees, water, enemies, items)
-- **hud.cpp** - 2D UI (health, energy, inventory, XP popups, damage numbers)
-- **lighting.cpp** - Day/night cycle, sun position, sky colors
+- **src/rendering.cpp** - 3D world rendering (terrain, walls, trees, water, enemies, items)
+- **src/hud.cpp** - 2D UI (health, energy, inventory, XP popups, damage numbers)
+- **src/lighting.cpp** - Day/night cycle, sun position, sky colors
 
 ### Utilities
 
-- **collision.cpp** - AABB collision detection
-- **math_utils.h** - Distance, facing checks, random floats, terrain height
-- **sound_system.cpp** - Sound effect loading and playback
+- **src/collision.cpp** - AABB collision detection
+- **src/math_utils.h** - Distance, facing checks, random floats, terrain height
+- **src/sound_system.cpp** - Sound effect loading and playback
 
 ## Map Format
 

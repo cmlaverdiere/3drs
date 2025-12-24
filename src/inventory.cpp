@@ -1,6 +1,7 @@
 #include "inventory.h"
 #include "combat.h"
 #include "sound_system.h"
+#include <cmath>
 
 void GetInventoryPosition(int screenWidth, int* outX, int* outY) {
     *outX = screenWidth - (INV_COLS * (SLOT_SIZE + SLOT_PADDING)) - 20;
@@ -10,6 +11,35 @@ void GetInventoryPosition(int screenWidth, int* outX, int* outY) {
 static bool IsClickInSlot(Vector2 mouse, int slotX, int slotY) {
     return mouse.x >= slotX && mouse.x <= slotX + SLOT_SIZE &&
            mouse.y >= slotY && mouse.y <= slotY + SLOT_SIZE;
+}
+
+// Minimum drag distance before it's considered a drag (not a click)
+static const int MIN_DRAG_DISTANCE = 5;
+
+// Get slot index at mouse position (-1 if none)
+static int GetSlotAtPosition(Vector2 mouse, int invX, int invY) {
+    for (int row = 0; row < INV_ROWS; row++) {
+        for (int col = 0; col < INV_COLS; col++) {
+            int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
+            int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+            if (IsClickInSlot(mouse, slotX, slotY)) {
+                return row * INV_COLS + col;
+            }
+        }
+    }
+    return -1;
+}
+
+// Swap two inventory slots (items and counts)
+static void SwapInventorySlots(PlayerState* state, int slot1, int slot2) {
+    ItemType tempItem = state->inventory[slot1];
+    int tempCount = state->inventoryCount[slot1];
+
+    state->inventory[slot1] = state->inventory[slot2];
+    state->inventoryCount[slot1] = state->inventoryCount[slot2];
+
+    state->inventory[slot2] = tempItem;
+    state->inventoryCount[slot2] = tempCount;
 }
 
 const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
@@ -93,62 +123,72 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
         return message;
     }
 
-    // Right-click to open context menu
+    // Right-click to open context menu (cancel any drag)
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-        for (int row = 0; row < INV_ROWS; row++) {
-            for (int col = 0; col < INV_COLS; col++) {
-                int slotIdx = row * INV_COLS + col;
-                int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
-                int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+        menu->isDragging = false;
+        menu->dragSlot = -1;
 
-                if (IsClickInSlot(mouse, slotX, slotY)) {
-                    if (state->inventory[slotIdx] != ITEM_NONE) {
-                        menu->showContextMenu = true;
-                        menu->contextSlot = slotIdx;
-                        menu->menuX = (int)mouse.x;
-                        menu->menuY = (int)mouse.y;
+        int slotIdx = GetSlotAtPosition(mouse, invX, invY);
+        if (slotIdx >= 0 && state->inventory[slotIdx] != ITEM_NONE) {
+            menu->showContextMenu = true;
+            menu->contextSlot = slotIdx;
+            menu->menuX = (int)mouse.x;
+            menu->menuY = (int)mouse.y;
 
-                        // Clamp to screen
-                        if (menu->menuX + 80 > screenWidth) menu->menuX = screenWidth - 80;
-                        if (menu->menuY + 80 > screenHeight) menu->menuY = screenHeight - 80;
-                    }
-                    return message;
-                }
-            }
+            // Clamp to screen
+            if (menu->menuX + 80 > screenWidth) menu->menuX = screenWidth - 80;
+            if (menu->menuY + 80 > screenHeight) menu->menuY = screenHeight - 80;
+        } else {
+            menu->showContextMenu = false;
         }
-        menu->showContextMenu = false;
         return message;
     }
 
-    // Left-click on inventory (quick actions)
+    // Left-click press: start dragging if slot has an item
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !menu->showContextMenu && !runtime->isDucking) {
-        for (int row = 0; row < INV_ROWS; row++) {
-            for (int col = 0; col < INV_COLS; col++) {
-                int slotIdx = row * INV_COLS + col;
-                int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
-                int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+        int slotIdx = GetSlotAtPosition(mouse, invX, invY);
+        if (slotIdx >= 0 && state->inventory[slotIdx] != ITEM_NONE) {
+            menu->isDragging = true;
+            menu->dragSlot = slotIdx;
+            menu->dragStartX = (int)mouse.x;
+            menu->dragStartY = (int)mouse.y;
+        }
+    }
 
-                if (IsClickInSlot(mouse, slotX, slotY)) {
-                    ItemType clickedItem = state->inventory[slotIdx];
+    // Left-click release: handle drag end or click action
+    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && menu->isDragging) {
+        int dx = (int)mouse.x - menu->dragStartX;
+        int dy = (int)mouse.y - menu->dragStartY;
+        int dragDistance = (int)sqrtf((float)(dx*dx + dy*dy));
 
-                    if (IsWeapon(clickedItem)) {
-                        // Toggle equip
-                        state->equippedWeapon = (state->equippedWeapon == clickedItem) ? ITEM_NONE : clickedItem;
-                    } else if (clickedItem == ITEM_BONES) {
-                        // Bury bones
-                        runtime->isDucking = true;
-                        runtime->duckTimer = DUCK_DURATION;
-                        PlaySoundEffect(SFX_BURY);
+        int targetSlot = GetSlotAtPosition(mouse, invX, invY);
 
-                        state->inventory[slotIdx] = ITEM_NONE;
-                        state->inventoryCount[slotIdx] = 0;
+        if (dragDistance >= MIN_DRAG_DISTANCE && targetSlot >= 0 && targetSlot != menu->dragSlot) {
+            // It's a drag - swap items
+            SwapInventorySlots(state, menu->dragSlot, targetSlot);
+        } else if (dragDistance < MIN_DRAG_DISTANCE) {
+            // It's a click - perform quick action on the original slot
+            ItemType clickedItem = state->inventory[menu->dragSlot];
 
-                        AwardSkillXP(state, SKILL_PRAYER, BURY_XP, xpPopups, levelUpNotif);
-                    }
-                    return message;
-                }
+            if (IsWeapon(clickedItem)) {
+                // Toggle equip
+                state->equippedWeapon = (state->equippedWeapon == clickedItem) ? ITEM_NONE : clickedItem;
+            } else if (clickedItem == ITEM_BONES) {
+                // Bury bones
+                runtime->isDucking = true;
+                runtime->duckTimer = DUCK_DURATION;
+                PlaySoundEffect(SFX_BURY);
+
+                state->inventory[menu->dragSlot] = ITEM_NONE;
+                state->inventoryCount[menu->dragSlot] = 0;
+
+                AwardSkillXP(state, SKILL_PRAYER, BURY_XP, xpPopups, levelUpNotif);
             }
         }
+
+        // Reset drag state
+        menu->isDragging = false;
+        menu->dragSlot = -1;
     }
 
     return message;

@@ -11,6 +11,12 @@ struct InventoryMenu {
     int contextSlot = -1;
     int menuX = 0;
     int menuY = 0;
+
+    // Drag-and-swap state
+    bool isDragging = false;
+    int dragSlot = -1;        // Slot being dragged from
+    int dragStartX = 0;       // Mouse position when drag started
+    int dragStartY = 0;
 };
 
 // Handle inventory input (mouse mode clicks)

@@ -335,6 +335,51 @@ void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int scre
     }
 }
 
+// Helper to draw an item icon at a given center position
+static void DrawItemIcon(ItemType item, int cx, int cy) {
+    if (item == ITEM_BRONZE_SHORTSWORD) {
+        DrawRectangle(cx - 2, cy - 14, 4, 24, BRONZE);
+        DrawRectangle(cx - 2, cy + 10, 4, 8, BROWN);
+        DrawRectangle(cx - 8, cy + 8, 16, 3, BROWN);
+    } else if (item == ITEM_BRONZE_AXE) {
+        DrawRectangle(cx - 2, cy - 10, 4, 20, WOOD_HANDLE);
+        DrawRectangle(cx - 10, cy - 10, 12, 8, BRONZE);
+    } else if (item == ITEM_COW_HIDE) {
+        Color hideColor = { 139, 90, 43, 255 };
+        DrawRectangle(cx - 12, cy - 8, 24, 16, hideColor);
+        DrawRectangle(cx - 4, cy - 4, 6, 6, DARKBROWN);
+    } else if (item == ITEM_BONES) {
+        Color boneColor = { 230, 220, 200, 255 };
+        DrawRectangle(cx - 2, cy - 10, 4, 20, boneColor);
+        DrawCircle(cx, cy - 10, 4, boneColor);
+        DrawCircle(cx, cy + 10, 4, boneColor);
+    } else if (item == ITEM_GIL) {
+        Color goldColor = { 255, 215, 0, 255 };
+        DrawCircle(cx, cy, 10, goldColor);
+        DrawCircle(cx, cy, 6, GOLD);
+    } else if (item == ITEM_LOGS) {
+        Color barkColor = { 101, 67, 33, 255 };
+        Color woodColor = { 210, 180, 140, 255 };
+        DrawRectangle(cx - 12, cy - 4, 24, 8, barkColor);
+        DrawCircle(cx - 12, cy, 4, woodColor);
+        DrawCircle(cx + 12, cy, 4, woodColor);
+    } else if (item == ITEM_CHITIN) {
+        Color chitinColor = { 101, 67, 33, 255 };
+        DrawRectangle(cx - 10, cy - 6, 20, 12, chitinColor);
+        DrawRectangle(cx - 8, cy - 8, 4, 4, chitinColor);
+        DrawRectangle(cx + 4, cy - 8, 4, 4, chitinColor);
+    } else if (item == ITEM_IRON_2H_SWORD) {
+        Color ironBlade = { 180, 180, 190, 255 };
+        Color ironDark = { 120, 120, 130, 255 };
+        Color leatherGrip = { 80, 50, 30, 255 };
+        DrawRectangle(cx - 3, cy - 16, 6, 28, ironBlade);
+        DrawRectangle(cx - 1, cy - 14, 2, 20, ironDark);
+        DrawRectangle(cx - 2, cy + 12, 4, 10, leatherGrip);
+        DrawRectangle(cx - 10, cy + 10, 20, 4, ironDark);
+        DrawCircle(cx, cy + 24, 3, ironDark);
+    }
+}
+
 void DrawInventoryUI(const PlayerState* state, const InventoryMenu* menu,
                      int screenWidth, int screenHeight) {
     int invX, invY;
@@ -346,80 +391,85 @@ void DrawInventoryUI(const PlayerState* state, const InventoryMenu* menu,
     DrawRectangleLines(invX - SLOT_PADDING, invY - 25, invW, invH, INV_BORDER);
     DrawText("Inventory", invX, invY - 22, 16, GOLD_TEXT);
 
+    Vector2 mouse = GetMousePosition();
+
+    // Determine which slot the mouse is over (for drag highlighting)
+    int hoverSlot = -1;
+    if (menu->isDragging) {
+        for (int row = 0; row < INV_ROWS; row++) {
+            for (int col = 0; col < INV_COLS; col++) {
+                int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
+                int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+                if (mouse.x >= slotX && mouse.x <= slotX + SLOT_SIZE &&
+                    mouse.y >= slotY && mouse.y <= slotY + SLOT_SIZE) {
+                    hoverSlot = row * INV_COLS + col;
+                    break;
+                }
+            }
+            if (hoverSlot >= 0) break;
+        }
+    }
+
     for (int row = 0; row < INV_ROWS; row++) {
         for (int col = 0; col < INV_COLS; col++) {
             int slotIdx = row * INV_COLS + col;
             int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
             int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
 
-            DrawRectangle(slotX, slotY, SLOT_SIZE, SLOT_SIZE, INV_SLOT);
+            // Slot background (dimmed if being dragged from)
+            if (menu->isDragging && slotIdx == menu->dragSlot) {
+                DrawRectangle(slotX, slotY, SLOT_SIZE, SLOT_SIZE, (Color){30, 25, 20, 255});
+            } else {
+                DrawRectangle(slotX, slotY, SLOT_SIZE, SLOT_SIZE, INV_SLOT);
+            }
 
+            // Slot border
             bool isEquipped = (state->inventory[slotIdx] != ITEM_NONE &&
                                state->inventory[slotIdx] == state->equippedWeapon);
-            if (isEquipped) {
+            bool isDragTarget = (menu->isDragging && slotIdx == hoverSlot && slotIdx != menu->dragSlot);
+
+            if (isDragTarget) {
+                // Highlight drop target with cyan
+                DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, (Color){0, 200, 255, 255});
+                DrawRectangleLines(slotX+1, slotY+1, SLOT_SIZE-2, SLOT_SIZE-2, (Color){0, 200, 255, 255});
+            } else if (isEquipped) {
                 DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, (Color){255, 215, 0, 255});
                 DrawRectangleLines(slotX+1, slotY+1, SLOT_SIZE-2, SLOT_SIZE-2, (Color){255, 215, 0, 255});
             } else {
                 DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, INV_BORDER);
             }
 
+            // Don't draw item if being dragged (it will be drawn at cursor)
+            if (menu->isDragging && slotIdx == menu->dragSlot) continue;
+
             // Draw item icon
             ItemType item = state->inventory[slotIdx];
             int cx = slotX + SLOT_SIZE / 2;
             int cy = slotY + SLOT_SIZE / 2;
-
-            if (item == ITEM_BRONZE_SHORTSWORD) {
-                DrawRectangle(cx - 2, cy - 14, 4, 24, BRONZE);
-                DrawRectangle(cx - 2, cy + 10, 4, 8, BROWN);
-                DrawRectangle(cx - 8, cy + 8, 16, 3, BROWN);
-            } else if (item == ITEM_BRONZE_AXE) {
-                DrawRectangle(cx - 2, cy - 10, 4, 20, WOOD_HANDLE);
-                DrawRectangle(cx - 10, cy - 10, 12, 8, BRONZE);
-            } else if (item == ITEM_COW_HIDE) {
-                Color hideColor = { 139, 90, 43, 255 };
-                DrawRectangle(cx - 12, cy - 8, 24, 16, hideColor);
-                DrawRectangle(cx - 4, cy - 4, 6, 6, DARKBROWN);
-            } else if (item == ITEM_BONES) {
-                Color boneColor = { 230, 220, 200, 255 };
-                DrawRectangle(cx - 2, cy - 10, 4, 20, boneColor);
-                DrawCircle(cx, cy - 10, 4, boneColor);
-                DrawCircle(cx, cy + 10, 4, boneColor);
-            } else if (item == ITEM_GIL) {
-                Color goldColor = { 255, 215, 0, 255 };
-                DrawCircle(cx, cy, 10, goldColor);
-                DrawCircle(cx, cy, 6, GOLD);
-            } else if (item == ITEM_LOGS) {
-                Color barkColor = { 101, 67, 33, 255 };
-                Color woodColor = { 210, 180, 140, 255 };
-                DrawRectangle(cx - 12, cy - 4, 24, 8, barkColor);
-                DrawCircle(cx - 12, cy, 4, woodColor);
-                DrawCircle(cx + 12, cy, 4, woodColor);
-            } else if (item == ITEM_CHITIN) {
-                Color chitinColor = { 101, 67, 33, 255 };
-                DrawRectangle(cx - 10, cy - 6, 20, 12, chitinColor);
-                DrawRectangle(cx - 8, cy - 8, 4, 4, chitinColor);
-                DrawRectangle(cx + 4, cy - 8, 4, 4, chitinColor);
-            } else if (item == ITEM_IRON_2H_SWORD) {
-                Color ironBlade = { 180, 180, 190, 255 };
-                Color ironDark = { 120, 120, 130, 255 };
-                Color leatherGrip = { 80, 50, 30, 255 };
-                // Longer blade
-                DrawRectangle(cx - 3, cy - 16, 6, 28, ironBlade);
-                // Fuller
-                DrawRectangle(cx - 1, cy - 14, 2, 20, ironDark);
-                // Handle
-                DrawRectangle(cx - 2, cy + 12, 4, 10, leatherGrip);
-                // Crossguard
-                DrawRectangle(cx - 10, cy + 10, 20, 4, ironDark);
-                // Pommel
-                DrawCircle(cx, cy + 24, 3, ironDark);
-            }
+            DrawItemIcon(item, cx, cy);
 
             // Stack count
             if (item != ITEM_NONE && IsItemStackable(item) && state->inventoryCount[slotIdx] > 1) {
                 char countText[16];
                 snprintf(countText, sizeof(countText), "%d", state->inventoryCount[slotIdx]);
                 DrawText(countText, slotX + 2, slotY + 2, 10, YELLOW);
+            }
+        }
+    }
+
+    // Draw dragged item at cursor
+    if (menu->isDragging && menu->dragSlot >= 0) {
+        ItemType draggedItem = state->inventory[menu->dragSlot];
+        if (draggedItem != ITEM_NONE) {
+            int cx = (int)mouse.x;
+            int cy = (int)mouse.y;
+            DrawItemIcon(draggedItem, cx, cy);
+
+            // Draw stack count for dragged stackable items
+            if (IsItemStackable(draggedItem) && state->inventoryCount[menu->dragSlot] > 1) {
+                char countText[16];
+                snprintf(countText, sizeof(countText), "%d", state->inventoryCount[menu->dragSlot]);
+                DrawText(countText, cx - SLOT_SIZE/2 + 2, cy - SLOT_SIZE/2 + 2, 10, YELLOW);
             }
         }
     }
