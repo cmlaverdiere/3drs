@@ -13,6 +13,7 @@ enum SoundEffect {
     SFX_PLAYER_HURT,    // Player takes damage
     SFX_XP_GAIN,        // XP gained
     SFX_BURY,           // Bury bones
+    SFX_SWING_HEAVY,    // Heavy weapon swing (2H sword)
     SFX_COUNT
 };
 

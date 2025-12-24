@@ -226,6 +226,40 @@ void InitSoundSystem() {
     wave = GenerateNoise(0.3f, 12.0f);  // Short, muffled noise
     sounds[SFX_BURY] = LoadSoundFromWave(wave);
     UnloadWave(wave);
+
+    // SFX_SWING_HEAVY - Deep whoosh for heavy weapons
+    {
+        float duration = 0.35f;
+        int sampleCount = (int)(SAMPLE_RATE * duration);
+        wave = CreateWave(sampleCount);
+        short* data = (short*)wave.data;
+
+        for (int i = 0; i < sampleCount; i++) {
+            float t = (float)i / SAMPLE_RATE;
+            float progress = t / duration;
+
+            // Lower frequency sweep than normal whoosh
+            float freq = 400.0f - 300.0f * progress;
+
+            // Envelope: quick attack, sustained, then fade
+            float envelope = 1.0f;
+            if (progress < 0.1f) {
+                envelope = progress / 0.1f;
+            } else if (progress > 0.6f) {
+                envelope = (1.0f - progress) / 0.4f;
+            }
+
+            // Mix sweep with filtered noise for weight
+            float sweep = sinf(2.0f * PI * freq * t);
+            float noise = ((float)rand() / RAND_MAX) * 2.0f - 1.0f;
+
+            float sample = (sweep * 0.7f + noise * 0.3f) * envelope;
+            data[i] = (short)(sample * 12000);
+        }
+
+        sounds[SFX_SWING_HEAVY] = LoadSoundFromWave(wave);
+        UnloadWave(wave);
+    }
 }
 
 void UnloadSoundSystem() {

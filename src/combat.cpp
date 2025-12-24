@@ -17,6 +17,11 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
     *swingTimer = SWING_DURATION;
     bool actionTaken = false;
 
+    // Play heavy swing sound for 2H weapons
+    if (state->equippedWeapon == ITEM_IRON_2H_SWORD) {
+        PlaySoundEffect(SFX_SWING_HEAVY);
+    }
+
     // If wielding axe, check for trees first
     if (state->equippedWeapon == ITEM_BRONZE_AXE) {
         Tree* targetTree = nullptr;
