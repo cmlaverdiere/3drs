@@ -1,0 +1,526 @@
+#include "hud.h"
+#include "math_utils.h"
+#include "xp_system.h"
+#include "inventory.h"
+#include <cstdio>
+
+// Colors
+static const Color PARCHMENT_BG = { 222, 198, 158, 240 };
+static const Color PARCHMENT_BORDER = { 139, 90, 43, 255 };
+static const Color PARCHMENT_DARK = { 180, 150, 100, 255 };
+static const Color PARCHMENT_TEXT = { 60, 40, 20, 255 };
+static const Color INV_BG = { 62, 53, 41, 220 };
+static const Color INV_BORDER = { 86, 74, 57, 255 };
+static const Color INV_SLOT = { 40, 35, 28, 255 };
+static const Color GOLD_TEXT = { 255, 204, 0, 255 };
+static const Color BRONZE = { 205, 127, 50, 255 };
+static const Color BRONZE_HANDLE = { 139, 90, 43, 255 };
+static const Color WOOD_HANDLE = { 101, 67, 33, 255 };
+
+static void DrawOutlinedText(const char* text, int x, int y, int fontSize, Color color, float alpha) {
+    Color outlineColor = BLACK;
+    outlineColor.a = (unsigned char)(255 * alpha);
+    for (int ox = -2; ox <= 2; ox++) {
+        for (int oy = -2; oy <= 2; oy++) {
+            if (ox != 0 || oy != 0) {
+                DrawText(text, x + ox, y + oy, fontSize, outlineColor);
+            }
+        }
+    }
+    color.a = (unsigned char)(255 * alpha);
+    DrawText(text, x, y, fontSize, color);
+}
+
+void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRuntime* runtime,
+             const Enemy* enemies, int enemyCount,
+             const DamageIndicator* damageIndicators,
+             const XPPopup* xpPopups,
+             const LevelUpNotification* levelUpNotif,
+             const InventoryMenu* invMenu,
+             const WorldItem* targetItem, bool showActionMenu,
+             float attackCooldown, float swingTimer,
+             bool mouseMode, const char* statusMessage,
+             int screenWidth, int screenHeight) {
+
+    // Controls help
+    DrawText("WASD move, Mouse look, R toggle run, SHIFT inventory, LMB attack", 10, 10, 20, WHITE);
+    if (mouseMode) {
+        DrawText("[INVENTORY MODE - Release SHIFT to resume]", 10, 35, 16, YELLOW);
+    }
+    DrawFPS(screenWidth - 100, 10);
+
+    // HP bar
+    int hpBarX = 10, hpBarY = screenHeight - 50, hpBarW = 150, hpBarH = 20;
+    float hpRatio = (state->maxHP > 0) ? (float)state->currentHP / state->maxHP : 0.0f;
+    DrawRectangle(hpBarX, hpBarY, hpBarW, hpBarH, DARKGRAY);
+    DrawRectangle(hpBarX, hpBarY, (int)(hpBarW * hpRatio), hpBarH, RED);
+    DrawRectangleLines(hpBarX, hpBarY, hpBarW, hpBarH, BLACK);
+    char hpText[32];
+    snprintf(hpText, sizeof(hpText), "HP: %d/%d", state->currentHP, state->maxHP);
+    DrawText(hpText, hpBarX + 5, hpBarY + 3, 14, WHITE);
+
+    // Run energy circle
+    int energyCircleX = hpBarX + 20;
+    int energyCircleY = hpBarY - 35;
+    int energyRadius = 22;
+    float energyRatio = runtime->runEnergy / 100.0f;
+
+    const char* modeText = runtime->isRunning ? "RUN" : "Walk";
+    int modeW = MeasureText(modeText, 12);
+    DrawText(modeText, energyCircleX - modeW/2, energyCircleY - energyRadius - 16, 12,
+             runtime->isRunning ? ORANGE : GREEN);
+
+    DrawCircle(energyCircleX, energyCircleY, energyRadius, DARKGRAY);
+    Color energyColor = runtime->isRunning ? ORANGE : (Color){80, 180, 80, 255};
+    if (energyRatio > 0.01f) {
+        float fillAngle = energyRatio * 360.0f;
+        DrawCircleSector((Vector2){(float)energyCircleX, (float)energyCircleY}, energyRadius - 2,
+                         270.0f - fillAngle, 270.0f, 32, energyColor);
+    }
+    DrawCircleLines(energyCircleX, energyCircleY, energyRadius, BLACK);
+    char energyText[8];
+    snprintf(energyText, sizeof(energyText), "%d", (int)runtime->runEnergy);
+    int textW = MeasureText(energyText, 14);
+    DrawText(energyText, energyCircleX - textW/2, energyCircleY - 7, 14, WHITE);
+
+    // Attack cooldown
+    if (attackCooldown > 0) {
+        int cdWidth = (int)(100 * (attackCooldown / PLAYER_ATTACK_COOLDOWN));
+        DrawRectangle(screenWidth/2 - 50, screenHeight - 40, 100, 10, DARKGRAY);
+        DrawRectangle(screenWidth/2 - 50, screenHeight - 40, cdWidth, 10, RED);
+    }
+
+    // Damage indicators
+    DrawDamageIndicators(camera, damageIndicators, screenWidth, screenHeight);
+
+    // Enemy health bars
+    DrawEnemyHealthBars(camera, enemies, enemyCount, screenWidth, screenHeight);
+
+    // Crosshair
+    if (!mouseMode) {
+        int cx = screenWidth / 2;
+        int cy = screenHeight / 2;
+        DrawLine(cx - 10, cy, cx + 10, cy, WHITE);
+        DrawLine(cx, cy - 10, cx, cy + 10, WHITE);
+    }
+
+    // Weapon view
+    DrawWeaponView(state->equippedWeapon, swingTimer, screenWidth, screenHeight);
+
+    // XP popups
+    int xpPopupY = screenHeight / 3;
+    for (int i = 0; i < MAX_XP_POPUPS; i++) {
+        if (xpPopups[i].active) {
+            float timeRatio = xpPopups[i].timer / XP_POPUP_DURATION;
+            float alpha = (timeRatio > 0.2f) ? 1.0f : (timeRatio / 0.2f);
+            int skillIdx = xpPopups[i].skillIndex;
+            int currentXP = state->skillXP[skillIdx];
+            int currentLevel = GetLevelFromXP(currentXP);
+            int xpForCurrent = XP_TABLE[currentLevel - 1];
+            int xpForNext = (currentLevel < 99) ? XP_TABLE[currentLevel] : XP_TABLE[98];
+            int xpIntoLevel = currentXP - xpForCurrent;
+            int xpNeeded = xpForNext - xpForCurrent;
+            float progress = (xpNeeded > 0) ? (float)xpIntoLevel / xpNeeded : 1.0f;
+
+            char xpText[64];
+            snprintf(xpText, sizeof(xpText), "+%d %s", xpPopups[i].xpAmount, SKILL_NAMES[skillIdx]);
+            int xpTextWidth = MeasureText(xpText, 28);
+            int popupX = (screenWidth - xpTextWidth) / 2;
+
+            DrawOutlinedText(xpText, popupX, xpPopupY, 28, (Color){255, 215, 0, 255}, alpha);
+
+            int barWidth = 200;
+            int barX = (screenWidth - barWidth) / 2;
+            int barY = xpPopupY + 32;
+            int barHeight = 8;
+            Color barBg = { 40, 40, 40, (unsigned char)(180 * alpha) };
+            Color barFg = { 50, 205, 50, (unsigned char)(255 * alpha) };
+            Color barBorder = { 100, 100, 100, (unsigned char)(200 * alpha) };
+
+            DrawRectangle(barX, barY, barWidth, barHeight, barBg);
+            DrawRectangle(barX, barY, (int)(barWidth * progress), barHeight, barFg);
+            DrawRectangleLines(barX, barY, barWidth, barHeight, barBorder);
+
+            char levelText[32];
+            snprintf(levelText, sizeof(levelText), "Lv %d", currentLevel);
+            Color levelColor = { 255, 255, 255, (unsigned char)(255 * alpha) };
+            DrawText(levelText, barX + barWidth + 10, barY - 2, 14, levelColor);
+
+            xpPopupY += 55;
+        }
+    }
+
+    // Skills display
+    int skillY = 60;
+    DrawText("Skills:", 10, skillY, 18, GOLD);
+    skillY += 22;
+    for (int i = 0; i < SKILL_COUNT; i++) {
+        int level = GetLevelFromXP(state->skillXP[i]);
+        int xpForNext = (level < 99) ? XP_TABLE[level] : XP_TABLE[98];
+        char skillText[64];
+        snprintf(skillText, sizeof(skillText), "%s: %d (%d/%d)",
+            SKILL_NAMES[i], level, state->skillXP[i], xpForNext);
+        DrawText(skillText, 10, skillY, 14, WHITE);
+        skillY += 18;
+    }
+
+    // Action menu overlay
+    if (showActionMenu && targetItem != nullptr) {
+        int menuX = screenWidth / 2 - 100;
+        int menuY = screenHeight / 2 - 60;
+        int menuW = 200, menuH = 120;
+
+        DrawRectangle(menuX, menuY, menuW, menuH, (Color){0, 0, 0, 180});
+        DrawRectangleLines(menuX, menuY, menuW, menuH, GOLD);
+
+        const char* itemName = ITEM_NAMES[targetItem->type];
+        DrawText(itemName, menuX + 10, menuY + 10, 18, GOLD);
+        DrawText("1. Pickup", menuX + 10, menuY + 40, 16, WHITE);
+        DrawText("2. Examine", menuX + 10, menuY + 60, 16, WHITE);
+        DrawText("3. Cancel", menuX + 10, menuY + 80, 16, GRAY);
+    }
+
+    // Inventory UI
+    DrawInventoryUI(state, invMenu, screenWidth, screenHeight);
+
+    // Status message
+    if (statusMessage != nullptr) {
+        DrawText(statusMessage, 10, screenHeight - 80, 20, YELLOW);
+    }
+
+    // Death overlay
+    if (runtime->isDead) {
+        float fadeProgress = 1.0f - (runtime->deathFadeTimer / DEATH_FADE_DURATION);
+        unsigned char alpha = (unsigned char)(255 * fadeProgress);
+        if (fadeProgress > 0.5f) alpha = 255;
+        DrawRectangle(0, 0, screenWidth, screenHeight, (Color){ 0, 0, 0, alpha });
+
+        if (fadeProgress > 0.3f) {
+            const char* deathText = "You died!";
+            int deathWidth = MeasureText(deathText, 48);
+            unsigned char textAlpha = (unsigned char)(255 * ((fadeProgress - 0.3f) / 0.7f));
+            DrawText(deathText, (screenWidth - deathWidth) / 2, screenHeight / 2 - 24, 48,
+                     (Color){ 200, 0, 0, textAlpha });
+        }
+    }
+
+    // Level up banner
+    if (levelUpNotif->active) {
+        Color bg = PARCHMENT_BG;
+        Color border = PARCHMENT_BORDER;
+        Color dark = PARCHMENT_DARK;
+        Color text = PARCHMENT_TEXT;
+
+        int bannerW = 400, bannerH = 100;
+        int bannerX = (screenWidth - bannerW) / 2;
+        int bannerY = screenHeight - bannerH - 20;
+
+        float alpha = 1.0f;
+        if (levelUpNotif->timer > LEVEL_UP_DURATION - 0.3f) {
+            alpha = (LEVEL_UP_DURATION - levelUpNotif->timer) / 0.3f;
+        } else if (levelUpNotif->timer < 0.5f) {
+            alpha = levelUpNotif->timer / 0.5f;
+        }
+
+        bg.a = (unsigned char)(240 * alpha);
+        border.a = (unsigned char)(255 * alpha);
+        dark.a = (unsigned char)(255 * alpha);
+        text.a = (unsigned char)(255 * alpha);
+
+        DrawRectangle(bannerX, bannerY, bannerW, bannerH, bg);
+        for (int i = 0; i < 5; i++) {
+            int lineY = bannerY + 15 + i * 18;
+            DrawLine(bannerX + 10, lineY, bannerX + bannerW - 10, lineY, dark);
+        }
+        DrawRectangleLinesEx((Rectangle){(float)bannerX, (float)bannerY, (float)bannerW, (float)bannerH}, 3, border);
+        DrawRectangleLinesEx((Rectangle){(float)bannerX + 5, (float)bannerY + 5, (float)bannerW - 10, (float)bannerH - 10}, 1, border);
+
+        int cornerSize = 12;
+        DrawRectangle(bannerX, bannerY, cornerSize, cornerSize, border);
+        DrawRectangle(bannerX + bannerW - cornerSize, bannerY, cornerSize, cornerSize, border);
+        DrawRectangle(bannerX, bannerY + bannerH - cornerSize, cornerSize, cornerSize, border);
+        DrawRectangle(bannerX + bannerW - cornerSize, bannerY + bannerH - cornerSize, cornerSize, cornerSize, border);
+
+        const char* skillName = SKILL_NAMES[levelUpNotif->skillIndex];
+        char titleText[64], levelTextStr[64], newLevelText[64];
+        snprintf(titleText, sizeof(titleText), "Congratulations!");
+        snprintf(levelTextStr, sizeof(levelTextStr), "You've advanced a %s level!", skillName);
+        snprintf(newLevelText, sizeof(newLevelText), "You are now level %d.", levelUpNotif->newLevel);
+
+        int titleWidth = MeasureText(titleText, 24);
+        int levelWidth = MeasureText(levelTextStr, 20);
+        int newLevelWidth = MeasureText(newLevelText, 18);
+
+        DrawText(titleText, bannerX + (bannerW - titleWidth) / 2, bannerY + 15, 24, text);
+        DrawText(levelTextStr, bannerX + (bannerW - levelWidth) / 2, bannerY + 45, 20, text);
+        DrawText(newLevelText, bannerX + (bannerW - newLevelWidth) / 2, bannerY + 70, 18, text);
+    }
+}
+
+void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int screenHeight) {
+    if (weapon == ITEM_NONE) return;
+
+    float weaponBaseX = screenWidth - 150.0f;
+    float weaponBaseY = screenHeight - 100.0f;
+
+    float swingAngle = 0.0f;
+    float swingOffsetX = 0.0f;
+    float swingOffsetY = 0.0f;
+    if (swingTimer > 0) {
+        float swingProgress = swingTimer / SWING_DURATION;
+        swingAngle = sinf(swingProgress * PI) * 60.0f;
+        swingOffsetX = -sinf(swingProgress * PI) * 80.0f;
+        swingOffsetY = -sinf(swingProgress * PI) * 40.0f;
+    }
+
+    float wpnX = weaponBaseX + swingOffsetX;
+    float wpnY = weaponBaseY + swingOffsetY;
+    float radAngle = swingAngle * DEG2RAD;
+    float cosA = cosf(radAngle);
+    float sinA = sinf(radAngle);
+
+    if (weapon == ITEM_BRONZE_SHORTSWORD) {
+        float bladeLen = 120.0f, bladeWidth = 12.0f;
+        Vector2 bladeTip = { wpnX + (-bladeLen * sinA), wpnY + (-bladeLen * cosA) };
+        Vector2 bladeBase = { wpnX, wpnY };
+
+        DrawLineEx(bladeBase, bladeTip, bladeWidth + 2, DARKGRAY);
+        DrawLineEx(bladeBase, bladeTip, bladeWidth, BRONZE);
+
+        Vector2 handleEnd = { wpnX + (30.0f * sinA), wpnY + (30.0f * cosA) };
+        DrawLineEx(bladeBase, handleEnd, 10.0f, BRONZE_HANDLE);
+
+        Vector2 guardLeft = { wpnX + (-15.0f * cosA), wpnY + (15.0f * sinA) };
+        Vector2 guardRight = { wpnX + (15.0f * cosA), wpnY + (-15.0f * sinA) };
+        DrawLineEx(guardLeft, guardRight, 6.0f, BRONZE_HANDLE);
+    } else if (weapon == ITEM_BRONZE_AXE) {
+        float handleLen = 100.0f, handleWidth = 8.0f;
+
+        Vector2 handleEnd = { wpnX + (-handleLen * sinA), wpnY + (-handleLen * cosA) };
+        Vector2 handleBase = { wpnX + (30.0f * sinA), wpnY + (30.0f * cosA) };
+        DrawLineEx(handleBase, handleEnd, handleWidth, WOOD_HANDLE);
+
+        Vector2 headCenter = { wpnX + (-handleLen * 0.85f * sinA), wpnY + (-handleLen * 0.85f * cosA) };
+        Vector2 headLeft = { headCenter.x + (-30.0f * cosA), headCenter.y + (30.0f * sinA) };
+        Vector2 headRight = { headCenter.x + (10.0f * cosA), headCenter.y + (-10.0f * sinA) };
+        DrawLineEx(headLeft, headRight, 20.0f, BRONZE);
+    }
+}
+
+void DrawInventoryUI(const PlayerState* state, const InventoryMenu* menu,
+                     int screenWidth, int screenHeight) {
+    int invX, invY;
+    GetInventoryPosition(screenWidth, &invX, &invY);
+
+    int invW = INV_COLS * (SLOT_SIZE + SLOT_PADDING) + SLOT_PADDING;
+    int invH = INV_ROWS * (SLOT_SIZE + SLOT_PADDING) + SLOT_PADDING + 25;
+    DrawRectangle(invX - SLOT_PADDING, invY - 25, invW, invH, INV_BG);
+    DrawRectangleLines(invX - SLOT_PADDING, invY - 25, invW, invH, INV_BORDER);
+    DrawText("Inventory", invX, invY - 22, 16, GOLD_TEXT);
+
+    for (int row = 0; row < INV_ROWS; row++) {
+        for (int col = 0; col < INV_COLS; col++) {
+            int slotIdx = row * INV_COLS + col;
+            int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
+            int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+
+            DrawRectangle(slotX, slotY, SLOT_SIZE, SLOT_SIZE, INV_SLOT);
+
+            bool isEquipped = (state->inventory[slotIdx] != ITEM_NONE &&
+                               state->inventory[slotIdx] == state->equippedWeapon);
+            if (isEquipped) {
+                DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, (Color){255, 215, 0, 255});
+                DrawRectangleLines(slotX+1, slotY+1, SLOT_SIZE-2, SLOT_SIZE-2, (Color){255, 215, 0, 255});
+            } else {
+                DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, INV_BORDER);
+            }
+
+            // Draw item icon
+            ItemType item = state->inventory[slotIdx];
+            int cx = slotX + SLOT_SIZE / 2;
+            int cy = slotY + SLOT_SIZE / 2;
+
+            if (item == ITEM_BRONZE_SHORTSWORD) {
+                DrawRectangle(cx - 2, cy - 14, 4, 24, BRONZE);
+                DrawRectangle(cx - 2, cy + 10, 4, 8, BROWN);
+                DrawRectangle(cx - 8, cy + 8, 16, 3, BROWN);
+            } else if (item == ITEM_BRONZE_AXE) {
+                DrawRectangle(cx - 2, cy - 10, 4, 20, WOOD_HANDLE);
+                DrawRectangle(cx - 10, cy - 10, 12, 8, BRONZE);
+            } else if (item == ITEM_COW_HIDE) {
+                Color hideColor = { 139, 90, 43, 255 };
+                DrawRectangle(cx - 12, cy - 8, 24, 16, hideColor);
+                DrawRectangle(cx - 4, cy - 4, 6, 6, DARKBROWN);
+            } else if (item == ITEM_BONES) {
+                Color boneColor = { 230, 220, 200, 255 };
+                DrawRectangle(cx - 2, cy - 10, 4, 20, boneColor);
+                DrawCircle(cx, cy - 10, 4, boneColor);
+                DrawCircle(cx, cy + 10, 4, boneColor);
+            } else if (item == ITEM_GIL) {
+                Color goldColor = { 255, 215, 0, 255 };
+                DrawCircle(cx, cy, 10, goldColor);
+                DrawCircle(cx, cy, 6, GOLD);
+            } else if (item == ITEM_LOGS) {
+                Color barkColor = { 101, 67, 33, 255 };
+                Color woodColor = { 210, 180, 140, 255 };
+                DrawRectangle(cx - 12, cy - 4, 24, 8, barkColor);
+                DrawCircle(cx - 12, cy, 4, woodColor);
+                DrawCircle(cx + 12, cy, 4, woodColor);
+            }
+
+            // Stack count
+            if (item != ITEM_NONE && IsItemStackable(item) && state->inventoryCount[slotIdx] > 1) {
+                char countText[16];
+                snprintf(countText, sizeof(countText), "%d", state->inventoryCount[slotIdx]);
+                DrawText(countText, slotX + 2, slotY + 2, 10, YELLOW);
+            }
+        }
+    }
+
+    // Context menu
+    if (menu->showContextMenu && menu->contextSlot >= 0 && state->inventory[menu->contextSlot] != ITEM_NONE) {
+        const int menuWidth = 80;
+        const int menuItemHeight = 20;
+        const int menuPadding = 4;
+        ItemType menuItem = state->inventory[menu->contextSlot];
+        bool isWeapon = IsWeapon(menuItem);
+
+        const char* options[4];
+        int optionCount;
+        if (isWeapon) {
+            bool equipped = (state->equippedWeapon == menuItem);
+            options[0] = equipped ? "Unequip" : "Equip";
+            options[1] = "Examine";
+            options[2] = "Drop";
+            options[3] = "Cancel";
+            optionCount = 4;
+        } else {
+            options[0] = "Examine";
+            options[1] = "Drop";
+            options[2] = "Cancel";
+            optionCount = 3;
+        }
+
+        int menuHeight = menuItemHeight * optionCount;
+
+        DrawRectangle(menu->menuX, menu->menuY, menuWidth, menuHeight, INV_SLOT);
+        DrawRectangleLines(menu->menuX, menu->menuY, menuWidth, menuHeight, INV_BORDER);
+
+        Vector2 mouse = GetMousePosition();
+        for (int i = 0; i < optionCount; i++) {
+            int optY = menu->menuY + i * menuItemHeight;
+
+            if (mouse.x >= menu->menuX && mouse.x <= menu->menuX + menuWidth &&
+                mouse.y >= optY && mouse.y <= optY + menuItemHeight) {
+                DrawRectangle(menu->menuX + 1, optY + 1, menuWidth - 2, menuItemHeight - 2,
+                              (Color){60, 55, 45, 255});
+            }
+
+            DrawText(options[i], menu->menuX + menuPadding, optY + 4, 12, GOLD_TEXT);
+        }
+    }
+}
+
+void DrawDamageIndicators(const Camera3D* camera, const DamageIndicator* indicators,
+                          int screenWidth, int screenHeight) {
+    for (int i = 0; i < MAX_DAMAGE_INDICATORS; i++) {
+        if (!indicators[i].active) continue;
+
+        Vector3 toIndicator = {
+            indicators[i].position.x - camera->position.x,
+            0,
+            indicators[i].position.z - camera->position.z
+        };
+        Vector3 camForward = {
+            camera->target.x - camera->position.x,
+            0,
+            camera->target.z - camera->position.z
+        };
+        if (Dot3D(toIndicator, camForward) <= 0) continue;
+
+        Vector2 screenPos = GetWorldToScreen(indicators[i].position, *camera);
+        if (screenPos.x < 0 || screenPos.x > screenWidth ||
+            screenPos.y < 0 || screenPos.y > screenHeight) continue;
+
+        char dmgText[16];
+        snprintf(dmgText, sizeof(dmgText), "%d", indicators[i].damage);
+        float timeRatio = indicators[i].timer / DAMAGE_INDICATOR_DURATION;
+        float alpha = (timeRatio > 0.2f) ? 1.0f : (timeRatio / 0.2f);
+        int fontSize = 48;
+        int textWidth = MeasureText(dmgText, fontSize);
+        int tx = (int)screenPos.x - textWidth/2;
+        int ty = (int)screenPos.y - fontSize/2;
+
+        Color dmgColor = (indicators[i].damage == 0) ? BLUE : RED;
+        DrawOutlinedText(dmgText, tx, ty, fontSize, dmgColor, alpha);
+    }
+}
+
+void DrawEnemyHealthBars(const Camera3D* camera, const Enemy* enemies, int enemyCount,
+                         int screenWidth, int screenHeight) {
+    for (int i = 0; i < enemyCount; i++) {
+        if (!enemies[i].alive) continue;
+
+        const EnemyConfig& config = ENEMY_CONFIGS[enemies[i].type];
+        float enemyTerrainY = GetTerrainHeight(enemies[i].position.x, enemies[i].position.z);
+        Vector3 enemyPos = { enemies[i].position.x, enemyTerrainY, enemies[i].position.z };
+        float dist = Distance3D(camera->position, enemyPos);
+        if (dist > PLAYER_ATTACK_RANGE) continue;
+
+        Vector3 toEnemy = {
+            enemies[i].position.x - camera->position.x,
+            0,
+            enemies[i].position.z - camera->position.z
+        };
+        Vector3 camForward = {
+            camera->target.x - camera->position.x,
+            0,
+            camera->target.z - camera->position.z
+        };
+        if (Dot3D(toEnemy, camForward) <= 0) continue;
+
+        Vector3 healthBarPos = { enemies[i].position.x, enemyTerrainY + 2.0f, enemies[i].position.z };
+        Vector2 screenPos = GetWorldToScreen(healthBarPos, *camera);
+        if (screenPos.x < 0 || screenPos.x > screenWidth ||
+            screenPos.y < 0 || screenPos.y > screenHeight) continue;
+
+        int barWidth = 40, barHeight = 6;
+        int healthWidth = (int)(barWidth * enemies[i].health / (float)config.maxHealth);
+        DrawRectangle((int)screenPos.x - barWidth/2, (int)screenPos.y, barWidth, barHeight, DARKGRAY);
+        DrawRectangle((int)screenPos.x - barWidth/2, (int)screenPos.y, healthWidth, barHeight, GREEN);
+        DrawRectangleLines((int)screenPos.x - barWidth/2, (int)screenPos.y, barWidth, barHeight, BLACK);
+
+        int nameWidth = MeasureText(config.name, 12);
+        DrawText(config.name, (int)screenPos.x - nameWidth/2, (int)screenPos.y - 14, 12, WHITE);
+    }
+}
+
+void UpdateHUDTimers(DamageIndicator* damageIndicators,
+                     XPPopup* xpPopups,
+                     LevelUpNotification* levelUpNotif,
+                     float dt) {
+    for (int i = 0; i < MAX_DAMAGE_INDICATORS; i++) {
+        if (damageIndicators[i].active) {
+            damageIndicators[i].timer -= dt;
+            if (damageIndicators[i].timer <= 0) {
+                damageIndicators[i].active = false;
+            }
+        }
+    }
+
+    for (int i = 0; i < MAX_XP_POPUPS; i++) {
+        if (xpPopups[i].active) {
+            xpPopups[i].timer -= dt;
+            if (xpPopups[i].timer <= 0) {
+                xpPopups[i].active = false;
+            }
+        }
+    }
+
+    if (levelUpNotif->active) {
+        levelUpNotif->timer -= dt;
+        if (levelUpNotif->timer <= 0) {
+            levelUpNotif->active = false;
+        }
+    }
+}

@@ -2,6 +2,39 @@
 #define TYPES_H
 
 #include "raylib.h"
+#include <cmath>
+
+// ============================================================================
+// GAME CONSTANTS
+// ============================================================================
+
+// Player movement
+constexpr float WALK_SPEED = 5.0f;
+constexpr float RUN_SPEED = 10.0f;
+constexpr float ENERGY_DRAIN_RATE = 100.0f / 30.0f;   // Depletes in 30s
+constexpr float ENERGY_REGEN_RATE = 100.0f / 120.0f;  // Regens in 120s
+constexpr float MOUSE_SENSITIVITY = 0.003f;
+constexpr float PLAYER_RADIUS = 0.3f;
+constexpr float PLAYER_EYE_HEIGHT = 1.8f;
+
+// Jump physics
+constexpr float JUMP_FORCE = 8.0f;
+constexpr float GRAVITY = 20.0f;
+
+// Duck animation (burying bones)
+constexpr float DUCK_DURATION = 0.6f;
+constexpr float DUCK_DEPTH = 0.8f;
+constexpr int BURY_XP = 5;
+
+// Combat
+constexpr float SWING_DURATION = 0.2f;
+constexpr float PICKUP_RANGE = 2.5f;
+
+// HP regeneration
+constexpr float HP_REGEN_INTERVAL = 5.0f;
+
+// Death
+constexpr float DEATH_FADE_DURATION = 2.0f;
 
 // Inventory constants
 const int INV_COLS = 4;
@@ -196,6 +229,25 @@ struct PlayerState {
 // Check if an item type is stackable
 inline bool IsItemStackable(ItemType item) {
     return item == ITEM_GIL;
+}
+
+// Check if an item is a weapon
+inline bool IsWeapon(ItemType item) {
+    return item == ITEM_BRONZE_SHORTSWORD || item == ITEM_BRONZE_AXE;
+}
+
+// Normalize angle to [-PI, PI]
+inline float NormalizeAngle(float angle) {
+    while (angle > PI) angle -= 2.0f * PI;
+    while (angle < -PI) angle += 2.0f * PI;
+    return angle;
+}
+
+// Smooth turn toward target angle
+inline float SmoothTurn(float current, float target, float maxTurn) {
+    float diff = NormalizeAngle(target - current);
+    if (fabsf(diff) < maxTurn) return target;
+    return current + (diff > 0 ? maxTurn : -maxTurn);
 }
 
 // Constants

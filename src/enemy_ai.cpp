@@ -1,0 +1,98 @@
+#include "enemy_ai.h"
+#include "math_utils.h"
+#include "game_systems.h"
+#include "sound_system.h"
+
+static constexpr float TURN_SPEED = 5.0f;  // Radians per second
+
+int UpdateEnemies(Enemy* enemies, int enemyCount,
+                  Vector3 playerPos, bool playerDead,
+                  DamageIndicator* damageIndicators, float dt) {
+    int totalDamage = 0;
+
+    for (int i = 0; i < enemyCount; i++) {
+        const EnemyConfig& config = ENEMY_CONFIGS[enemies[i].type];
+
+        if (enemies[i].attackCooldown > 0) {
+            enemies[i].attackCooldown -= dt;
+        }
+
+        if (enemies[i].alive) {
+            if (enemies[i].hostile && !playerDead) {
+                // Chase behavior
+                float dx = playerPos.x - enemies[i].position.x;
+                float dz = playerPos.z - enemies[i].position.z;
+                float dist = sqrtf(dx*dx + dz*dz);
+
+                // Turn to face player
+                float targetAngle = atan2f(dx, dz);
+                enemies[i].facingAngle = SmoothTurn(enemies[i].facingAngle, targetAngle, TURN_SPEED * dt);
+
+                if (dist > config.attackRange) {
+                    // Move toward player
+                    float speed = config.chaseSpeed * dt;
+                    enemies[i].position.x += (dx / dist) * speed;
+                    enemies[i].position.z += (dz / dist) * speed;
+                } else if (enemies[i].attackCooldown <= 0) {
+                    // Attack player
+                    int damage = GetRandomValue(0, config.maxHit);
+                    totalDamage += damage;
+                    SpawnDamageIndicator(damageIndicators, playerPos, damage);
+                    enemies[i].attackCooldown = config.attackCooldown;
+                    if (damage > 0) PlaySoundEffect(SFX_PLAYER_HURT);
+                }
+            } else {
+                // Wander behavior
+                enemies[i].wanderTimer -= dt;
+                if (enemies[i].wanderTimer <= 0) {
+                    enemies[i].wanderTarget.x = enemies[i].spawnPoint.x + RandomFloat(-3.0f, 3.0f);
+                    enemies[i].wanderTarget.z = enemies[i].spawnPoint.z + RandomFloat(-3.0f, 3.0f);
+                    enemies[i].wanderTimer = RandomFloat(2.0f, 5.0f);
+                }
+
+                float dx = enemies[i].wanderTarget.x - enemies[i].position.x;
+                float dz = enemies[i].wanderTarget.z - enemies[i].position.z;
+                float dist = sqrtf(dx*dx + dz*dz);
+                if (dist > 0.5f) {
+                    // Turn to face wander target (slower)
+                    float targetAngle = atan2f(dx, dz);
+                    enemies[i].facingAngle = SmoothTurn(enemies[i].facingAngle, targetAngle, TURN_SPEED * 0.5f * dt);
+
+                    float speed = 1.0f * dt;
+                    enemies[i].position.x += (dx / dist) * speed;
+                    enemies[i].position.z += (dz / dist) * speed;
+                }
+            }
+        } else {
+            // Dead - check respawn
+            enemies[i].respawnTimer -= dt;
+            if (enemies[i].respawnTimer <= 0) {
+                enemies[i].position.x = enemies[i].spawnPoint.x + RandomFloat(-5.0f, 5.0f);
+                enemies[i].position.z = enemies[i].spawnPoint.z + RandomFloat(-5.0f, 5.0f);
+                enemies[i].position.y = 0.0f;
+                enemies[i].health = config.maxHealth;
+                enemies[i].alive = true;
+                enemies[i].wanderTimer = 0.0f;
+                enemies[i].hostile = false;
+                enemies[i].attackCooldown = 0.0f;
+                enemies[i].facingAngle = RandomFloat(0.0f, 2.0f * PI);
+            }
+        }
+    }
+
+    return totalDamage;
+}
+
+void InitEnemy(Enemy* enemy, EnemyType type, Vector3 spawnPoint) {
+    enemy->type = type;
+    enemy->spawnPoint = spawnPoint;
+    enemy->position = spawnPoint;
+    enemy->health = ENEMY_CONFIGS[type].maxHealth;
+    enemy->alive = true;
+    enemy->respawnTimer = 0.0f;
+    enemy->wanderTimer = 0.0f;
+    enemy->wanderTarget = spawnPoint;
+    enemy->hostile = false;
+    enemy->attackCooldown = 0.0f;
+    enemy->facingAngle = RandomFloat(0.0f, 2.0f * PI);
+}

@@ -24,5 +24,11 @@ add_executable(game
     src/rendering.cpp
     src/game_systems.cpp
     src/sound_system.cpp
+    src/player.cpp
+    src/enemy_ai.cpp
+    src/combat.cpp
+    src/inventory.cpp
+    src/hud.cpp
+    src/game_init.cpp
 )
 target_link_libraries(game raylib)

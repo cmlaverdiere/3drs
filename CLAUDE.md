@@ -1,16 +1,5 @@
 # 3DRS Development Context
 
-## VCS
-
-This project uses jj (Jujutsu), not git.
-
-**IMPORTANT: COMMIT WITH JJ AFTER EACH MAJOR FEATURE IS COMPLETE.**
-
-- **USE `jj new -m "description"` TO COMMIT** - this creates a new commit and preserves history
-- **DO NOT USE `jj squash`** - this overwrites the parent commit and destroys history
-- Only commit for larger features, not small tweaks
-- `jj status` to check for uncommitted changes
-
 ## Raylib Documentation
 
 Use Context7 MCP to look up Raylib docs:

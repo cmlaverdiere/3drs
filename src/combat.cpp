@@ -1,0 +1,145 @@
+#include "combat.h"
+#include "math_utils.h"
+#include "xp_system.h"
+#include "game_systems.h"
+#include "sound_system.h"
+
+bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
+                         Enemy* enemies, int enemyCount,
+                         Tree* trees, int treeCount,
+                         WorldItem* worldItems, int* worldItemCount,
+                         DamageIndicator* damageIndicators,
+                         XPPopup* xpPopups,
+                         LevelUpNotification* levelUpNotif,
+                         float* swingTimer) {
+    if (state->equippedWeapon == ITEM_NONE) return false;
+
+    *swingTimer = SWING_DURATION;
+    bool actionTaken = false;
+
+    // If wielding axe, check for trees first
+    if (state->equippedWeapon == ITEM_BRONZE_AXE) {
+        Tree* targetTree = nullptr;
+        float closestTreeDist = CHOP_RANGE + 1.0f;
+
+        for (int i = 0; i < treeCount; i++) {
+            if (trees[i].alive) {
+                Vector3 treePos = trees[i].position;
+                treePos.y = GetTerrainHeight(treePos.x, treePos.z);
+                float dist = Distance3D(camera->position, treePos);
+                if (dist <= CHOP_RANGE && dist < closestTreeDist && IsFacing(*camera, treePos)) {
+                    targetTree = &trees[i];
+                    closestTreeDist = dist;
+                }
+            }
+        }
+
+        if (targetTree != nullptr) {
+            actionTaken = true;
+            targetTree->health--;
+            PlaySoundEffect(SFX_HIT);
+
+            if (targetTree->health <= 0) {
+                targetTree->alive = false;
+                targetTree->respawnTimer = TREE_RESPAWN_TIME;
+
+                // Spawn logs
+                if (*worldItemCount < MAX_WORLD_ITEMS) {
+                    worldItems[*worldItemCount].type = ITEM_LOGS;
+                    worldItems[*worldItemCount].position = targetTree->position;
+                    worldItems[*worldItemCount].position.x += RandomFloat(-0.5f, 0.5f);
+                    worldItems[*worldItemCount].position.z += RandomFloat(-0.5f, 0.5f);
+                    worldItems[*worldItemCount].position.y = 0.0f;
+                    worldItems[*worldItemCount].pickedUp = false;
+                    (*worldItemCount)++;
+                }
+
+                AwardSkillXP(state, SKILL_WOODCUTTING, WOODCUTTING_XP, xpPopups, levelUpNotif);
+            }
+        }
+    }
+
+    // If no tree was chopped, try attacking enemies
+    if (!actionTaken) {
+        int combatLevel = GetLevelFromXP(state->skillXP[SKILL_COMBAT]);
+        int maxHit = CalculateMaxHit(combatLevel);
+
+        Enemy* target = nullptr;
+        float closestDist = PLAYER_ATTACK_RANGE + 1.0f;
+
+        for (int i = 0; i < enemyCount; i++) {
+            if (enemies[i].alive) {
+                Vector3 enemyPos = enemies[i].position;
+                enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
+                float dist = Distance3D(camera->position, enemyPos);
+                if (dist <= PLAYER_ATTACK_RANGE && dist < closestDist && IsFacing(*camera, enemyPos)) {
+                    target = &enemies[i];
+                    closestDist = dist;
+                }
+            }
+        }
+
+        if (target != nullptr) {
+            const EnemyConfig& config = ENEMY_CONFIGS[target->type];
+            target->hostile = true;
+
+            int damage = RollDamage(maxHit);
+            target->health -= damage;
+            Vector3 dmgPos = target->position;
+            dmgPos.y = GetTerrainHeight(dmgPos.x, dmgPos.z);
+            SpawnDamageIndicator(damageIndicators, dmgPos, damage);
+
+            if (damage > 0) {
+                PlaySoundEffect(SFX_HIT);
+            } else {
+                PlaySoundEffect(SFX_MISS);
+            }
+
+            if (target->health <= 0) {
+                target->alive = false;
+                target->respawnTimer = config.respawnTime;
+                PlaySoundEffect(SFX_ENEMY_DEATH);
+
+                SpawnEnemyDrops(config, target->position, worldItems, *worldItemCount);
+
+                // Award XP for kill (4 XP per hitpoint, like OSRS)
+                int xpGain = config.maxHealth * 4;
+                AwardSkillXP(state, SKILL_COMBAT, xpGain, xpPopups, levelUpNotif);
+            }
+        }
+    }
+
+    return true;
+}
+
+bool AwardSkillXP(PlayerState* state, int skillIndex, int amount,
+                  XPPopup* xpPopups, LevelUpNotification* levelUpNotif) {
+    int oldLevel = GetLevelFromXP(state->skillXP[skillIndex]);
+    state->skillXP[skillIndex] += amount;
+    int newLevel = GetLevelFromXP(state->skillXP[skillIndex]);
+
+    SpawnXPPopup(xpPopups, amount, skillIndex);
+    PlaySoundEffect(SFX_XP_GAIN);
+
+    if (newLevel > oldLevel) {
+        levelUpNotif->skillIndex = skillIndex;
+        levelUpNotif->newLevel = newLevel;
+        levelUpNotif->timer = LEVEL_UP_DURATION;
+        levelUpNotif->active = true;
+        PlaySoundEffect(SFX_LEVEL_UP);
+        return true;
+    }
+    return false;
+}
+
+void UpdateTrees(Tree* trees, int treeCount, float dt) {
+    for (int i = 0; i < treeCount; i++) {
+        if (!trees[i].alive) {
+            trees[i].respawnTimer -= dt;
+            if (trees[i].respawnTimer <= 0) {
+                trees[i].health = TREE_MAX_HEALTH;
+                trees[i].alive = true;
+            }
+        }
+    }
+}
