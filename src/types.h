@@ -73,6 +73,15 @@ enum EnemyType {
     ENEMY_TYPE_COUNT
 };
 
+// NPC types (friendly, talkable characters)
+enum NPCType {
+    NPC_HANS = 0,        // Friendly wandering townsperson
+    NPC_SHOPKEEPER,      // General store merchant
+    NPC_GUARD,           // Stern castle guard
+    NPC_COOK,            // Frantic castle cook
+    NPC_COUNT
+};
+
 // Wall material types
 enum WallMaterial {
     WALL_WOOD = 0,
@@ -133,6 +142,37 @@ struct EnemyConfig {
 };
 
 extern const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT];
+
+// NPC configuration (static data)
+constexpr int MAX_NPC_DIALOGUE_LINES = 8;
+
+struct NPCConfig {
+    const char* name;
+    Color skinColor;
+    Color shirtColor;
+    Color pantsColor;
+    float height;  // Height multiplier (1.0 = standard)
+    const char* dialogueLines[MAX_NPC_DIALOGUE_LINES];
+    int dialogueCount;
+};
+
+extern const NPCConfig NPC_CONFIGS[NPC_COUNT];
+
+// NPC instance (runtime data)
+struct NPC {
+    Vector3 position;
+    NPCType type;
+    float facingAngle;
+    float targetFacingAngle;
+    bool active;
+};
+
+// Dialogue state (for active conversation)
+struct DialogueState {
+    bool active;
+    int npcIndex;
+    int currentLine;
+};
 
 // Generic Enemy NPC
 struct Enemy {
@@ -276,8 +316,13 @@ inline float SmoothTurn(float current, float target, float maxTurn) {
 const int MAX_ENEMIES = 500;
 const int MAX_WORLD_ITEMS = 500;
 const int MAX_WALLS = 1000;
+const int MAX_NPCS = 32;
 const int MAX_DAMAGE_INDICATORS = 20;
 const int MAX_XP_POPUPS = 10;
+
+// NPC interaction
+constexpr float NPC_INTERACTION_RANGE = 3.0f;
+constexpr float NPC_TURN_SPEED = 4.0f;
 
 const float PLAYER_ATTACK_RANGE = 5.0f;
 
@@ -304,6 +349,9 @@ struct MapData {
     int sandCount;
     Valley valleys[MAX_VALLEYS];
     int valleyCount;
+    Vector3 npcSpawns[MAX_NPCS];
+    NPCType npcTypes[MAX_NPCS];
+    int npcCount;
 };
 
 #endif

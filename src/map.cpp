@@ -218,6 +218,32 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                 TraceLog(LOG_WARNING, "MAX_VALLEYS (%d) exceeded, skipping valley", MAX_VALLEYS);
             }
         }
+        else if (strcmp(type, "npc") == 0) {
+            // Format: npc <type> x y z
+            if (map.npcCount < MAX_NPCS) {
+                char npcName[64];
+                float x, y, z;
+                if (sscanf(line, "%*s %63s %f %f %f", npcName, &x, &y, &z) == 4) {
+                    NPCType npcType = NPC_HANS; // default
+                    if (strcmp(npcName, "hans") == 0) {
+                        npcType = NPC_HANS;
+                    } else if (strcmp(npcName, "shopkeeper") == 0) {
+                        npcType = NPC_SHOPKEEPER;
+                    } else if (strcmp(npcName, "guard") == 0) {
+                        npcType = NPC_GUARD;
+                    } else if (strcmp(npcName, "cook") == 0) {
+                        npcType = NPC_COOK;
+                    } else {
+                        TraceLog(LOG_WARNING, "Unknown NPC type: %s", npcName);
+                    }
+                    map.npcSpawns[map.npcCount] = { x + offsetX, y, z + offsetZ };
+                    map.npcTypes[map.npcCount] = npcType;
+                    map.npcCount++;
+                }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_NPCS (%d) exceeded, skipping npc", MAX_NPCS);
+            }
+        }
     }
 
     fclose(f);
@@ -234,13 +260,14 @@ bool LoadMap(const char* filename, MapData& map) {
     map.waterCount = 0;
     map.sandCount = 0;
     map.valleyCount = 0;
+    map.npcCount = 0;
 
     // Load the root map file with no offset
     bool success = LoadMapFile(filename, map, 0.0f, 0.0f, nullptr);
 
     if (success) {
-        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d sand, %d valleys)",
-            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.sandCount, map.valleyCount);
+        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d sand, %d valleys, %d npcs)",
+            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.sandCount, map.valleyCount, map.npcCount);
     }
 
     return success;

@@ -33,4 +33,14 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos);
 // Draw a tree
 void DrawTree(const EntityModels* models, Vector3 pos, bool highlighted);
 
+// Draw a humanoid NPC
+void DrawHumanoid(const EntityModels* models, Vector3 pos, float facingAngle,
+                  Color skinColor, Color shirtColor, Color pantsColor, float heightScale);
+
+// Draw NPC by type
+void DrawNPC(const EntityModels* models, const NPC& npc);
+
+// Draw all NPCs
+void DrawNPCs(const EntityModels* models, const NPC* npcs, int npcCount);
+
 #endif

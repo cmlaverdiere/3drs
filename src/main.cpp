@@ -51,6 +51,7 @@ int main(int argc, char* argv[]) {
         printf("Map loaded successfully:\n");
         printf("  Items: %d / %d\n", mapData.itemCount, MAX_WORLD_ITEMS);
         printf("  Enemies: %d / %d\n", mapData.enemyCount, MAX_ENEMIES);
+        printf("  NPCs: %d / %d\n", mapData.npcCount, MAX_NPCS);
         printf("  Walls: %d / %d\n", mapData.wallCount, MAX_WALLS);
         printf("  Trees: %d / %d\n", mapData.treeCount, MAX_TREES);
         printf("  Water: %d / %d\n", mapData.waterCount, MAX_WATER);
@@ -129,6 +130,18 @@ int main(int argc, char* argv[]) {
     int worldItemCount = 0;
     InitItemsFromMap(worldItems, &worldItemCount, mapData, playerState.swordPickedUp);
 
+    // Initialize NPCs from map
+    NPC npcs[MAX_NPCS] = {};
+    int npcCount = 0;
+    for (int i = 0; i < mapData.npcCount && npcCount < MAX_NPCS; i++) {
+        npcs[npcCount].position = mapData.npcSpawns[i];
+        npcs[npcCount].type = mapData.npcTypes[i];
+        npcs[npcCount].facingAngle = 0.0f;
+        npcs[npcCount].targetFacingAngle = 0.0f;
+        npcs[npcCount].active = true;
+        npcCount++;
+    }
+
     // Populate spatial hash
     PopulateSpatialHash(&g_spatial, walls, resources.wallCount, enemies, enemyCount, trees, treeCount);
 
@@ -138,6 +151,7 @@ int main(int argc, char* argv[]) {
     DamageIndicator damageIndicators[MAX_DAMAGE_INDICATORS] = {};
     XPPopup xpPopups[MAX_XP_POPUPS] = {};
     LevelUpNotification levelUpNotif = {};
+    DialogueState dialogueState = {false, -1, 0};
 
     float attackCooldown = 0.0f;
     float swingTimer = 0.0f;
@@ -185,8 +199,8 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Player movement (when not in mouse mode and alive)
-        if (!mouseMode && !playerRuntime.isDead) {
+        // Player movement (when not in mouse mode, dialogue, and alive)
+        if (!mouseMode && !playerRuntime.isDead && !dialogueState.active) {
             std::vector<int> nearbyWalls;
             g_spatial.walls.Query(camera.position.x, camera.position.z, PLAYER_RADIUS + 20.0f, nearbyWalls);
             UpdatePlayerMovement(&camera, &playerRuntime, walls, resources.wallCount, nearbyWalls, dt);
@@ -268,6 +282,82 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // Find nearest NPC for interaction
+        int nearestNPCIndex = -1;
+        float nearestNPCDist = NPC_INTERACTION_RANGE;
+        for (int i = 0; i < npcCount; i++) {
+            if (npcs[i].active) {
+                Vector3 npcPos = npcs[i].position;
+                npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z);
+                float dist = Distance3D(camera.position, npcPos);
+                if (dist < nearestNPCDist) {
+                    nearestNPCDist = dist;
+                    nearestNPCIndex = i;
+                }
+            }
+        }
+
+        // NPC dialogue handling
+        if (!dialogueState.active) {
+            // Start dialogue when pressing E near an NPC
+            if (nearestNPCIndex >= 0 && !mouseMode && !playerRuntime.isDead) {
+                if (IsKeyPressed(KEY_E)) {
+                    dialogueState.active = true;
+                    dialogueState.npcIndex = nearestNPCIndex;
+                    dialogueState.currentLine = 0;
+                    EnableCursor();
+                }
+            }
+        } else {
+            // In dialogue - handle advancement
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
+                IsKeyPressed(KEY_SPACE) ||
+                IsKeyPressed(KEY_E)) {
+
+                const NPCConfig& config = NPC_CONFIGS[npcs[dialogueState.npcIndex].type];
+
+                if (dialogueState.currentLine < config.dialogueCount - 1) {
+                    // Advance to next line
+                    dialogueState.currentLine++;
+                } else {
+                    // End dialogue
+                    dialogueState.active = false;
+                    dialogueState.npcIndex = -1;
+                    dialogueState.currentLine = 0;
+                    if (!mouseMode) {
+                        DisableCursor();
+                    }
+                }
+            }
+
+            // Escape to exit dialogue early
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                dialogueState.active = false;
+                dialogueState.npcIndex = -1;
+                dialogueState.currentLine = 0;
+                if (!mouseMode) {
+                    DisableCursor();
+                }
+            }
+
+            // NPC faces player during dialogue
+            if (dialogueState.npcIndex >= 0) {
+                float dx = camera.position.x - npcs[dialogueState.npcIndex].position.x;
+                float dz = camera.position.z - npcs[dialogueState.npcIndex].position.z;
+                npcs[dialogueState.npcIndex].targetFacingAngle = atan2f(dx, dz);
+
+                // Smooth rotation toward target
+                float angleDiff = NormalizeAngle(npcs[dialogueState.npcIndex].targetFacingAngle -
+                                                  npcs[dialogueState.npcIndex].facingAngle);
+                float rotateAmount = NPC_TURN_SPEED * dt;
+                if (fabsf(angleDiff) < rotateAmount) {
+                    npcs[dialogueState.npcIndex].facingAngle = npcs[dialogueState.npcIndex].targetFacingAngle;
+                } else {
+                    npcs[dialogueState.npcIndex].facingAngle += (angleDiff > 0 ? 1 : -1) * rotateAmount;
+                }
+            }
+        }
+
         // Screenshot
         if (IsKeyPressed(KEY_P)) {
             time_t now = time(nullptr);
@@ -316,6 +406,17 @@ int main(int argc, char* argv[]) {
                     Enemy adjustedEnemy = enemies[i];
                     adjustedEnemy.position = enemyPos;
                     DrawEnemy(&resources.entityModels, adjustedEnemy, false);
+                }
+            }
+
+            // NPCs cast shadows
+            for (int i = 0; i < npcCount; i++) {
+                if (npcs[i].active) {
+                    Vector3 npcPos = npcs[i].position;
+                    npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z);
+                    NPC adjustedNPC = npcs[i];
+                    adjustedNPC.position = npcPos;
+                    DrawNPC(&resources.entityModels, adjustedNPC);
                 }
             }
         EndShadowPass(&lighting);
@@ -379,6 +480,17 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+            // NPCs
+            for (int i = 0; i < npcCount; i++) {
+                if (npcs[i].active) {
+                    Vector3 npcPos = npcs[i].position;
+                    npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z);
+                    NPC adjustedNPC = npcs[i];
+                    adjustedNPC.position = npcPos;
+                    DrawNPC(&resources.entityModels, adjustedNPC);
+                }
+            }
+
             // Trees
             for (int i = 0; i < treeCount; i++) {
                 if (trees[i].alive) {
@@ -421,6 +533,15 @@ int main(int argc, char* argv[]) {
                 attackCooldown, swingTimer,
                 mouseMode, statusMessage,
                 screenWidth, screenHeight);
+
+        // Draw NPC prompt (when near an NPC but not in dialogue)
+        if (nearestNPCIndex >= 0 && !dialogueState.active && !mouseMode && !playerRuntime.isDead) {
+            const NPCConfig& config = NPC_CONFIGS[npcs[nearestNPCIndex].type];
+            DrawNPCPrompt(config.name, screenWidth, screenHeight);
+        }
+
+        // Draw dialogue box (when in dialogue)
+        DrawDialogueBox(&dialogueState, npcs, screenWidth, screenHeight);
 
         EndDrawing();
 

@@ -308,3 +308,90 @@ void DrawTree(const EntityModels* models, Vector3 pos, bool highlighted) {
         DrawSphereWires((Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.55f, 8, 8, outlineColor);
     }
 }
+
+void DrawHumanoid(const EntityModels* models, Vector3 pos, float facingAngle,
+                  Color skinColor, Color shirtColor, Color pantsColor, float heightScale) {
+    // Humanoid proportions (scaled by heightScale) - total height ~1.7 units
+    const float HEAD_RADIUS = 0.2f * heightScale;
+    const float TORSO_WIDTH = 0.45f * heightScale;
+    const float TORSO_HEIGHT = 0.6f * heightScale;
+    const float TORSO_DEPTH = 0.25f * heightScale;
+    const float ARM_WIDTH = 0.12f * heightScale;
+    const float ARM_HEIGHT = 0.55f * heightScale;
+    const float LEG_WIDTH = 0.15f * heightScale;
+    const float LEG_HEIGHT = 0.75f * heightScale;
+    const float HAND_RADIUS = 0.07f * heightScale;
+
+    // Apply rotation around Y axis at position
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y, pos.z);
+    rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
+
+    // Calculate Y positions (standing on ground)
+    float legTopY = LEG_HEIGHT;
+    float torsoBottomY = legTopY;
+    float torsoMidY = torsoBottomY + TORSO_HEIGHT * 0.5f;
+    float shoulderY = torsoBottomY + TORSO_HEIGHT * 0.85f;
+    float headY = torsoBottomY + TORSO_HEIGHT + HEAD_RADIUS * 0.8f;
+
+    // Head (sphere) - skin color
+    DrawModelSphere(models, (Vector3){0, headY, 0}, HEAD_RADIUS, skinColor);
+
+    // Face - simple eyes
+    float faceZ = HEAD_RADIUS * 0.85f;
+    Color eyeWhite = { 255, 255, 255, 255 };
+    Color eyeBlack = { 30, 30, 30, 255 };
+    DrawModelSphere(models, (Vector3){-0.04f * heightScale, headY + 0.02f * heightScale, faceZ}, 0.025f * heightScale, eyeWhite);
+    DrawModelSphere(models, (Vector3){0.04f * heightScale, headY + 0.02f * heightScale, faceZ}, 0.025f * heightScale, eyeWhite);
+    DrawModelSphere(models, (Vector3){-0.04f * heightScale, headY + 0.02f * heightScale, faceZ + 0.01f * heightScale}, 0.012f * heightScale, eyeBlack);
+    DrawModelSphere(models, (Vector3){0.04f * heightScale, headY + 0.02f * heightScale, faceZ + 0.01f * heightScale}, 0.012f * heightScale, eyeBlack);
+
+    // Torso (cube) - shirt color
+    DrawModelCube(models, (Vector3){0, torsoMidY, 0}, TORSO_WIDTH, TORSO_HEIGHT, TORSO_DEPTH, shirtColor);
+
+    // Arms (cubes hanging at sides) - shirt color
+    float armOffsetX = TORSO_WIDTH * 0.5f + ARM_WIDTH * 0.5f;
+    float armMidY = shoulderY - ARM_HEIGHT * 0.5f;
+
+    // Left arm
+    DrawModelCube(models, (Vector3){-armOffsetX, armMidY, 0}, ARM_WIDTH, ARM_HEIGHT, ARM_WIDTH, shirtColor);
+    // Left hand
+    DrawModelSphere(models, (Vector3){-armOffsetX, armMidY - ARM_HEIGHT * 0.5f - HAND_RADIUS * 0.5f, 0}, HAND_RADIUS, skinColor);
+
+    // Right arm
+    DrawModelCube(models, (Vector3){armOffsetX, armMidY, 0}, ARM_WIDTH, ARM_HEIGHT, ARM_WIDTH, shirtColor);
+    // Right hand
+    DrawModelSphere(models, (Vector3){armOffsetX, armMidY - ARM_HEIGHT * 0.5f - HAND_RADIUS * 0.5f, 0}, HAND_RADIUS, skinColor);
+
+    // Legs (cubes) - pants color
+    float legOffsetX = LEG_WIDTH * 0.7f;
+    float legMidY = LEG_HEIGHT * 0.5f;
+
+    // Left leg
+    DrawModelCube(models, (Vector3){-legOffsetX, legMidY, 0}, LEG_WIDTH, LEG_HEIGHT, LEG_WIDTH, pantsColor);
+
+    // Right leg
+    DrawModelCube(models, (Vector3){legOffsetX, legMidY, 0}, LEG_WIDTH, LEG_HEIGHT, LEG_WIDTH, pantsColor);
+
+    // Shoes (darker)
+    Color shoeColor = { 40, 30, 25, 255 };
+    float shoeHeight = 0.08f * heightScale;
+    DrawModelCube(models, (Vector3){-legOffsetX, shoeHeight * 0.5f, 0.03f * heightScale}, LEG_WIDTH * 1.1f, shoeHeight, LEG_WIDTH * 1.3f, shoeColor);
+    DrawModelCube(models, (Vector3){legOffsetX, shoeHeight * 0.5f, 0.03f * heightScale}, LEG_WIDTH * 1.1f, shoeHeight, LEG_WIDTH * 1.3f, shoeColor);
+
+    rlPopMatrix();
+}
+
+void DrawNPC(const EntityModels* models, const NPC& npc) {
+    if (!npc.active) return;
+
+    const NPCConfig& config = NPC_CONFIGS[npc.type];
+    DrawHumanoid(models, npc.position, npc.facingAngle,
+                 config.skinColor, config.shirtColor, config.pantsColor, config.height);
+}
+
+void DrawNPCs(const EntityModels* models, const NPC* npcs, int npcCount) {
+    for (int i = 0; i < npcCount; i++) {
+        DrawNPC(models, npcs[i]);
+    }
+}

@@ -171,3 +171,16 @@ tree 70.0 0.0 0.0
 tree 70.0 0.0 10.0
 tree 85.0 0.0 5.0
 tree 85.0 0.0 15.0
+
+# === NPCs ===
+# Hans - friendly wanderer in the courtyard near spawn
+npc hans 0.0 0.0 4.0
+
+# Shopkeeper - inside the general store
+npc shopkeeper -18.0 0.0 -4.0
+
+# Guard - near castle entrance
+npc guard 3.0 0.0 -3.0
+
+# Cook - near castle kitchen area
+npc cook -5.0 0.0 -8.0

@@ -39,4 +39,11 @@ void UpdateHUDTimers(DamageIndicator* damageIndicators,
                      LevelUpNotification* levelUpNotif,
                      float dt);
 
+// Draw NPC dialogue box (parchment style)
+void DrawDialogueBox(const DialogueState* dialogue, const NPC* npcs,
+                     int screenWidth, int screenHeight);
+
+// Draw NPC interaction prompt (when near an NPC)
+void DrawNPCPrompt(const char* npcName, int screenWidth, int screenHeight);
+
 #endif

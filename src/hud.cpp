@@ -638,3 +638,120 @@ void UpdateHUDTimers(DamageIndicator* damageIndicators,
         }
     }
 }
+
+void DrawDialogueBox(const DialogueState* dialogue, const NPC* npcs,
+                     int screenWidth, int screenHeight) {
+    if (!dialogue->active || dialogue->npcIndex < 0) return;
+
+    const NPC& npc = npcs[dialogue->npcIndex];
+    const NPCConfig& config = NPC_CONFIGS[npc.type];
+
+    // Dialogue box dimensions - large parchment at bottom of screen
+    const int BOX_MARGIN = 40;
+    const int BOX_HEIGHT = 180;
+    const int BOX_WIDTH = screenWidth - (BOX_MARGIN * 2);
+    const int BOX_X = BOX_MARGIN;
+    const int BOX_Y = screenHeight - BOX_HEIGHT - BOX_MARGIN;
+
+    // Inner padding
+    const int PADDING = 20;
+    const int BORDER_WIDTH = 4;
+
+    // Draw outer border (darker)
+    DrawRectangle(BOX_X - BORDER_WIDTH, BOX_Y - BORDER_WIDTH,
+                  BOX_WIDTH + BORDER_WIDTH * 2, BOX_HEIGHT + BORDER_WIDTH * 2,
+                  PARCHMENT_BORDER);
+
+    // Draw main parchment background
+    DrawRectangle(BOX_X, BOX_Y, BOX_WIDTH, BOX_HEIGHT, PARCHMENT_BG);
+
+    // Draw inner border accent
+    DrawRectangleLines(BOX_X + 6, BOX_Y + 6, BOX_WIDTH - 12, BOX_HEIGHT - 12, PARCHMENT_DARK);
+
+    // Decorative corner triangles
+    const int CORNER_SIZE = 12;
+    // Top-left
+    DrawTriangle(
+        (Vector2){(float)BOX_X, (float)BOX_Y},
+        (Vector2){(float)(BOX_X + CORNER_SIZE), (float)BOX_Y},
+        (Vector2){(float)BOX_X, (float)(BOX_Y + CORNER_SIZE)},
+        PARCHMENT_BORDER
+    );
+    // Top-right
+    DrawTriangle(
+        (Vector2){(float)(BOX_X + BOX_WIDTH), (float)BOX_Y},
+        (Vector2){(float)(BOX_X + BOX_WIDTH - CORNER_SIZE), (float)BOX_Y},
+        (Vector2){(float)(BOX_X + BOX_WIDTH), (float)(BOX_Y + CORNER_SIZE)},
+        PARCHMENT_BORDER
+    );
+    // Bottom-left
+    DrawTriangle(
+        (Vector2){(float)BOX_X, (float)(BOX_Y + BOX_HEIGHT)},
+        (Vector2){(float)(BOX_X + CORNER_SIZE), (float)(BOX_Y + BOX_HEIGHT)},
+        (Vector2){(float)BOX_X, (float)(BOX_Y + BOX_HEIGHT - CORNER_SIZE)},
+        PARCHMENT_BORDER
+    );
+    // Bottom-right
+    DrawTriangle(
+        (Vector2){(float)(BOX_X + BOX_WIDTH), (float)(BOX_Y + BOX_HEIGHT)},
+        (Vector2){(float)(BOX_X + BOX_WIDTH - CORNER_SIZE), (float)(BOX_Y + BOX_HEIGHT)},
+        (Vector2){(float)(BOX_X + BOX_WIDTH), (float)(BOX_Y + BOX_HEIGHT - CORNER_SIZE)},
+        PARCHMENT_BORDER
+    );
+
+    // NPC name header
+    int nameX = BOX_X + PADDING;
+    int nameY = BOX_Y + PADDING;
+    DrawText(config.name, nameX, nameY, 28, PARCHMENT_BORDER);
+
+    // Separator line under name
+    int separatorY = nameY + 32;
+    DrawRectangle(BOX_X + PADDING, separatorY, BOX_WIDTH - PADDING * 2, 2, PARCHMENT_BORDER);
+
+    // Dialogue text
+    if (dialogue->currentLine < config.dialogueCount) {
+        const char* dialogueText = config.dialogueLines[dialogue->currentLine];
+        int textX = BOX_X + PADDING;
+        int textY = separatorY + 15;
+
+        // Draw dialogue text (simple, no word wrap for now)
+        DrawText(dialogueText, textX, textY, 22, PARCHMENT_TEXT);
+    }
+
+    // "Click to continue" / "Click to close" prompt (blinking)
+    const char* prompt;
+    if (dialogue->currentLine < config.dialogueCount - 1) {
+        prompt = "Click to continue...";
+    } else {
+        prompt = "Click to close";
+    }
+
+    int promptFontSize = 18;
+    int promptWidth = MeasureText(prompt, promptFontSize);
+    int promptX = BOX_X + BOX_WIDTH - PADDING - promptWidth;
+    int promptY = BOX_Y + BOX_HEIGHT - PADDING - promptFontSize;
+
+    // Blinking effect (visible 70% of the time)
+    float time = (float)GetTime();
+    if (fmodf(time, 1.0f) < 0.7f) {
+        Color promptColor = PARCHMENT_TEXT;
+        promptColor.a = 180;
+        DrawText(prompt, promptX, promptY, promptFontSize, promptColor);
+    }
+}
+
+void DrawNPCPrompt(const char* npcName, int screenWidth, int screenHeight) {
+    char prompt[64];
+    snprintf(prompt, sizeof(prompt), "Press E to talk to %s", npcName);
+    int promptFontSize = 20;
+    int promptWidth = MeasureText(prompt, promptFontSize);
+    int promptX = screenWidth / 2 - promptWidth / 2;
+    int promptY = screenHeight - 100;
+
+    // Draw with outline for visibility
+    DrawText(prompt, promptX - 1, promptY - 1, promptFontSize, BLACK);
+    DrawText(prompt, promptX + 1, promptY - 1, promptFontSize, BLACK);
+    DrawText(prompt, promptX - 1, promptY + 1, promptFontSize, BLACK);
+    DrawText(prompt, promptX + 1, promptY + 1, promptFontSize, BLACK);
+    DrawText(prompt, promptX, promptY, promptFontSize, WHITE);
+}
