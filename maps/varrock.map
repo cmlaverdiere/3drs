@@ -3,27 +3,30 @@
 # Coordinates are relative to region origin (0, -200 from world origin)
 
 # === CITY WALLS (outer perimeter) ===
-# South wall (facing Lumbridge)
-wall 0.0 0.0 50.0 120.0 8.0 2.0 stone
-# North wall
+# South wall - split for gate opening (gap from X=-10 to X=10)
+wall -35.0 0.0 50.0 50.0 8.0 2.0 stone
+wall 35.0 0.0 50.0 50.0 8.0 2.0 stone
+# North wall (solid, no gate)
 wall 0.0 0.0 -60.0 120.0 8.0 2.0 stone
-# West wall
-wall -60.0 0.0 -5.0 2.0 8.0 110.0 stone
-# East wall
-wall 60.0 0.0 -5.0 2.0 8.0 110.0 stone
+# West wall - split for gate opening (gap from Z=-8 to Z=8)
+wall -60.0 0.0 -34.0 2.0 8.0 52.0 stone
+wall -60.0 0.0 29.0 2.0 8.0 42.0 stone
+# East wall - split for gate opening (gap from Z=-8 to Z=8)
+wall 60.0 0.0 -34.0 2.0 8.0 52.0 stone
+wall 60.0 0.0 29.0 2.0 8.0 42.0 stone
 
 # === SOUTH GATE (main entrance from Lumbridge) ===
 # Gate towers
-wall -8.0 0.0 50.0 4.0 10.0 4.0 brick
-wall 8.0 0.0 50.0 4.0 10.0 4.0 brick
+wall -10.0 0.0 50.0 4.0 10.0 4.0 brick
+wall 10.0 0.0 50.0 4.0 10.0 4.0 brick
 
 # === WEST GATE ===
-wall -60.0 0.0 10.0 4.0 10.0 4.0 brick
-wall -60.0 0.0 -10.0 4.0 10.0 4.0 brick
+wall -60.0 0.0 8.0 4.0 10.0 4.0 brick
+wall -60.0 0.0 -8.0 4.0 10.0 4.0 brick
 
 # === EAST GATE (leads to Al Kharid desert) ===
-wall 60.0 0.0 10.0 4.0 10.0 4.0 brick
-wall 60.0 0.0 -10.0 4.0 10.0 4.0 brick
+wall 60.0 0.0 8.0 4.0 10.0 4.0 brick
+wall 60.0 0.0 -8.0 4.0 10.0 4.0 brick
 
 # === VARROCK PALACE (north-center) ===
 # Palace main building

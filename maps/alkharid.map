@@ -12,18 +12,19 @@ sand -30.0 0.0 -30.0 50.0 50.0
 
 # === CITY WALLS ===
 # Al Kharid has distinctive tan/brick walls
-# West wall (faces Lumbridge)
-wall -35.0 0.0 0.0 2.0 6.0 60.0 brick
-# East wall
+# West wall - split for gate opening (gap from Z=-6 to Z=6)
+wall -35.0 0.0 -18.0 2.0 6.0 24.0 brick
+wall -35.0 0.0 18.0 2.0 6.0 24.0 brick
+# East wall (solid)
 wall 45.0 0.0 0.0 2.0 6.0 60.0 brick
-# North wall
+# North wall (solid)
 wall 5.0 0.0 -30.0 80.0 6.0 2.0 brick
-# South wall
+# South wall (solid)
 wall 5.0 0.0 30.0 80.0 6.0 2.0 brick
 
 # === WEST GATE (toll gate from Lumbridge) ===
-wall -35.0 0.0 -8.0 3.0 8.0 3.0 brick
-wall -35.0 0.0 8.0 3.0 8.0 3.0 brick
+wall -35.0 0.0 -6.0 3.0 8.0 3.0 brick
+wall -35.0 0.0 6.0 3.0 8.0 3.0 brick
 
 # === AL KHARID PALACE (northeast) ===
 # Main palace building

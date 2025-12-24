@@ -388,6 +388,14 @@ int main(int argc, char* argv[]) {
     float jumpHeight = 0.0f;  // Height above terrain
     const float JUMP_FORCE = 8.0f;
     const float GRAVITY = 20.0f;
+
+    // Run energy system
+    bool isRunning = false;
+    float runEnergy = 100.0f;
+    const float WALK_SPEED = 5.0f;
+    const float RUN_SPEED = 10.0f;
+    const float ENERGY_DRAIN_RATE = 100.0f / 30.0f;   // Depletes in 30s of running
+    const float ENERGY_REGEN_RATE = 100.0f / 120.0f;  // Regens in 120s
     bool isJumping = false;
 
     // Ducking animation (for burying bones)
@@ -588,7 +596,91 @@ int main(int argc, char* argv[]) {
         }
 
         if (!mouseMode && !playerDead) {
-            UpdateCamera(&camera, CAMERA_FIRST_PERSON);
+            // Toggle run mode with R key
+            if (IsKeyPressed(KEY_R)) {
+                isRunning = !isRunning;
+            }
+
+            // Auto-disable running if out of energy
+            if (runEnergy <= 0.0f) {
+                isRunning = false;
+            }
+
+            // Custom camera movement with run/walk speed
+            // Get forward and right vectors (horizontal only)
+            Vector3 forward = {
+                camera.target.x - camera.position.x,
+                0,
+                camera.target.z - camera.position.z
+            };
+            forward = Normalize3D(forward);
+            Vector3 right = { -forward.z, 0, forward.x };
+
+            // Calculate movement based on WASD input
+            float moveSpeed = (isRunning && runEnergy > 0.0f) ? RUN_SPEED : WALK_SPEED;
+            Vector3 movement = { 0, 0, 0 };
+            bool isMoving = false;
+
+            if (IsKeyDown(KEY_W)) { movement.x += forward.x; movement.z += forward.z; isMoving = true; }
+            if (IsKeyDown(KEY_S)) { movement.x -= forward.x; movement.z -= forward.z; isMoving = true; }
+            if (IsKeyDown(KEY_D)) { movement.x += right.x; movement.z += right.z; isMoving = true; }
+            if (IsKeyDown(KEY_A)) { movement.x -= right.x; movement.z -= right.z; isMoving = true; }
+
+            // Normalize diagonal movement and apply speed
+            if (isMoving) {
+                movement = Normalize3D(movement);
+                camera.position.x += movement.x * moveSpeed * dt;
+                camera.position.z += movement.z * moveSpeed * dt;
+                camera.target.x += movement.x * moveSpeed * dt;
+                camera.target.z += movement.z * moveSpeed * dt;
+
+                // Drain energy while running
+                if (isRunning) {
+                    runEnergy -= ENERGY_DRAIN_RATE * dt;
+                    if (runEnergy < 0.0f) runEnergy = 0.0f;
+                }
+            }
+
+            // Regenerate energy when not running
+            if (!isRunning || !isMoving) {
+                runEnergy += ENERGY_REGEN_RATE * dt;
+                if (runEnergy > 100.0f) runEnergy = 100.0f;
+            }
+
+            // Mouse look (pitch and yaw)
+            Vector2 mouseDelta = GetMouseDelta();
+            float sensitivity = 0.003f;
+
+            // Yaw (rotate around Y axis) - positive mouse X = look right
+            float yaw = -mouseDelta.x * sensitivity;
+            Vector3 toTarget = { camera.target.x - camera.position.x, camera.target.y - camera.position.y, camera.target.z - camera.position.z };
+            float cosYaw = cosf(yaw);
+            float sinYaw = sinf(yaw);
+            float newX = toTarget.x * cosYaw + toTarget.z * sinYaw;
+            float newZ = -toTarget.x * sinYaw + toTarget.z * cosYaw;
+            toTarget.x = newX;
+            toTarget.z = newZ;
+
+            // Pitch (rotate up/down, clamped) - positive mouse Y = look down
+            float pitch = mouseDelta.y * sensitivity;
+            float currentPitch = asinf(toTarget.y / sqrtf(toTarget.x*toTarget.x + toTarget.y*toTarget.y + toTarget.z*toTarget.z));
+            float newPitch = currentPitch - pitch;
+            if (newPitch > 1.4f) newPitch = 1.4f;
+            if (newPitch < -1.4f) newPitch = -1.4f;
+
+            float horizDist = sqrtf(toTarget.x*toTarget.x + toTarget.z*toTarget.z);
+            float totalDist = sqrtf(toTarget.x*toTarget.x + toTarget.y*toTarget.y + toTarget.z*toTarget.z);
+            toTarget.y = sinf(newPitch) * totalDist;
+            float newHorizDist = cosf(newPitch) * totalDist;
+            if (horizDist > 0.001f) {
+                float scale = newHorizDist / horizDist;
+                toTarget.x *= scale;
+                toTarget.z *= scale;
+            }
+
+            camera.target.x = camera.position.x + toTarget.x;
+            camera.target.y = camera.position.y + toTarget.y;
+            camera.target.z = camera.position.z + toTarget.z;
 
             const float PLAYER_RADIUS = 0.3f;
             const float PLAYER_EYE_HEIGHT = 1.8f;
@@ -1165,7 +1257,7 @@ int main(int argc, char* argv[]) {
             EndMode3D();
 
             // HUD
-            DrawText("WASD to move, Mouse to look, Hold SHIFT for inventory, LMB to attack", 10, 10, 20, WHITE);
+            DrawText("WASD move, Mouse look, R toggle run, SHIFT inventory, LMB attack", 10, 10, 20, WHITE);
             if (mouseMode) {
                 DrawText("[INVENTORY MODE - Release SHIFT to resume]", 10, 35, 16, YELLOW);
             }
@@ -1183,6 +1275,37 @@ int main(int argc, char* argv[]) {
             char hpText[32];
             snprintf(hpText, sizeof(hpText), "HP: %d/%d", playerState.currentHP, playerState.maxHP);
             DrawText(hpText, hpBarX + 5, hpBarY + 3, 14, WHITE);
+
+            // Run energy circle (clock-style fill, above HP bar)
+            int energyCircleX = hpBarX + 20;
+            int energyCircleY = hpBarY - 35;
+            int energyRadius = 22;
+            float energyRatio = runEnergy / 100.0f;
+
+            // Run/Walk label above circle
+            const char* modeText = isRunning ? "RUN" : "Walk";
+            int modeW = MeasureText(modeText, 12);
+            DrawText(modeText, energyCircleX - modeW/2, energyCircleY - energyRadius - 16, 12, isRunning ? ORANGE : GREEN);
+
+            // Background circle (grey = depleted)
+            DrawCircle(energyCircleX, energyCircleY, energyRadius, DARKGRAY);
+            // Filled portion: green when walking, orange when running
+            // Starts from top (270°) and drains clockwise
+            Color energyColor = isRunning ? ORANGE : (Color){80, 180, 80, 255};
+            if (energyRatio > 0.01f) {
+                // 270° is top (12 o'clock). Draw counter-clockwise from (270 - fill) to 270
+                // This visually appears as clockwise drain from top
+                float fillAngle = energyRatio * 360.0f;
+                DrawCircleSector((Vector2){(float)energyCircleX, (float)energyCircleY}, energyRadius - 2,
+                                 270.0f - fillAngle, 270.0f, 32, energyColor);
+            }
+            // Border
+            DrawCircleLines(energyCircleX, energyCircleY, energyRadius, BLACK);
+            // Center text (percentage)
+            char energyText[8];
+            snprintf(energyText, sizeof(energyText), "%d", (int)runEnergy);
+            int textW = MeasureText(energyText, 14);
+            DrawText(energyText, energyCircleX - textW/2, energyCircleY - 7, 14, WHITE);
 
             // Attack cooldown indicator
             if (attackCooldown > 0) {
