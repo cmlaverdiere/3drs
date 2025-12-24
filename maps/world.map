@@ -77,11 +77,11 @@ water 12.0 -1.0 15.0 6.0 30.0
 water 14.0 -1.0 35.0 10.0 20.0
 
 # === BRIDGE over river (east of spawn) ===
-# Bridge deck spans the valley
-wall 12.0 0.0 0.0 10.0 0.4 5.0 wood
+# Bridge deck spans the valley (raised above water)
+wall 12.0 1.5 0.0 10.0 0.4 5.0 wood
 # Bridge railings
-wall 12.0 0.4 -2.3 10.0 0.8 0.3 wood
-wall 12.0 0.4 2.3 10.0 0.8 0.3 wood
+wall 12.0 1.9 -2.3 10.0 0.8 0.3 wood
+wall 12.0 1.9 2.3 10.0 0.8 0.3 wood
 
 # === LUMBRIDGE SWAMP ENTRANCE (southeast) ===
 # Dead trees / swamp markers

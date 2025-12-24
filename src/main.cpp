@@ -487,9 +487,9 @@ int main() {
             float playerFeetY = camera.position.y - PLAYER_EYE_HEIGHT;
 
             for (int i = 0; i < wallCount; i++) {
-                // Calculate wall top height
+                // Calculate wall top height (terrain + wall Y offset + wall height)
                 float wallTerrainY = GetTerrainHeight(walls[i].position.x, walls[i].position.z);
-                float wallTop = wallTerrainY + walls[i].height;
+                float wallTop = wallTerrainY + walls[i].position.y + walls[i].height;
 
                 // Only apply horizontal collision if player feet are below wall top
                 // This allows walking/jumping onto platforms
@@ -529,7 +529,7 @@ int main() {
             // Check if player can stand on top of any wall (platform/bridge)
             for (int i = 0; i < wallCount; i++) {
                 float wallTerrainY = GetTerrainHeight(walls[i].position.x, walls[i].position.z);
-                float wallTop = wallTerrainY + walls[i].height;
+                float wallTop = wallTerrainY + walls[i].position.y + walls[i].height;
                 float halfW = walls[i].width / 2.0f;
                 float halfD = walls[i].depth / 2.0f;
 
