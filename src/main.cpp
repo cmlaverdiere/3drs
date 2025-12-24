@@ -335,6 +335,14 @@ int main(int argc, char* argv[]) {
         ClearBackground(skyColor);
 
         BeginMode3D(camera);
+            // Draw sky (disable depth write and backface culling since we're inside the sphere)
+            SetSkyShaderUniforms(&lighting, resources.skyShader);
+            rlDisableDepthMask();
+            rlDisableBackfaceCulling();
+            DrawModel(resources.skyModel, camera.position, 1.0f, WHITE);
+            rlEnableBackfaceCulling();
+            rlEnableDepthMask();
+
             // Draw terrain
             DrawModel(resources.groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
 

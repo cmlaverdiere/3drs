@@ -77,6 +77,9 @@ void BindShadowMapToShader(LightingSystem* lighting, Shader shader);
 // Get sky color for current time of day
 Color GetSkyColor(float timeOfDay);
 
+// Set sky shader uniforms
+void SetSkyShaderUniforms(LightingSystem* lighting, Shader skyShader);
+
 // Cleanup
 void UnloadLightingSystem(LightingSystem* lighting);
 

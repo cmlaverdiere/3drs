@@ -289,6 +289,43 @@ Color GetSkyColor(float timeOfDay) {
     return colors.skyColor;
 }
 
+void SetSkyShaderUniforms(LightingSystem* lighting, Shader skyShader) {
+    // Get time-based colors
+    TimeColors colors = InterpolateTimeColors(lighting->timeOfDay);
+
+    // Zenith color (top of sky) - use the main sky color
+    Vector3 zenith = {
+        colors.skyColor.r / 255.0f,
+        colors.skyColor.g / 255.0f,
+        colors.skyColor.b / 255.0f
+    };
+
+    // Horizon color - blend sky with fog for natural horizon
+    Vector3 horizon = {
+        (colors.skyColor.r / 255.0f + colors.fogColor.x) * 0.5f,
+        (colors.skyColor.g / 255.0f + colors.fogColor.y) * 0.5f,
+        (colors.skyColor.b / 255.0f + colors.fogColor.z) * 0.5f
+    };
+
+    // Set uniforms
+    int sunDirLoc = GetShaderLocation(skyShader, "sunDirection");
+    int sunColorLoc = GetShaderLocation(skyShader, "sunColor");
+    int zenithLoc = GetShaderLocation(skyShader, "skyColorZenith");
+    int horizonLoc = GetShaderLocation(skyShader, "skyColorHorizon");
+    int timeLoc = GetShaderLocation(skyShader, "timeOfDay");
+
+    float sunDir[3] = {lighting->sunDirection.x, lighting->sunDirection.y, lighting->sunDirection.z};
+    float sunCol[3] = {lighting->sunColor.x, lighting->sunColor.y, lighting->sunColor.z};
+    float zenithCol[3] = {zenith.x, zenith.y, zenith.z};
+    float horizonCol[3] = {horizon.x, horizon.y, horizon.z};
+
+    SetShaderValue(skyShader, sunDirLoc, sunDir, SHADER_UNIFORM_VEC3);
+    SetShaderValue(skyShader, sunColorLoc, sunCol, SHADER_UNIFORM_VEC3);
+    SetShaderValue(skyShader, zenithLoc, zenithCol, SHADER_UNIFORM_VEC3);
+    SetShaderValue(skyShader, horizonLoc, horizonCol, SHADER_UNIFORM_VEC3);
+    SetShaderValue(skyShader, timeLoc, &lighting->timeOfDay, SHADER_UNIFORM_FLOAT);
+}
+
 void UnloadLightingSystem(LightingSystem* lighting) {
     UnloadRenderTexture(lighting->shadowMap);
 }

@@ -22,7 +22,11 @@ struct GameResources {
     Shader sandShader;
     Shader entityShader;  // For lit entities (enemies, trees, items)
     Shader depthShader;   // For shadow map pass
+    Shader skyShader;     // For sky rendering
     int waterTimeLoc;
+
+    // Sky
+    Model skyModel;
 
     // Models
     Model groundModel;

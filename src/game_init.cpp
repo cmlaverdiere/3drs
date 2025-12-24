@@ -79,6 +79,12 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     // Depth shader for shadow map pass
     res.depthShader = LoadShader("shaders/depth.vs", "shaders/depth.fs");
 
+    // Sky shader and model
+    res.skyShader = LoadShader("shaders/sky.vs", "shaders/sky.fs");
+    Mesh skyMesh = GenMeshSphere(500.0f, 32, 32);  // Large sphere around scene
+    res.skyModel = LoadModelFromMesh(skyMesh);
+    res.skyModel.materials[0].shader = res.skyShader;
+
     // Create primitive models for entity rendering (with proper normals)
     // Unit cube (1x1x1), will be scaled per draw call
     Mesh cubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
@@ -295,6 +301,8 @@ void CleanupGameResources(GameResources* res) {
 
     UnloadShader(res->entityShader);
     UnloadShader(res->depthShader);
+    UnloadShader(res->skyShader);
+    UnloadModel(res->skyModel);
 
     // Unload entity primitive models
     if (res->entityModels.initialized) {
