@@ -25,14 +25,14 @@ objective talk_to varrock_trader
 # 5. Travel to Al Kharid and talk to the silk merchant
 objective talk_to alkharid_silk
 
-# 6. Silk merchant wants a desert artifact
-objective item desert_artifact alkharid_silk
+# 6. Silk merchant wants a desert artifact (gives silk in exchange)
+objective item desert_artifact alkharid_silk gives silk
 
 # 7. Take the silk to Ali the spice trader
 objective talk_to alkharid_spice
 
 # 8. Ali wants the silk in exchange for spice
-objective item silk alkharid_spice
+objective item silk alkharid_spice gives spice
 
 # 9. Return to Hans with the goods
 objective talk_to hans

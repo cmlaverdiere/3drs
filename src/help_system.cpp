@@ -110,7 +110,7 @@ static void DescribeObjective(const QuestObjective* obj, char* desc, int maxLen)
 // Build the prompt with quest context (prevents spoilers)
 static void BuildHelpPrompt(char* prompt, int maxLen,
                            const Quest* quest, const QuestProgress* progress,
-                           const char* playerQuestion) {
+                           const PlayerState* playerState, const char* playerQuestion) {
     char questContext[2048];
     int pos = 0;
 
@@ -154,6 +154,32 @@ static void BuildHelpPrompt(char* prompt, int maxLen,
             "Current objective:\\n- %s\\n", desc);
     }
 
+    // Add player's relevant inventory items (helps Claude give context-aware advice)
+    pos += snprintf(questContext + pos, sizeof(questContext) - pos,
+        "\\nPlayer's relevant items: ");
+    bool hasRelevantItem = false;
+    for (int slot = 0; slot < INV_SLOTS; slot++) {
+        ItemType item = playerState->inventory[slot];
+        if (item != ITEM_NONE) {
+            // Check if this item is used in any objective of this quest
+            for (int obj = 0; obj < quest->objectiveCount; obj++) {
+                if (quest->objectives[obj].item == item) {
+                    if (hasRelevantItem) {
+                        pos += snprintf(questContext + pos, sizeof(questContext) - pos, ", ");
+                    }
+                    pos += snprintf(questContext + pos, sizeof(questContext) - pos,
+                        "%s", ITEM_NAMES[item]);
+                    hasRelevantItem = true;
+                    break;
+                }
+            }
+        }
+    }
+    if (!hasRelevantItem) {
+        pos += snprintf(questContext + pos, sizeof(questContext) - pos, "(none)");
+    }
+    pos += snprintf(questContext + pos, sizeof(questContext) - pos, "\\n");
+
     // Escape the player question
     char escapedQuestion[512];
     EscapeJsonString(playerQuestion, escapedQuestion, sizeof(escapedQuestion));
@@ -176,7 +202,8 @@ static void BuildHelpPrompt(char* prompt, int maxLen,
 
 // Worker thread function for API call
 static void HelpWorkerThread(HelpSystem* help, const Quest* quest,
-                            const QuestProgress* progress, const char* question) {
+                            const QuestProgress* progress,
+                            const PlayerState* playerState, const char* question) {
     // Get API key
     const char* apiKey = getenv("MY_ANTHROPIC_API_KEY");
     if (!apiKey || strlen(apiKey) == 0) {
@@ -190,7 +217,7 @@ static void HelpWorkerThread(HelpSystem* help, const Quest* quest,
 
     // Build the prompt
     char prompt[4096];
-    BuildHelpPrompt(prompt, sizeof(prompt), quest, progress, question);
+    BuildHelpPrompt(prompt, sizeof(prompt), quest, progress, playerState, question);
 
     // Build JSON body
     char jsonBody[8192];
@@ -389,7 +416,7 @@ static void SubmitHelpQuestion(HelpSystem* help, const Quest* quests,
     const QuestProgress* progress = &playerState->questProgress[help->activeQuestIndex];
 
     // Spawn worker thread
-    help->workerThread = new std::thread(HelpWorkerThread, help, quest, progress, question);
+    help->workerThread = new std::thread(HelpWorkerThread, help, quest, progress, playerState, question);
 }
 
 void UpdateHelpSystem(HelpSystem* help, const Quest* quests, int questCount,

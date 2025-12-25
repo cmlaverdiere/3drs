@@ -338,7 +338,8 @@ int main(int argc, char* argv[]) {
         }
 
         // Help system handling (takes priority when active)
-        if (helpSystem.state != HelpState::CLOSED) {
+        bool helpWasOpen = (helpSystem.state != HelpState::CLOSED);
+        if (helpWasOpen) {
             UpdateHelpSystem(&helpSystem, quests, questCount, &playerState);
         } else if (!dialogueState.active && !mouseMode && !playerRuntime.isDead) {
             // 'H' key opens help
@@ -348,7 +349,14 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // Handle help UI just closed - restore cursor state
+        bool helpJustClosed = helpWasOpen && (helpSystem.state == HelpState::CLOSED);
+        if (helpJustClosed && !mouseMode && !dialogueState.active) {
+            DisableCursor();
+        }
+
         // Quit confirmation handling
+        // Skip if help UI just closed (it consumed the ESC)
         if (showQuitConfirm) {
             if (IsKeyPressed(KEY_Y)) {
                 shouldQuit = true;
@@ -358,7 +366,7 @@ int main(int argc, char* argv[]) {
                     DisableCursor();
                 }
             }
-        } else if (IsKeyPressed(KEY_ESCAPE)) {
+        } else if (IsKeyPressed(KEY_ESCAPE) && !helpJustClosed) {
             // ESC priority: help UI > dialogue > show quit prompt
             if (helpSystem.state != HelpState::CLOSED) {
                 // Help system handles its own ESC
@@ -507,9 +515,9 @@ int main(int argc, char* argv[]) {
                             NPCType npcType = npcs[dialogueState.npcIndex].type;
 
                             // If in progress and can turn in, do it
-                            if (progress->state == QUEST_IN_PROGRESS &&
-                                CanAdvanceQuest(&quests[activeQuestIndex], progress, &playerState, npcType)) {
+                            bool canAdvance = CanAdvanceQuest(&quests[activeQuestIndex], progress, &playerState, npcType);
 
+                            if (progress->state == QUEST_IN_PROGRESS && canAdvance) {
                                 bool completed = AdvanceQuest(&quests[activeQuestIndex],
                                                               progress, &playerState, npcType);
 

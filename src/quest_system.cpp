@@ -166,11 +166,13 @@ bool LoadQuest(const char* filepath, Quest* quest) {
         else if (strcmp(directive, "objective") == 0) {
             // New format: objective <type> <target> [npc]
             // OR legacy format: objective <item_name>
-            char arg1[32], arg2[32], arg3[32];
-            int parsed = sscanf(line, "objective %31s %31s %31s", arg1, arg2, arg3);
+            // New extended format: objective item <item> <npc> gives <reward_item>
+            char arg1[32] = {0}, arg2[32] = {0}, arg3[32] = {0}, arg4[32] = {0}, arg5[32] = {0};
+            int parsed = sscanf(line, "objective %31s %31s %31s %31s %31s", arg1, arg2, arg3, arg4, arg5);
 
             if (quest->objectiveCount < MAX_QUEST_OBJECTIVES) {
                 QuestObjective* obj = &quest->objectives[quest->objectiveCount];
+                obj->givesItem = ITEM_NONE;  // Default: no item given in exchange
 
                 if (parsed >= 2 && (strcmp(arg1, "item") == 0 || strcmp(arg1, "talk_to") == 0)) {
                     // New format
@@ -178,6 +180,10 @@ bool LoadQuest(const char* filepath, Quest* quest) {
                     if (obj->type == OBJ_ITEM) {
                         obj->item = ParseItemType(arg2);
                         obj->targetNPC = (parsed >= 3) ? ParseNPCType(arg3) : quest->startNPC;
+                        // Check for "gives <item>" clause
+                        if (parsed >= 5 && strcmp(arg4, "gives") == 0) {
+                            obj->givesItem = ParseItemType(arg5);
+                        }
                     } else if (obj->type == OBJ_TALK_TO) {
                         obj->item = ITEM_NONE;
                         obj->targetNPC = ParseNPCType(arg2);
@@ -463,6 +469,10 @@ bool AdvanceQuest(const Quest* quest, QuestProgress* progress,
                 if (HasItem(state, objective->item)) {
                     // Remove the item
                     RemoveItem(state, objective->item);
+                    // Give exchange item if specified
+                    if (objective->givesItem != ITEM_NONE) {
+                        AddToInventory(state, objective->givesItem);
+                    }
                 }
             }
             // For OBJ_TALK_TO, no item to remove - just talking is the action

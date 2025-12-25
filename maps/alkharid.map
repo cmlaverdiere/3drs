@@ -126,8 +126,8 @@ item bones 62.0 0.0 -10.0
 # Silk Merchant - Near silk trader stall (center-west)
 npc alkharid_silk -25.0 0.0 3.0
 
-# Ali the Spice Trader - Near furnace area
-npc alkharid_spice -15.0 0.0 18.0
+# Ali the Spice Trader - East of furnace (outside the building)
+npc alkharid_spice -8.0 0.0 18.0
 
 # === PALM TREES (sparse desert vegetation) ===
 # Oasis area (small cluster near city)
