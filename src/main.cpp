@@ -366,7 +366,7 @@ int main(int argc, char* argv[]) {
                         ? questDialogueLines[0]
                         : NPC_CONFIGS[speakNpcType].dialogueLines[0];
                     if (firstLine) {
-                        SpeakText(firstLine, GetVoiceForNPC(speakNpcType));
+                        SpeakAsNPC(firstLine, speakNpcType);
                     }
                 }
             }
@@ -454,7 +454,7 @@ int main(int argc, char* argv[]) {
                             ? questDialogueLines[dialogueState.currentLine]
                             : NPC_CONFIGS[speakNpc].dialogueLines[dialogueState.currentLine];
                         if (nextLine) {
-                            SpeakText(nextLine, GetVoiceForNPC(speakNpc));
+                            SpeakAsNPC(nextLine, speakNpc);
                         }
                     } else {
                         // Last line - handle quest advancement or close

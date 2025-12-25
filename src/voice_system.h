@@ -29,4 +29,10 @@ bool IsSpeaking();
 // Get the appropriate voice type for an NPC
 VoiceType GetVoiceForNPC(NPCType npc);
 
+// Get pitch modifier for an NPC (1.0 = normal, higher = higher pitch)
+float GetPitchForNPC(NPCType npc);
+
+// Speak with NPC-specific voice and pitch
+void SpeakAsNPC(const char* text, NPCType npc);
+
 #endif // VOICE_SYSTEM_H

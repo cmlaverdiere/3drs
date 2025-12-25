@@ -2,16 +2,38 @@
 #include <piper.h>
 #include <raylib.h>
 #include <vector>
+#include <string>
 #include <cstdio>
 #include <cstring>
 
 // Voice model paths (relative to executable)
 static const char* VOICE_MODELS[] = {
-    "voices/en_US-ryan-medium.onnx",  // MALE_DEEP
-    "voices/en_US-joe-medium.onnx"    // MALE_NEUTRAL
+    "voices/en_US-ryan-medium.onnx",  // MALE_DEEP - authoritative, guard-like
+    "voices/en_US-joe-medium.onnx"    // MALE_NEUTRAL - friendly
 };
 
 static const char* ESPEAK_DATA_PATH = "external/piper/libpiper/install/espeak-ng-data";
+
+// Preprocess text for more natural TTS pauses
+static std::string PreprocessTextForSpeech(const char* text) {
+    std::string result(text);
+
+    // Replace " - " with "... " for a natural pause at clause breaks
+    size_t pos = 0;
+    while ((pos = result.find(" - ", pos)) != std::string::npos) {
+        result.replace(pos, 3, "... ");
+        pos += 4;
+    }
+
+    // Also handle "--" (em dash)
+    pos = 0;
+    while ((pos = result.find("--", pos)) != std::string::npos) {
+        result.replace(pos, 2, "... ");
+        pos += 4;
+    }
+
+    return result;
+}
 
 // Piper synthesizers for each voice type
 static piper_synthesizer* synthesizers[static_cast<int>(VoiceType::VOICE_TYPE_COUNT)] = {nullptr};
@@ -78,11 +100,18 @@ void SpeakText(const char* text, VoiceType voice) {
     // Stop any current voice
     StopSpeaking();
 
-    printf("[Voice] Synthesizing: \"%s\"\n", text);
+    // Preprocess text for natural pauses at dashes/clauses
+    std::string processedText = PreprocessTextForSpeech(text);
 
-    // Start synthesis
+    printf("[Voice] Synthesizing: \"%s\"\n", processedText.c_str());
+
+    // Start synthesis with tuned options for more natural speech
     piper_synthesize_options options = piper_default_synthesize_options(synth);
-    int result = piper_synthesize_start(synth, text, &options);
+    options.length_scale = 1.05f;    // Slightly slower for more natural pacing
+    options.noise_scale = 0.667f;    // Recommended for single-speaker models
+    options.noise_w_scale = 0.8f;    // More phoneme length variation
+
+    int result = piper_synthesize_start(synth, processedText.c_str(), &options);
     if (result != PIPER_OK) {
         printf("[Voice] Failed to start synthesis\n");
         return;
@@ -92,9 +121,21 @@ void SpeakText(const char* text, VoiceType voice) {
     std::vector<float> samples;
     int sampleRate = 22050;  // Default, will be updated from chunk
 
+    // Silence samples to add between sentence chunks (100ms at 22050Hz)
+    const int INTER_SENTENCE_SILENCE = 2205;
+
     piper_audio_chunk chunk;
+    bool firstChunk = true;
     while (piper_synthesize_next(synth, &chunk) == PIPER_OK) {
         sampleRate = chunk.sample_rate;
+
+        // Add brief silence between sentences for more natural flow
+        if (!firstChunk && chunk.num_samples > 0) {
+            int silenceSamples = static_cast<int>(sampleRate * 0.08f);  // 80ms pause
+            samples.insert(samples.end(), silenceSamples, 0.0f);
+        }
+        firstChunk = false;
+
         samples.insert(samples.end(), chunk.samples, chunk.samples + chunk.num_samples);
     }
 
@@ -136,6 +177,22 @@ void SpeakText(const char* text, VoiceType voice) {
     printf("[Voice] Playing audio\n");
 }
 
+// Current pitch for the playing voice (used by SpeakAsNPC)
+static float currentPitch = 1.0f;
+
+void SpeakAsNPC(const char* text, NPCType npc) {
+    VoiceType voice = GetVoiceForNPC(npc);
+    float pitch = GetPitchForNPC(npc);
+
+    SpeakText(text, voice);
+
+    // Apply NPC-specific pitch
+    if (voiceLoaded && pitch != 1.0f) {
+        SetSoundPitch(currentVoice, pitch);
+    }
+    currentPitch = pitch;
+}
+
 void StopSpeaking() {
     if (voiceLoaded) {
         if (IsSoundPlaying(currentVoice)) {
@@ -156,5 +213,30 @@ VoiceType GetVoiceForNPC(NPCType npc) {
             return VoiceType::MALE_DEEP;
         default:
             return VoiceType::MALE_NEUTRAL;
+    }
+}
+
+float GetPitchForNPC(NPCType npc) {
+    // Slight pitch variations to give each NPC a distinct voice
+    // Range: 0.85 (deeper) to 1.15 (higher)
+    switch (npc) {
+        case NPC_HANS:
+            return 1.05f;   // Slightly higher, friendly
+        case NPC_SHOPKEEPER:
+            return 0.95f;   // Slightly lower, merchant
+        case NPC_GUARD:
+            return 0.88f;   // Deep, authoritative
+        case NPC_COOK:
+            return 1.10f;   // Higher, frantic
+        case NPC_VARROCK_TRADER:
+            return 0.92f;   // Lower, businessman
+        case NPC_VARROCK_BARTENDER:
+            return 1.00f;   // Normal
+        case NPC_ALKHARID_SILK:
+            return 1.08f;   // Higher, eager merchant
+        case NPC_ALKHARID_SPICE:
+            return 0.98f;   // Slightly lower
+        default:
+            return 1.0f;
     }
 }
