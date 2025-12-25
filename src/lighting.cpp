@@ -336,3 +336,187 @@ TimeOfDay GetTimeOfDayPhase(float timeOfDay) {
     if (timeOfDay < 0.8f) return TIME_DUSK;
     return TIME_NIGHT;
 }
+
+// ============================================================================
+// Post-Processing System Implementation
+// ============================================================================
+
+void InitPostProcessSystem(PostProcessSystem* pp, int screenWidth, int screenHeight) {
+    pp->screenWidth = screenWidth;
+    pp->screenHeight = screenHeight;
+
+    // Create scene render texture (full resolution)
+    pp->sceneTexture = LoadRenderTexture(screenWidth, screenHeight);
+
+    // Create bloom textures (half resolution for performance)
+    int halfWidth = screenWidth / 2;
+    int halfHeight = screenHeight / 2;
+    pp->bloomBright = LoadRenderTexture(halfWidth, halfHeight);
+    pp->bloomBlur[0] = LoadRenderTexture(halfWidth, halfHeight);
+    pp->bloomBlur[1] = LoadRenderTexture(halfWidth, halfHeight);
+
+    // Load bloom shaders
+    pp->bloomExtractShader = LoadShader("shaders/fullscreen.vs", "shaders/bloom_extract.fs");
+    pp->bloomBlurShader = LoadShader("shaders/fullscreen.vs", "shaders/bloom_blur.fs");
+    pp->compositeShader = LoadShader("shaders/fullscreen.vs", "shaders/composite.fs");
+
+    // Set default bloom parameters
+    pp->bloomThreshold = 0.7f;
+    pp->bloomIntensity = 1.2f;
+    pp->bloomEnabled = true;
+
+    // SSAO will be initialized separately (Phase 3)
+    pp->ssaoEnabled = false;
+
+    pp->initialized = true;
+
+    TraceLog(LOG_INFO, "Post-processing system initialized (%dx%d, bloom half-res: %dx%d)",
+             screenWidth, screenHeight, halfWidth, halfHeight);
+}
+
+void ResizePostProcessBuffers(PostProcessSystem* pp, int width, int height) {
+    if (!pp->initialized) return;
+
+    // Unload existing textures
+    UnloadRenderTexture(pp->sceneTexture);
+    UnloadRenderTexture(pp->bloomBright);
+    UnloadRenderTexture(pp->bloomBlur[0]);
+    UnloadRenderTexture(pp->bloomBlur[1]);
+
+    // Recreate at new size
+    pp->screenWidth = width;
+    pp->screenHeight = height;
+    pp->sceneTexture = LoadRenderTexture(width, height);
+
+    int halfWidth = width / 2;
+    int halfHeight = height / 2;
+    pp->bloomBright = LoadRenderTexture(halfWidth, halfHeight);
+    pp->bloomBlur[0] = LoadRenderTexture(halfWidth, halfHeight);
+    pp->bloomBlur[1] = LoadRenderTexture(halfWidth, halfHeight);
+}
+
+void RenderBloom(PostProcessSystem* pp) {
+    if (!pp->bloomEnabled || !pp->initialized) return;
+
+    int halfWidth = pp->screenWidth / 2;
+    int halfHeight = pp->screenHeight / 2;
+
+    // Pass 1: Extract bright pixels
+    BeginTextureMode(pp->bloomBright);
+    ClearBackground(BLACK);
+    BeginShaderMode(pp->bloomExtractShader);
+        int thresholdLoc = GetShaderLocation(pp->bloomExtractShader, "threshold");
+        SetShaderValue(pp->bloomExtractShader, thresholdLoc, &pp->bloomThreshold, SHADER_UNIFORM_FLOAT);
+        // Draw scene texture to extract bright areas (flip Y for render texture)
+        DrawTextureRec(pp->sceneTexture.texture,
+                       (Rectangle){0, 0, (float)pp->screenWidth, (float)-pp->screenHeight},
+                       (Vector2){0, 0}, WHITE);
+    EndShaderMode();
+    EndTextureMode();
+
+    // Pass 2: Horizontal blur
+    BeginTextureMode(pp->bloomBlur[0]);
+    ClearBackground(BLACK);
+    BeginShaderMode(pp->bloomBlurShader);
+        float direction[2] = {1.0f, 0.0f};
+        float texelSize[2] = {1.0f / halfWidth, 1.0f / halfHeight};
+        int dirLoc = GetShaderLocation(pp->bloomBlurShader, "direction");
+        int texelLoc = GetShaderLocation(pp->bloomBlurShader, "texelSize");
+        SetShaderValue(pp->bloomBlurShader, dirLoc, direction, SHADER_UNIFORM_VEC2);
+        SetShaderValue(pp->bloomBlurShader, texelLoc, texelSize, SHADER_UNIFORM_VEC2);
+        DrawTextureRec(pp->bloomBright.texture,
+                       (Rectangle){0, 0, (float)halfWidth, (float)-halfHeight},
+                       (Vector2){0, 0}, WHITE);
+    EndShaderMode();
+    EndTextureMode();
+
+    // Pass 3: Vertical blur
+    BeginTextureMode(pp->bloomBlur[1]);
+    ClearBackground(BLACK);
+    BeginShaderMode(pp->bloomBlurShader);
+        direction[0] = 0.0f;
+        direction[1] = 1.0f;
+        SetShaderValue(pp->bloomBlurShader, dirLoc, direction, SHADER_UNIFORM_VEC2);
+        DrawTextureRec(pp->bloomBlur[0].texture,
+                       (Rectangle){0, 0, (float)halfWidth, (float)-halfHeight},
+                       (Vector2){0, 0}, WHITE);
+    EndShaderMode();
+    EndTextureMode();
+
+    // Additional blur passes for smoother result
+    for (int i = 0; i < 2; i++) {
+        // Horizontal
+        BeginTextureMode(pp->bloomBlur[0]);
+        BeginShaderMode(pp->bloomBlurShader);
+            direction[0] = 1.0f;
+            direction[1] = 0.0f;
+            SetShaderValue(pp->bloomBlurShader, dirLoc, direction, SHADER_UNIFORM_VEC2);
+            DrawTextureRec(pp->bloomBlur[1].texture,
+                           (Rectangle){0, 0, (float)halfWidth, (float)-halfHeight},
+                           (Vector2){0, 0}, WHITE);
+        EndShaderMode();
+        EndTextureMode();
+
+        // Vertical
+        BeginTextureMode(pp->bloomBlur[1]);
+        BeginShaderMode(pp->bloomBlurShader);
+            direction[0] = 0.0f;
+            direction[1] = 1.0f;
+            SetShaderValue(pp->bloomBlurShader, dirLoc, direction, SHADER_UNIFORM_VEC2);
+            DrawTextureRec(pp->bloomBlur[0].texture,
+                           (Rectangle){0, 0, (float)halfWidth, (float)-halfHeight},
+                           (Vector2){0, 0}, WHITE);
+        EndShaderMode();
+        EndTextureMode();
+    }
+}
+
+void RenderSSAO(PostProcessSystem* pp, Camera3D camera, Matrix projection) {
+    // SSAO implementation will be added in Phase 3
+    (void)pp;
+    (void)camera;
+    (void)projection;
+}
+
+void CompositeScene(PostProcessSystem* pp) {
+    if (!pp->initialized) return;
+
+    // Draw scene (flip Y for render texture)
+    DrawTextureRec(pp->sceneTexture.texture,
+                   (Rectangle){0, 0, (float)pp->screenWidth, (float)-pp->screenHeight},
+                   (Vector2){0, 0}, WHITE);
+
+    if (pp->bloomEnabled) {
+        // Draw bloom as additive overlay (scale up from half-res)
+        BeginBlendMode(BLEND_ADDITIVE);
+        DrawTexturePro(pp->bloomBlur[1].texture,
+                       (Rectangle){0, 0, (float)(pp->screenWidth/2), (float)-(pp->screenHeight/2)},
+                       (Rectangle){0, 0, (float)pp->screenWidth, (float)pp->screenHeight},
+                       (Vector2){0, 0}, 0.0f,
+                       (Color){255, 255, 255, (unsigned char)(pp->bloomIntensity * 200)});
+        EndBlendMode();
+    }
+}
+
+void UnloadPostProcessSystem(PostProcessSystem* pp) {
+    if (!pp->initialized) return;
+
+    UnloadRenderTexture(pp->sceneTexture);
+    UnloadRenderTexture(pp->bloomBright);
+    UnloadRenderTexture(pp->bloomBlur[0]);
+    UnloadRenderTexture(pp->bloomBlur[1]);
+
+    UnloadShader(pp->bloomExtractShader);
+    UnloadShader(pp->bloomBlurShader);
+    UnloadShader(pp->compositeShader);
+
+    if (pp->ssaoEnabled) {
+        UnloadRenderTexture(pp->ssaoTexture);
+        UnloadRenderTexture(pp->ssaoBlurTexture);
+        UnloadTexture(pp->noiseTexture);
+        UnloadShader(pp->ssaoShader);
+        UnloadShader(pp->ssaoBlurShader);
+    }
+
+    pp->initialized = false;
+}

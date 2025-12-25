@@ -116,6 +116,10 @@ int main(int argc, char* argv[]) {
     LightingSystem lighting = {};
     InitLightingSystem(&lighting);
 
+    // Initialize post-processing system (bloom, SSAO)
+    PostProcessSystem postProcess = {};
+    InitPostProcessSystem(&postProcess, screenWidth, screenHeight);
+
     // Apply saved time of day
     lighting.timeOfDay = playerState.timeOfDay;
 
@@ -841,8 +845,8 @@ int main(int argc, char* argv[]) {
             BindShadowMapToShader(&lighting, resources.wallShaders[i]);
         }
 
-        // Rendering
-        BeginDrawing();
+        // ========== RENDER SCENE TO TEXTURE (for post-processing) ==========
+        BeginTextureMode(postProcess.sceneTexture);
         Color skyColor = GetSkyColor(lighting.timeOfDay);
         ClearBackground(skyColor);
 
@@ -921,6 +925,15 @@ int main(int argc, char* argv[]) {
                 DrawModel(resources.waterModels[i], waterBodies[i].position, 1.0f, WHITE);
             }
         EndMode3D();
+        EndTextureMode();
+
+        // ========== POST-PROCESSING ==========
+        RenderBloom(&postProcess);
+
+        // ========== FINAL COMPOSITE + HUD ==========
+        BeginDrawing();
+        ClearBackground(BLACK);
+        CompositeScene(&postProcess);
 
         // Draw minimap
         float playerYaw = atan2f(camera.target.x - camera.position.x,
@@ -1024,6 +1037,7 @@ int main(int argc, char* argv[]) {
 
     // Cleanup
     ShutdownHelpSystem(&helpSystem);
+    UnloadPostProcessSystem(&postProcess);
     UnloadLightingSystem(&lighting);
     CleanupGameResources(&resources);
     CloseWindow();

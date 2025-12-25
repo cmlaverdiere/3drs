@@ -24,15 +24,34 @@ void main() {
     vec3 baseColor = colDiffuse.rgb;
     float alpha = colDiffuse.a;
 
-    // Normalize the interpolated normal
-    vec3 normal = normalize(fragNormal);
+    // Normalize vectors
+    vec3 N = normalize(fragNormal);
+    vec3 L = normalize(-sunDirection);
+    vec3 V = normalize(viewPos - fragWorldPos);
+    vec3 H = normalize(L + V);  // Half vector for Blinn-Phong
 
-    // Directional lighting (sun)
-    float NdotL = max(dot(normal, -sunDirection), 0.0);
+    // Diffuse lighting (sun)
+    float NdotL = max(dot(N, L), 0.0);
     vec3 diffuse = sunColor * NdotL;
 
-    // Combine ambient and diffuse
-    vec3 litColor = baseColor * (ambientColor + diffuse);
+    // Specular lighting (Blinn-Phong)
+    float NdotH = max(dot(N, H), 0.0);
+    float specularPower = 32.0;
+    float specularStrength = 0.4;
+    float spec = pow(NdotH, specularPower) * specularStrength * NdotL;
+    vec3 specular = sunColor * spec;
+
+    // Rim lighting (Fresnel-based backlight)
+    float NdotV = max(dot(N, V), 0.0);
+    float rimPower = 3.0;
+    float rimStrength = 0.25;
+    float rim = pow(1.0 - NdotV, rimPower) * rimStrength;
+    // Rim is stronger when lit from behind
+    float rimLight = max(0.0, dot(N, -L) * 0.5 + 0.5);
+    vec3 rimColor = sunColor * rim * rimLight;
+
+    // Combine lighting
+    vec3 litColor = baseColor * (ambientColor + diffuse) + specular + rimColor;
 
     // Apply fog
     float dist = length(viewPos - fragWorldPos);

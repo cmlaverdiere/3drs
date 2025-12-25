@@ -86,4 +86,61 @@ void UnloadLightingSystem(LightingSystem* lighting);
 // Get current time of day phase
 TimeOfDay GetTimeOfDayPhase(float timeOfDay);
 
+// ============================================================================
+// Post-Processing System (Bloom + SSAO)
+// ============================================================================
+
+struct PostProcessSystem {
+    // Scene capture (render target instead of backbuffer)
+    RenderTexture2D sceneTexture;
+
+    // Bloom
+    RenderTexture2D bloomBright;     // Half-res bright extraction
+    RenderTexture2D bloomBlur[2];    // Half-res ping-pong blur
+    Shader bloomExtractShader;
+    Shader bloomBlurShader;
+    Shader compositeShader;
+    float bloomThreshold;            // Brightness cutoff (default: 0.8)
+    float bloomIntensity;            // Bloom strength (default: 1.0)
+    bool bloomEnabled;
+
+    // SSAO
+    RenderTexture2D ssaoTexture;     // Raw AO result
+    RenderTexture2D ssaoBlurTexture; // Blurred AO
+    Texture2D noiseTexture;          // 4x4 rotation noise
+    Shader ssaoShader;
+    Shader ssaoBlurShader;
+    Vector3 ssaoKernel[32];          // Hemisphere samples
+    float ssaoRadius;                // World-space sample radius
+    float ssaoBias;                  // Depth bias
+    bool ssaoEnabled;
+
+    // Shared fullscreen vertex shader
+    Shader fullscreenVS;             // Not actually used - we use default
+
+    // Screen dimensions
+    int screenWidth;
+    int screenHeight;
+
+    bool initialized;
+};
+
+// Initialize post-processing system (call after window creation)
+void InitPostProcessSystem(PostProcessSystem* pp, int screenWidth, int screenHeight);
+
+// Resize buffers if window size changes
+void ResizePostProcessBuffers(PostProcessSystem* pp, int width, int height);
+
+// Render bloom effect (call after scene is rendered to sceneTexture)
+void RenderBloom(PostProcessSystem* pp);
+
+// Render SSAO (call after scene, before bloom)
+void RenderSSAO(PostProcessSystem* pp, Camera3D camera, Matrix projection);
+
+// Draw final composite to screen
+void CompositeScene(PostProcessSystem* pp);
+
+// Cleanup
+void UnloadPostProcessSystem(PostProcessSystem* pp);
+
 #endif
