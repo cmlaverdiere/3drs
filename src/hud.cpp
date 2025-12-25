@@ -530,6 +530,32 @@ static void DrawItemIcon(ItemType item, int cx, int cy) {
         // Handle
         DrawRectangle(cx - 2, cy + 4, 4, 10, adamantHandle);
         DrawRectangle(cx - 6, cy + 2, 12, 3, adamantHandle);
+    } else if (item == ITEM_BRONZE_PICKAXE) {
+        Color bronzeHead = { 205, 127, 50, 255 };
+        Color woodHandle = { 101, 67, 33, 255 };
+        // Handle (diagonal)
+        DrawRectangle(cx - 12, cy - 2, 20, 4, woodHandle);
+        // Pickaxe head
+        DrawRectangle(cx + 4, cy - 10, 4, 8, bronzeHead);
+        DrawRectangle(cx + 4, cy + 2, 4, 8, bronzeHead);
+        DrawRectangle(cx + 8, cy - 8, 6, 4, bronzeHead);
+        DrawRectangle(cx + 8, cy + 4, 6, 4, bronzeHead);
+    } else if (item == ITEM_COPPER_ORE) {
+        Color copperColor = { 180, 100, 50, 255 };
+        Color stoneColor = { 100, 90, 80, 255 };
+        // Rock chunk with copper veins
+        DrawRectangle(cx - 10, cy - 6, 20, 12, stoneColor);
+        DrawRectangle(cx - 8, cy - 8, 6, 4, stoneColor);
+        DrawCircle(cx + 2, cy - 2, 4, copperColor);
+        DrawCircle(cx - 4, cy + 2, 3, copperColor);
+    } else if (item == ITEM_TIN_ORE) {
+        Color tinColor = { 150, 150, 140, 255 };
+        Color stoneColor = { 90, 85, 80, 255 };
+        // Rock chunk with tin veins
+        DrawRectangle(cx - 10, cy - 6, 20, 12, stoneColor);
+        DrawRectangle(cx - 8, cy - 8, 6, 4, stoneColor);
+        DrawCircle(cx + 2, cy - 2, 4, tinColor);
+        DrawCircle(cx - 4, cy + 2, 3, tinColor);
     }
 }
 

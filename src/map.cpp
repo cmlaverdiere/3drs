@@ -85,6 +85,12 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         map.itemTypes[map.itemCount] = ITEM_CHITIN;
                     } else if (strcmp(itemName, "iron_2h_sword") == 0) {
                         map.itemTypes[map.itemCount] = ITEM_IRON_2H_SWORD;
+                    } else if (strcmp(itemName, "bronze_pickaxe") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_BRONZE_PICKAXE;
+                    } else if (strcmp(itemName, "copper_ore") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_COPPER_ORE;
+                    } else if (strcmp(itemName, "tin_ore") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_TIN_ORE;
                     } else {
                         map.itemTypes[map.itemCount] = ITEM_NONE;
                     }
@@ -181,6 +187,26 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                 }
             } else {
                 TraceLog(LOG_WARNING, "MAX_TREES (%d) exceeded, skipping oak tree", MAX_TREES);
+            }
+        }
+        else if (strcmp(type, "rock") == 0) {
+            // Format: rock <type> x y z
+            if (map.rockCount < MAX_ROCKS) {
+                char rockName[64];
+                float x, y, z;
+                if (sscanf(line, "%*s %63s %f %f %f", rockName, &x, &y, &z) == 4) {
+                    RockType rockType = ROCK_COPPER; // default
+                    if (strcmp(rockName, "copper") == 0) {
+                        rockType = ROCK_COPPER;
+                    } else if (strcmp(rockName, "tin") == 0) {
+                        rockType = ROCK_TIN;
+                    }
+                    map.rockSpawns[map.rockCount] = { x + offsetX, y, z + offsetZ };
+                    map.rockTypes[map.rockCount] = rockType;
+                    map.rockCount++;
+                }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_ROCKS (%d) exceeded, skipping rock", MAX_ROCKS);
             }
         }
         else if (strcmp(type, "water") == 0) {
@@ -315,6 +341,7 @@ bool LoadMap(const char* filename, MapData& map) {
     map.enemyCount = 0;
     map.wallCount = 0;
     map.treeCount = 0;
+    map.rockCount = 0;
     map.waterCount = 0;
     map.sandCount = 0;
     map.valleyCount = 0;
@@ -325,8 +352,8 @@ bool LoadMap(const char* filename, MapData& map) {
     bool success = LoadMapFile(filename, map, 0.0f, 0.0f, nullptr);
 
     if (success) {
-        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d sand, %d valleys, %d npcs, %d lights)",
-            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.sandCount, map.valleyCount, map.npcCount, map.lightCount);
+        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d rocks, %d water, %d sand, %d valleys, %d npcs, %d lights)",
+            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.rockCount, map.waterCount, map.sandCount, map.valleyCount, map.npcCount, map.lightCount);
     }
 
     return success;

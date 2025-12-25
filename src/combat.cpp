@@ -7,6 +7,7 @@
 bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                          Enemy* enemies, int enemyCount,
                          Tree* trees, int treeCount,
+                         Rock* rocks, int rockCount,
                          WorldItem* worldItems, int* worldItemCount,
                          DamageIndicator* damageIndicators,
                          XPPopup* xpPopups,
@@ -86,7 +87,53 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
         }
     }
 
-    // If no tree was chopped, try attacking enemies
+    // If wielding pickaxe, check for rocks
+    if (!actionTaken && state->equippedWeapon == ITEM_BRONZE_PICKAXE) {
+        Rock* targetRock = nullptr;
+        float closestRockDist = MINE_RANGE + 1.0f;
+
+        for (int i = 0; i < rockCount; i++) {
+            if (rocks[i].alive) {
+                Vector3 rockPos = rocks[i].position;
+                rockPos.y = GetTerrainHeight(rockPos.x, rockPos.z);
+                float dist = Distance3D(camera->position, rockPos);
+                if (dist <= MINE_RANGE && dist < closestRockDist && IsFacing(*camera, rockPos)) {
+                    targetRock = &rocks[i];
+                    closestRockDist = dist;
+                }
+            }
+        }
+
+        if (targetRock != nullptr) {
+            actionTaken = true;
+            targetRock->health--;
+            PlaySoundEffect(SFX_HIT);
+
+            if (targetRock->health <= 0) {
+                targetRock->alive = false;
+                targetRock->respawnTimer = ROCK_RESPAWN_TIME;
+
+                // Spawn ore based on rock type
+                if (*worldItemCount < MAX_WORLD_ITEMS) {
+                    worldItems[*worldItemCount].type =
+                        (targetRock->type == ROCK_COPPER) ? ITEM_COPPER_ORE : ITEM_TIN_ORE;
+                    worldItems[*worldItemCount].position = targetRock->position;
+                    worldItems[*worldItemCount].position.x += RandomFloat(-0.3f, 0.3f);
+                    worldItems[*worldItemCount].position.z += RandomFloat(-0.3f, 0.3f);
+                    worldItems[*worldItemCount].position.y = 0.0f;
+                    worldItems[*worldItemCount].pickedUp = false;
+                    worldItems[*worldItemCount].canRespawn = false;  // Ore doesn't respawn as ground item
+                    worldItems[*worldItemCount].respawnTimer = 0.0f;
+                    (*worldItemCount)++;
+                }
+
+                // Award Mining XP
+                AwardSkillXP(state, SKILL_MINING, MINING_XP, xpPopups, levelUpNotif);
+            }
+        }
+    }
+
+    // If no tree was chopped or rock was mined, try attacking enemies
     if (!actionTaken) {
         int combatLevel = GetLevelFromXP(state->skillXP[SKILL_COMBAT]);
         int maxHit = CalculateMaxHit(combatLevel);
@@ -173,6 +220,18 @@ void UpdateTrees(Tree* trees, int treeCount, float dt) {
             if (trees[i].respawnTimer <= 0) {
                 trees[i].health = TREE_MAX_HEALTH;
                 trees[i].alive = true;
+            }
+        }
+    }
+}
+
+void UpdateRocks(Rock* rocks, int rockCount, float dt) {
+    for (int i = 0; i < rockCount; i++) {
+        if (!rocks[i].alive) {
+            rocks[i].respawnTimer -= dt;
+            if (rocks[i].respawnTimer <= 0) {
+                rocks[i].health = ROCK_MAX_HEALTH;
+                rocks[i].alive = true;
             }
         }
     }

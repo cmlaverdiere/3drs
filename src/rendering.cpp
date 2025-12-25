@@ -486,6 +486,34 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
             DrawScimitar(models, pos, adamantBlade, adamantHandle);
             break;
         }
+        case ITEM_BRONZE_PICKAXE: {
+            Color bronzeHead = { 205, 127, 50, 255 };
+            Color woodHandle = { 101, 67, 33, 255 };
+            // Handle
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.04f, pos.z}, 0.5f, 0.06f, 0.06f, woodHandle);
+            // Pickaxe head (two sides)
+            DrawModelCube(models, (Vector3){pos.x + 0.2f, pos.y + 0.1f, pos.z}, 0.2f, 0.06f, 0.15f, bronzeHead);
+            DrawModelCube(models, (Vector3){pos.x + 0.3f, pos.y + 0.1f, pos.z}, 0.08f, 0.04f, 0.08f, bronzeHead);
+            break;
+        }
+        case ITEM_COPPER_ORE: {
+            Color copperColor = { 180, 100, 50, 255 };
+            Color stoneColor = { 100, 90, 80, 255 };
+            // Small ore chunk
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.1f, pos.z}, 0.22f, 0.18f, 0.2f, stoneColor);
+            DrawModelSphere(models, (Vector3){pos.x + 0.05f, pos.y + 0.12f, pos.z + 0.05f}, 0.08f, copperColor);
+            DrawModelSphere(models, (Vector3){pos.x - 0.04f, pos.y + 0.1f, pos.z - 0.03f}, 0.06f, copperColor);
+            break;
+        }
+        case ITEM_TIN_ORE: {
+            Color tinColor = { 150, 150, 140, 255 };
+            Color stoneColor = { 90, 85, 80, 255 };
+            // Small ore chunk
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.1f, pos.z}, 0.22f, 0.18f, 0.2f, stoneColor);
+            DrawModelSphere(models, (Vector3){pos.x + 0.05f, pos.y + 0.12f, pos.z + 0.05f}, 0.08f, tinColor);
+            DrawModelSphere(models, (Vector3){pos.x - 0.04f, pos.y + 0.1f, pos.z - 0.03f}, 0.06f, tinColor);
+            break;
+        }
         default:
             DrawModelCube(models, pos, 0.2f, 0.2f, 0.2f, RED);
             break;
@@ -587,6 +615,39 @@ void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highl
             DrawCylinderWires((Vector3){pos.x, pos.y, pos.z}, 0.35f, 0.45f, 2.5f, 8, outlineColor);
             DrawSphereWires((Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.55f, 8, 8, outlineColor);
         }
+    }
+}
+
+void DrawRock(const EntityModels* models, Vector3 pos, RockType type, bool highlighted) {
+    // Colors vary by ore type
+    Color baseColor, oreColor;
+    if (type == ROCK_COPPER) {
+        baseColor = (Color){ 100, 90, 80, 255 };     // Gray stone
+        oreColor = (Color){ 180, 100, 50, 255 };     // Copper orange/brown
+    } else {  // ROCK_TIN
+        baseColor = (Color){ 90, 85, 80, 255 };      // Slightly different gray
+        oreColor = (Color){ 150, 150, 140, 255 };    // Tin silver/gray
+    }
+    Color shadowColor = { (unsigned char)(baseColor.r - 30), (unsigned char)(baseColor.g - 30), (unsigned char)(baseColor.b - 30), 255 };
+
+    // Main rock body (irregular boulder shape using multiple cubes)
+    DrawModelCube(models, (Vector3){pos.x, pos.y + 0.5f, pos.z}, 1.2f, 0.9f, 1.0f, baseColor);
+    DrawModelCube(models, (Vector3){pos.x + 0.3f, pos.y + 0.35f, pos.z - 0.2f}, 0.7f, 0.7f, 0.8f, shadowColor);
+    DrawModelCube(models, (Vector3){pos.x - 0.25f, pos.y + 0.4f, pos.z + 0.3f}, 0.6f, 0.6f, 0.7f, baseColor);
+
+    // Top boulder
+    DrawModelSphere(models, (Vector3){pos.x, pos.y + 1.0f, pos.z}, 0.5f, shadowColor);
+    DrawModelCube(models, (Vector3){pos.x + 0.2f, pos.y + 0.9f, pos.z - 0.1f}, 0.4f, 0.3f, 0.4f, baseColor);
+
+    // Ore veins (visible ore spots on the rock)
+    DrawModelSphere(models, (Vector3){pos.x + 0.4f, pos.y + 0.6f, pos.z + 0.35f}, 0.18f, oreColor);
+    DrawModelSphere(models, (Vector3){pos.x - 0.3f, pos.y + 0.5f, pos.z - 0.3f}, 0.15f, oreColor);
+    DrawModelSphere(models, (Vector3){pos.x + 0.1f, pos.y + 0.9f, pos.z + 0.2f}, 0.12f, oreColor);
+    DrawModelCube(models, (Vector3){pos.x - 0.35f, pos.y + 0.7f, pos.z + 0.1f}, 0.15f, 0.2f, 0.1f, oreColor);
+
+    if (highlighted) {
+        Color outlineColor = { 255, 255, 0, 255 };
+        DrawSphereWires((Vector3){pos.x, pos.y + 0.7f, pos.z}, 0.9f, 8, 8, outlineColor);
     }
 }
 

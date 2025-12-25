@@ -85,6 +85,9 @@ void InitEnemiesFromMap(Enemy* enemies, int* enemyCount, const MapData& mapData)
 // Initialize trees from map data
 void InitTreesFromMap(Tree* trees, int* treeCount, const MapData& mapData);
 
+// Initialize rocks from map data
+void InitRocksFromMap(Rock* rocks, int* rockCount, const MapData& mapData);
+
 // Initialize world items from map data
 void InitItemsFromMap(WorldItem* items, int* itemCount, const MapData& mapData, bool swordPickedUp);
 

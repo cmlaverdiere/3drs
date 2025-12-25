@@ -294,6 +294,17 @@ void InitTreesFromMap(Tree* trees, int* treeCount, const MapData& mapData) {
     }
 }
 
+void InitRocksFromMap(Rock* rocks, int* rockCount, const MapData& mapData) {
+    *rockCount = mapData.rockCount;
+    for (int i = 0; i < *rockCount; i++) {
+        rocks[i].position = mapData.rockSpawns[i];
+        rocks[i].type = mapData.rockTypes[i];
+        rocks[i].health = ROCK_MAX_HEALTH;
+        rocks[i].alive = true;
+        rocks[i].respawnTimer = 0.0f;
+    }
+}
+
 void InitItemsFromMap(WorldItem* items, int* itemCount, const MapData& mapData, bool swordPickedUp) {
     *itemCount = mapData.itemCount;
     for (int i = 0; i < *itemCount; i++) {

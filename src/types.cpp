@@ -2,7 +2,7 @@
 
 // WARNING: Keep in sync with Skill enum in types.h - add new skills at the end!
 const char* SKILL_NAMES[SKILL_COUNT] = {
-    "Combat", "Hitpoints", "Ranged", "Prayer", "Magic", "Woodcutting"
+    "Combat", "Hitpoints", "Ranged", "Prayer", "Magic", "Woodcutting", "Mining"
 };
 
 // WARNING: Keep in sync with ItemType enum in types.h - add new items at the end!
@@ -30,7 +30,11 @@ const char* ITEM_NAMES[ITEM_COUNT] = {
     "Mithril Scimitar",
     "Adamant Scimitar",
     // Woodcutting Items
-    "Oak Logs"
+    "Oak Logs",
+    // Mining Items
+    "Bronze Pickaxe",
+    "Copper Ore",
+    "Tin Ore"
 };
 
 // NPC configurations with dialogue

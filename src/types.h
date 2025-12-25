@@ -85,6 +85,10 @@ enum ItemType {
     ITEM_ADAMANT_SCIMITAR,
     // === Woodcutting Items ===
     ITEM_OAK_LOGS,
+    // === Mining Items ===
+    ITEM_BRONZE_PICKAXE,
+    ITEM_COPPER_ORE,
+    ITEM_TIN_ORE,
     // === ADD NEW ITEMS HERE ===
     ITEM_COUNT
 };
@@ -137,6 +141,13 @@ enum TreeType {
     TREE_TYPE_COUNT
 };
 
+// Rock types (for mining)
+enum RockType {
+    ROCK_COPPER = 0,
+    ROCK_TIN,
+    ROCK_TYPE_COUNT
+};
+
 // Light source types (decorative)
 enum LightType {
     LIGHT_LAMP = 0,
@@ -148,6 +159,12 @@ enum LightType {
 constexpr int OAK_TREE_LEVEL = 10;
 constexpr int OAK_WOODCUTTING_XP = 38;  // More XP than normal logs
 
+// Mining constants
+constexpr int MINING_XP = 18;           // XP per ore
+constexpr int ROCK_MAX_HEALTH = 3;      // 3 hits to deplete
+constexpr float ROCK_RESPAWN_TIME = 20.0f;
+constexpr float MINE_RANGE = 3.0f;
+
 // Skill indices
 // WARNING: Only add new skills BEFORE SKILL_COUNT, never reorder existing skills!
 // Reordering will corrupt existing save files since skills are saved by index.
@@ -158,6 +175,7 @@ enum Skill {
     SKILL_PRAYER,
     SKILL_MAGIC,
     SKILL_WOODCUTTING,
+    SKILL_MINING,
     // === ADD NEW SKILLS HERE ===
     SKILL_COUNT
 };
@@ -281,6 +299,15 @@ struct Tree {
     float respawnTimer;
 };
 
+// Rock structure (mineable resource)
+struct Rock {
+    Vector3 position;
+    RockType type;    // Copper or tin
+    int health;       // Hits remaining before depleted
+    bool alive;       // False when depleted
+    float respawnTimer;
+};
+
 // Water body (river, lake, pond)
 struct Water {
     Vector3 position;  // Center position
@@ -313,6 +340,7 @@ struct LightSource {
 
 const int MAX_LIGHTS = 100;
 const int MAX_TREES = 1000;
+const int MAX_ROCKS = 200;
 const int MAX_WATER = 100;
 const float ITEM_RESPAWN_TIME = 60.0f;  // 60 seconds for respawning items
 const int MAX_SAND = 50;
@@ -525,6 +553,9 @@ struct MapData {
     Vector3 treeSpawns[MAX_TREES];
     TreeType treeTypes[MAX_TREES];
     int treeCount;
+    Vector3 rockSpawns[MAX_ROCKS];
+    RockType rockTypes[MAX_ROCKS];
+    int rockCount;
     Water waterBodies[MAX_WATER];
     int waterCount;
     Sand sandZones[MAX_SAND];

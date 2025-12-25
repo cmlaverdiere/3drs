@@ -177,3 +177,24 @@ tree -8.0 0.0 120.0
 tree 8.0 0.0 120.0
 tree -8.0 0.0 135.0
 tree 8.0 0.0 135.0
+
+# === VARROCK SOUTH MINE (southeast of south gate) ===
+# Mine entrance - rocky walls forming a small pit area
+wall 35.0 0.0 70.0 2.0 3.0 12.0 stone
+wall 45.0 0.0 70.0 2.0 3.0 12.0 stone
+wall 40.0 0.0 76.0 12.0 3.0 2.0 stone
+
+# Bronze pickaxe near mine entrance
+item bronze_pickaxe 38.0 0.0 65.0
+
+# Copper ore rocks
+rock copper 38.0 0.0 70.0
+rock copper 42.0 0.0 70.0
+rock copper 36.0 0.0 72.0
+rock copper 40.0 0.0 73.0
+rock copper 44.0 0.0 72.0
+
+# Tin ore rocks
+rock tin 37.0 0.0 74.0
+rock tin 41.0 0.0 75.0
+rock tin 43.0 0.0 74.0

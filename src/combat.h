@@ -3,12 +3,13 @@
 
 #include "types.h"
 
-// Process player attack (handles both tree chopping and enemy combat)
+// Process player attack (handles tree chopping, rock mining, and enemy combat)
 // Returns true if attack was performed
 // outMessage is set to a status message if needed (e.g., level requirement)
 bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                          Enemy* enemies, int enemyCount,
                          Tree* trees, int treeCount,
+                         Rock* rocks, int rockCount,
                          WorldItem* worldItems, int* worldItemCount,
                          DamageIndicator* damageIndicators,
                          XPPopup* xpPopups,
@@ -23,5 +24,8 @@ bool AwardSkillXP(PlayerState* state, int skillIndex, int amount,
 
 // Update trees (respawning)
 void UpdateTrees(Tree* trees, int treeCount, float dt);
+
+// Update rocks (respawning)
+void UpdateRocks(Rock* rocks, int rockCount, float dt);
 
 #endif

@@ -63,6 +63,7 @@ int main(int argc, char* argv[]) {
         printf("  NPCs: %d / %d\n", mapData.npcCount, MAX_NPCS);
         printf("  Walls: %d / %d\n", mapData.wallCount, MAX_WALLS);
         printf("  Trees: %d / %d\n", mapData.treeCount, MAX_TREES);
+        printf("  Rocks: %d / %d\n", mapData.rockCount, MAX_ROCKS);
         printf("  Water: %d / %d\n", mapData.waterCount, MAX_WATER);
         printf("  Sand: %d / %d\n", mapData.sandCount, MAX_SAND);
         printf("  Valleys: %d / %d\n", mapData.valleyCount, MAX_VALLEYS);
@@ -137,6 +138,10 @@ int main(int argc, char* argv[]) {
     Tree trees[MAX_TREES] = {};
     int treeCount = 0;
     InitTreesFromMap(trees, &treeCount, mapData);
+
+    Rock rocks[MAX_ROCKS] = {};
+    int rockCount = 0;
+    InitRocksFromMap(rocks, &rockCount, mapData);
 
     WorldItem worldItems[MAX_WORLD_ITEMS] = {};
     int worldItemCount = 0;
@@ -325,6 +330,9 @@ int main(int argc, char* argv[]) {
         // Tree respawning
         UpdateTrees(trees, treeCount, dt);
 
+        // Rock respawning
+        UpdateRocks(rocks, rockCount, dt);
+
         // Item respawning
         UpdateItemRespawns(worldItems, worldItemCount, dt);
 
@@ -334,7 +342,8 @@ int main(int argc, char* argv[]) {
             attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
             const char* newAttackMsg = nullptr;
             ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
-                                trees, treeCount, worldItems, &worldItemCount,
+                                trees, treeCount, rocks, rockCount,
+                                worldItems, &worldItemCount,
                                 damageIndicators, xpPopups, &levelUpNotif, &swingTimer,
                                 &newAttackMsg);
             attackCooldown = GetWeaponCooldown(playerState.equippedWeapon);
@@ -820,6 +829,11 @@ int main(int argc, char* argv[]) {
                 memset(trees, 0, sizeof(trees));
                 InitTreesFromMap(trees, &treeCount, mapData);
 
+                // Reinitialize rocks
+                rockCount = 0;
+                memset(rocks, 0, sizeof(rocks));
+                InitRocksFromMap(rocks, &rockCount, mapData);
+
                 // Reinitialize items
                 worldItemCount = 0;
                 memset(worldItems, 0, sizeof(worldItems));
@@ -882,6 +896,15 @@ int main(int argc, char* argv[]) {
                     Vector3 treePos = trees[i].position;
                     treePos.y = GetTerrainHeight(treePos.x, treePos.z);
                     DrawTree(&resources.entityModels, treePos, trees[i].type, false);
+                }
+            }
+
+            // Rocks cast shadows
+            for (int i = 0; i < rockCount; i++) {
+                if (rocks[i].alive) {
+                    Vector3 rockPos = rocks[i].position;
+                    rockPos.y = GetTerrainHeight(rockPos.x, rockPos.z);
+                    DrawRock(&resources.entityModels, rockPos, rocks[i].type, false);
                 }
             }
 
@@ -998,6 +1021,18 @@ int main(int argc, char* argv[]) {
                     bool inRange = (dist <= CHOP_RANGE) && IsFacing(camera, treePos) &&
                                    (playerState.equippedWeapon == ITEM_BRONZE_AXE);
                     DrawTree(&resources.entityModels, treePos, trees[i].type, inRange);
+                }
+            }
+
+            // Rocks
+            for (int i = 0; i < rockCount; i++) {
+                if (rocks[i].alive) {
+                    Vector3 rockPos = rocks[i].position;
+                    rockPos.y = GetTerrainHeight(rockPos.x, rockPos.z);
+                    float dist = Distance3D(camera.position, rockPos);
+                    bool inRange = (dist <= MINE_RANGE) && IsFacing(camera, rockPos) &&
+                                   (playerState.equippedWeapon == ITEM_BRONZE_PICKAXE);
+                    DrawRock(&resources.entityModels, rockPos, rocks[i].type, inRange);
                 }
             }
 

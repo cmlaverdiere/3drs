@@ -13,10 +13,6 @@ musket / glock (fuck up trolls)
   - Make grass follow player (regenerate mesh or use instancing)
   - Multiple grass patches around key areas
 
-## Banking
-
-- Store items in Varrock bank
-
 ## Food/healing
 
 - Cook fish or buy food from the inn, eat to heal mid-combat
