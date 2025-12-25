@@ -71,6 +71,11 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     res.groundModel = LoadModelFromMesh(groundMesh);
     res.groundModel.materials[0].shader = res.grassShader;
 
+    // Pass winter mode to ground shader
+    int winterModeLoc = GetShaderLocation(res.grassShader, "winterMode");
+    int winterModeVal = g_winterMode ? 1 : 0;
+    SetShaderValue(res.grassShader, winterModeLoc, &winterModeVal, SHADER_UNIFORM_INT);
+
     // Pass sand zone data to ground shader
     int sandZoneCountLoc = GetShaderLocation(res.grassShader, "sandZoneCount");
     int sandZonesLoc = GetShaderLocation(res.grassShader, "sandZones");
@@ -414,6 +419,11 @@ void InitGrassSystem(GrassSystem* grass) {
     grass->bladeShader = LoadShader("shaders/grass_blade.vs", "shaders/grass_blade.fs");
     grass->timeLoc = GetShaderLocation(grass->bladeShader, "time");
 
+    // Pass winter mode to blade shader
+    int winterModeLoc = GetShaderLocation(grass->bladeShader, "winterMode");
+    int winterModeVal = g_winterMode ? 1 : 0;
+    SetShaderValue(grass->bladeShader, winterModeLoc, &winterModeVal, SHADER_UNIFORM_INT);
+
     // Generate combined mesh with all blades baked in (single draw call!)
     grass->bladeMesh = GenCombinedGrassMesh(0.12f, 0.22f, GRASS_BLADE_COUNT, GRASS_SPAWN_RADIUS);
 
@@ -488,4 +498,59 @@ void CleanupGameResources(GameResources* res) {
     UnloadSoundSystem();
     UnloadVoiceSystem();
     CloseAudioDevice();
+}
+
+// Snow particle system implementation
+void InitSnowSystem(SnowSystem* snow, Vector3 centerPos) {
+    for (int i = 0; i < SNOW_PARTICLE_COUNT; i++) {
+        // Random position within spawn radius around center
+        float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
+        float dist = (float)GetRandomValue(0, (int)(SNOW_SPAWN_RADIUS * 100)) / 100.0f;
+        snow->particles[i].position.x = centerPos.x + cosf(angle) * dist;
+        snow->particles[i].position.z = centerPos.z + sinf(angle) * dist;
+        snow->particles[i].position.y = centerPos.y + (float)GetRandomValue(0, (int)(SNOW_HEIGHT * 100)) / 100.0f;
+
+        // Random fall speed
+        snow->particles[i].speed = 1.5f + (float)GetRandomValue(0, 200) / 100.0f;
+        // Random wobble phase
+        snow->particles[i].wobble = (float)GetRandomValue(0, 628) / 100.0f;
+    }
+    snow->initialized = true;
+}
+
+void UpdateAndDrawSnow(SnowSystem* snow, Vector3 centerPos, float deltaTime) {
+    if (!snow->initialized) return;
+
+    float time = (float)GetTime();
+
+    for (int i = 0; i < SNOW_PARTICLE_COUNT; i++) {
+        SnowParticle* p = &snow->particles[i];
+
+        // Fall down
+        p->position.y -= p->speed * deltaTime;
+
+        // Gentle side-to-side drift
+        float drift = sinf(time * 2.0f + p->wobble) * 0.5f * deltaTime;
+        p->position.x += drift;
+        p->position.z += cosf(time * 1.5f + p->wobble * 0.7f) * 0.3f * deltaTime;
+
+        // Respawn at top if below ground or too far from player
+        float dx = p->position.x - centerPos.x;
+        float dz = p->position.z - centerPos.z;
+        float distSq = dx * dx + dz * dz;
+
+        if (p->position.y < centerPos.y - 5.0f || distSq > SNOW_SPAWN_RADIUS * SNOW_SPAWN_RADIUS * 1.5f) {
+            // Respawn at random position above player
+            float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
+            float dist = (float)GetRandomValue(0, (int)(SNOW_SPAWN_RADIUS * 100)) / 100.0f;
+            p->position.x = centerPos.x + cosf(angle) * dist;
+            p->position.z = centerPos.z + sinf(angle) * dist;
+            p->position.y = centerPos.y + SNOW_HEIGHT;
+        }
+
+        // Draw snowflake as small white cube
+        Color snowColor = { 255, 255, 255, 200 };
+        float size = 0.05f + (float)((i % 3)) * 0.02f;  // Vary size slightly
+        DrawCube(p->position, size, size, size, snowColor);
+    }
 }

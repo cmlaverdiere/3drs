@@ -30,6 +30,9 @@ bool g_heightmapInitialized = false;
 // Global spatial hash for O(1) proximity queries
 WorldSpatialData g_spatial;
 
+// Global winter mode flag
+bool g_winterMode = false;
+
 int main(int argc, char* argv[]) {
     // Check for command-line flags
     bool testMode = false;
@@ -39,6 +42,8 @@ int main(int argc, char* argv[]) {
             testMode = true;
         } else if (strcmp(argv[i], "--screenshot") == 0) {
             screenshotMode = true;
+        } else if (strcmp(argv[i], "--winter") == 0) {
+            g_winterMode = true;
         }
     }
 
@@ -205,6 +210,12 @@ int main(int argc, char* argv[]) {
     // Help system
     HelpSystem helpSystem = {};
     InitHelpSystem(&helpSystem);
+
+    // Snow system (only initialized in winter mode)
+    SnowSystem snowSystem = {};
+    if (g_winterMode) {
+        InitSnowSystem(&snowSystem, camera.position);
+    }
 
     // Quest dialogue state
     int activeQuestIndex = -1;              // Which quest is active in current dialogue
@@ -971,6 +982,11 @@ int main(int argc, char* argv[]) {
             SetShaderValue(resources.waterShader, resources.waterTimeLoc, &gameTime, SHADER_UNIFORM_FLOAT);
             for (int i = 0; i < resources.waterCount; i++) {
                 DrawModel(resources.waterModels[i], waterBodies[i].position, 1.0f, WHITE);
+            }
+
+            // Snow particles (winter mode only)
+            if (g_winterMode) {
+                UpdateAndDrawSnow(&snowSystem, camera.position, GetFrameTime());
             }
         EndMode3D();
         EndTextureMode();

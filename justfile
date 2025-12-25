@@ -2,8 +2,11 @@ build:
     cmake -B build
     cmake --build build
 
-run: build
-    ./build/game
+run *ARGS: build
+    ./build/game {{ARGS}}
+
+winter: build
+    ./build/game --winter
 
 commit:
     ./jj-commit.sh

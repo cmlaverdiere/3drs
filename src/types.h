@@ -487,6 +487,9 @@ const float DAMAGE_INDICATOR_DURATION = 1.5f;
 const float XP_POPUP_DURATION = 2.0f;
 const float LEVEL_UP_DURATION = 5.0f;
 
+// Global winter mode flag (set via --winter command line flag)
+extern bool g_winterMode;
+
 // Map data loaded from file
 struct MapData {
     Vector3 playerSpawn;

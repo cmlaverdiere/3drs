@@ -105,4 +105,26 @@ void DrawGrassBlades(GrassSystem* grass, float time);
 // Cleanup grass system
 void CleanupGrassSystem(GrassSystem* grass);
 
+// Snow particle system (for winter mode)
+static const int SNOW_PARTICLE_COUNT = 2000;
+static const float SNOW_SPAWN_RADIUS = 40.0f;
+static const float SNOW_HEIGHT = 30.0f;
+
+struct SnowParticle {
+    Vector3 position;
+    float speed;
+    float wobble;  // Side-to-side drift phase
+};
+
+struct SnowSystem {
+    SnowParticle particles[SNOW_PARTICLE_COUNT];
+    bool initialized;
+};
+
+// Initialize snow system
+void InitSnowSystem(SnowSystem* snow, Vector3 centerPos);
+
+// Update and draw snow particles
+void UpdateAndDrawSnow(SnowSystem* snow, Vector3 centerPos, float deltaTime);
+
 #endif

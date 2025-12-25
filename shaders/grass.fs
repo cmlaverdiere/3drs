@@ -13,6 +13,9 @@ uniform vec4 colDiffuse;
 uniform int sandZoneCount;
 uniform vec4 sandZones[16];
 
+// Winter mode
+uniform int winterMode;
+
 out vec4 finalColor;
 
 // Check how much this point is in sand (0 = grass, 1 = sand)
@@ -39,15 +42,32 @@ void main() {
 
     float combined = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
 
-    // Grass color palette
-    vec3 darkGrass = vec3(0.1, 0.35, 0.1);
-    vec3 midGrass = vec3(0.2, 0.5, 0.15);
-    vec3 lightGrass = vec3(0.3, 0.6, 0.2);
+    // Grass/Snow color palette (switches based on winter mode)
+    vec3 darkGrass, midGrass, lightGrass;
+    if (winterMode == 1) {
+        // Snow colors
+        darkGrass = vec3(0.85, 0.88, 0.92);
+        midGrass = vec3(0.92, 0.94, 0.97);
+        lightGrass = vec3(0.97, 0.98, 1.0);
+    } else {
+        // Normal grass colors
+        darkGrass = vec3(0.1, 0.35, 0.1);
+        midGrass = vec3(0.2, 0.5, 0.15);
+        lightGrass = vec3(0.3, 0.6, 0.2);
+    }
 
-    // Sand color palette
-    vec3 darkSand = vec3(0.6, 0.5, 0.3);
-    vec3 midSand = vec3(0.76, 0.65, 0.45);
-    vec3 lightSand = vec3(0.85, 0.75, 0.55);
+    // Sand color palette (also lighter in winter)
+    vec3 darkSand, midSand, lightSand;
+    if (winterMode == 1) {
+        // Snowy sand
+        darkSand = vec3(0.75, 0.72, 0.68);
+        midSand = vec3(0.85, 0.82, 0.78);
+        lightSand = vec3(0.92, 0.90, 0.87);
+    } else {
+        darkSand = vec3(0.6, 0.5, 0.3);
+        midSand = vec3(0.76, 0.65, 0.45);
+        lightSand = vec3(0.85, 0.75, 0.55);
+    }
 
     // Blend between colors based on noise
     vec3 grassColor;

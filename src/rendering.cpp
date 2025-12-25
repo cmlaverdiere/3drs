@@ -492,7 +492,59 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
     }
 }
 
+// Draw an evergreen/pine tree (for winter mode)
+void DrawEvergreenTree(const EntityModels* models, Vector3 pos, TreeType type, bool highlighted) {
+    // Darker trunk, snow-dusted pine needles
+    Color trunkColor = { 60, 40, 25, 255 };
+    Color pineGreen = { 20, 60, 35, 255 };
+    Color pineSnow = { 180, 200, 210, 255 };  // Snow on branches
+
+    float scale = (type == TREE_OAK) ? 1.3f : 1.0f;
+
+    // Trunk - taller and thinner for evergreen
+    float trunkHeight = 2.0f * scale;
+    DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.2f * scale, 0.25f * scale, trunkHeight, trunkColor);
+
+    // Conical layers of branches (bottom to top)
+    float baseY = pos.y + trunkHeight * 0.5f;
+
+    // Bottom layer - widest
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 0.5f * scale, pos.z}, 1.8f * scale, 0.0f, 1.2f * scale, pineGreen);
+    // Snow on bottom branches
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 0.85f * scale, pos.z}, 1.4f * scale, 0.0f, 0.15f * scale, pineSnow);
+
+    // Middle layer
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.5f * scale, pos.z}, 1.4f * scale, 0.0f, 1.0f * scale, pineGreen);
+    // Snow on middle branches
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.8f * scale, pos.z}, 1.1f * scale, 0.0f, 0.12f * scale, pineSnow);
+
+    // Upper layer
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.3f * scale, pos.z}, 1.0f * scale, 0.0f, 0.9f * scale, pineGreen);
+    // Snow on upper branches
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.55f * scale, pos.z}, 0.75f * scale, 0.0f, 0.1f * scale, pineSnow);
+
+    // Top layer - pointed
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.0f * scale, pos.z}, 0.6f * scale, 0.0f, 0.8f * scale, pineGreen);
+    // Snow cap
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.25f * scale, pos.z}, 0.4f * scale, 0.0f, 0.08f * scale, pineSnow);
+
+    // Snow accumulation at base
+    DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.05f, pos.z}, 0.8f * scale, 0.8f * scale, 0.1f, pineSnow);
+
+    if (highlighted) {
+        Color outlineColor = { 255, 255, 0, 255 };
+        float outlineY = baseY + 1.5f * scale;
+        DrawCylinderWires((Vector3){pos.x, outlineY, pos.z}, 1.5f * scale, 0.0f, 3.0f * scale, 8, outlineColor);
+    }
+}
+
 void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highlighted) {
+    // Winter mode - draw evergreen trees instead
+    if (g_winterMode) {
+        DrawEvergreenTree(models, pos, type, highlighted);
+        return;
+    }
+
     if (type == TREE_OAK) {
         // Oak tree - larger and darker green
         Color oakTrunk = { 70, 45, 20, 255 };

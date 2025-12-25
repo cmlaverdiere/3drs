@@ -11,13 +11,21 @@ uniform vec3 ambientColor;
 uniform vec3 fogColor;
 uniform float fogDensity;
 uniform vec3 viewPos;
+uniform int winterMode;
 
 out vec4 finalColor;
 
 void main() {
-    // Grass blade color gradient - darker at base, lighter at tip
-    vec3 baseColor = vec3(0.08, 0.35, 0.06);
-    vec3 tipColor = vec3(0.25, 0.65, 0.12);
+    // Grass/snow blade color gradient - darker at base, lighter at tip
+    vec3 baseColor, tipColor;
+    if (winterMode == 1) {
+        // Snow-covered grass blades - very subtle bluish white
+        baseColor = vec3(0.88, 0.90, 0.94);
+        tipColor = vec3(0.95, 0.97, 1.0);
+    } else {
+        baseColor = vec3(0.08, 0.35, 0.06);
+        tipColor = vec3(0.25, 0.65, 0.12);
+    }
     vec3 bladeColor = mix(baseColor, tipColor, bladeHeight);
 
     // Add slight color variation based on world position
