@@ -1,5 +1,6 @@
 #include "menu_system.h"
 #include "hud.h"
+#include "inventory.h"
 #include <cstring>
 
 // ============================================================================
@@ -240,7 +241,7 @@ const char* UpdateBankInput(MenuSystem* menu, PlayerState* player, int screenWid
     if (!menu->bank.active) return nullptr;
 
     const int BOX_WIDTH = 500;
-    const int BOX_HEIGHT = 420;
+    const int BOX_HEIGHT = 380;  // Must match DrawBankUI
     const int BOX_X = (screenWidth - BOX_WIDTH) / 2;
     const int BOX_Y = (screenHeight - BOX_HEIGHT) / 2;
     const int PADDING = 20;
@@ -272,18 +273,15 @@ const char* UpdateBankInput(MenuSystem* menu, PlayerState* player, int screenWid
             }
         }
 
-        // Check inventory slots (displayed at bottom of bank UI)
-        // Must match DrawBankUI calculation: buttonY + btnH + 15 + 25
-        int buttonY = bankGridY + BANK_ROWS * (SLOT_SIZE + SLOT_PADDING) + 15;
-        int btnH = 30;
-        int invGridY = buttonY + btnH + 15 + 25;  // Same as DrawBankUI
-        int invGridX = BOX_X + (BOX_WIDTH - INV_COLS * (SLOT_SIZE + SLOT_PADDING)) / 2;
+        // Check inventory slots (right side panel - use real inventory position)
+        int invX, invY;
+        GetInventoryPosition(screenWidth, &invX, &invY);
 
         for (int row = 0; row < INV_ROWS; row++) {
             for (int col = 0; col < INV_COLS; col++) {
                 int slot = row * INV_COLS + col;
-                int slotX = invGridX + col * (SLOT_SIZE + SLOT_PADDING);
-                int slotY = invGridY + row * (SLOT_SIZE + SLOT_PADDING);
+                int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
+                int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
 
                 if (mouse.x >= slotX && mouse.x <= slotX + SLOT_SIZE &&
                     mouse.y >= slotY && mouse.y <= slotY + SLOT_SIZE) {
@@ -295,7 +293,9 @@ const char* UpdateBankInput(MenuSystem* menu, PlayerState* player, int screenWid
             }
         }
 
-        // Buttons (buttonY and btnH already declared above)
+        // Buttons
+        int buttonY = bankGridY + BANK_ROWS * (SLOT_SIZE + SLOT_PADDING) + 15;
+        int btnH = 30;
         int btnW = 100;
         int depositBtnX = BOX_X + PADDING;
         int withdrawBtnX = BOX_X + PADDING + btnW + 10;
@@ -488,7 +488,7 @@ void DrawBankUI(const MenuSystem* menu, const PlayerState* player, int screenWid
     if (!menu->bank.active) return;
 
     const int BOX_WIDTH = 500;
-    const int BOX_HEIGHT = 420;
+    const int BOX_HEIGHT = 380;  // Just bank + buttons, no embedded inventory
     const int BOX_X = (screenWidth - BOX_WIDTH) / 2;
     const int BOX_Y = (screenHeight - BOX_HEIGHT) / 2;
     const int PADDING = 20;
@@ -514,6 +514,9 @@ void DrawBankUI(const MenuSystem* menu, const PlayerState* player, int screenWid
 
     Vector2 mouse = GetMousePosition();
 
+    // Track hovered item for tooltip
+    const char* hoveredItemName = nullptr;
+
     for (int row = 0; row < BANK_ROWS; row++) {
         for (int col = 0; col < BANK_COLS; col++) {
             int slot = row * BANK_COLS + col;
@@ -531,6 +534,11 @@ void DrawBankUI(const MenuSystem* menu, const PlayerState* player, int screenWid
 
             if (player->bank[slot] != ITEM_NONE) {
                 DrawBankItemIcon(player->bank[slot], slotX + SLOT_SIZE / 2, slotY + SLOT_SIZE / 2);
+
+                // Track hover for tooltip
+                if (isHovered) {
+                    hoveredItemName = ITEM_NAMES[player->bank[slot]];
+                }
 
                 // Stack count
                 if (player->bankCount[slot] > 1) {
@@ -583,42 +591,24 @@ void DrawBankUI(const MenuSystem* menu, const PlayerState* player, int screenWid
     int depositAllTextW = MeasureText(depositAllText, 12);
     DrawText(depositAllText, depositAllBtnX + (btnW - depositAllTextW) / 2, buttonY + 9, 12, WHITE);
 
-    // Inventory section label
-    int invLabelY = buttonY + btnH + 15;
-    const char* invLabel = "Inventory";
-    int invLabelW = MeasureText(invLabel, 16);
-    DrawText(invLabel, BOX_X + (BOX_WIDTH - invLabelW) / 2, invLabelY, 16, PARCHMENT_TEXT);
+    // Hovered item tooltip (show bank item name when hovering)
+    if (hoveredItemName) {
+        int tooltipW = MeasureText(hoveredItemName, 16);
+        int tooltipY = buttonY + btnH + 15;
+        DrawText(hoveredItemName, BOX_X + (BOX_WIDTH - tooltipW) / 2, tooltipY, 16, GOLD_TEXT);
+    }
 
-    // Inventory grid (compact)
-    int invGridY = invLabelY + 25;
-    int invGridX = BOX_X + (BOX_WIDTH - INV_COLS * (SLOT_SIZE + SLOT_PADDING)) / 2;
-
-    for (int row = 0; row < INV_ROWS; row++) {
-        for (int col = 0; col < INV_COLS; col++) {
-            int slot = row * INV_COLS + col;
-            int slotX = invGridX + col * (SLOT_SIZE + SLOT_PADDING);
-            int slotY = invGridY + row * (SLOT_SIZE + SLOT_PADDING);
-
-            bool isHovered = (mouse.x >= slotX && mouse.x <= slotX + SLOT_SIZE &&
-                              mouse.y >= slotY && mouse.y <= slotY + SLOT_SIZE);
-            bool isSelected = (menu->bank.selectedInvSlot == slot);
-
-            Color slotBg = isSelected ? (Color){180, 160, 120, 255} :
-                           isHovered ? (Color){200, 180, 140, 255} : PARCHMENT_DARK;
-            DrawRectangle(slotX, slotY, SLOT_SIZE, SLOT_SIZE, slotBg);
-            DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, PARCHMENT_BORDER);
-
-            if (player->inventory[slot] != ITEM_NONE) {
-                DrawBankItemIcon(player->inventory[slot], slotX + SLOT_SIZE / 2, slotY + SLOT_SIZE / 2);
-
-                // Stack count
-                if (player->inventoryCount[slot] > 1) {
-                    char countText[16];
-                    snprintf(countText, sizeof(countText), "%d", player->inventoryCount[slot]);
-                    DrawText(countText, slotX + 2, slotY + 2, 10, GOLD_TEXT);
-                }
-            }
-        }
+    // Draw selection highlight on inventory panel (right side)
+    if (menu->bank.selectedInvSlot >= 0) {
+        int invX, invY;
+        GetInventoryPosition(screenWidth, &invX, &invY);
+        int row = menu->bank.selectedInvSlot / INV_COLS;
+        int col = menu->bank.selectedInvSlot % INV_COLS;
+        int slotX = invX + col * (SLOT_SIZE + SLOT_PADDING);
+        int slotY = invY + row * (SLOT_SIZE + SLOT_PADDING);
+        // Draw green highlight border
+        DrawRectangleLines(slotX - 2, slotY - 2, SLOT_SIZE + 4, SLOT_SIZE + 4, GREEN);
+        DrawRectangleLines(slotX - 1, slotY - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, GREEN);
     }
 
     // Close hint

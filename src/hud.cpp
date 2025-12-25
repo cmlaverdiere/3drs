@@ -189,7 +189,7 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
         DrawText("3. Cancel", menuX + 10, menuY + 80, 16, GRAY);
     }
 
-    // Inventory UI
+    // Inventory UI (always show - used for bank deposits too)
     DrawInventoryUI(state, invMenu, screenWidth, screenHeight);
 
     // Status message
