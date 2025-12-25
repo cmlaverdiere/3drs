@@ -51,7 +51,7 @@ Maps use a text-based format in `maps/`:
 - `wall x y z width height depth <material>`
 - `tree x y z`
 - `water x y z width length`
-- `valley <axis> position width depth`
+- `valley <axis> position width depth minExtent maxExtent`
 
 Coordinates: North=-Z, South=+Z, East=+X, West=-X
 

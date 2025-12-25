@@ -212,23 +212,26 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
             }
         }
         else if (strcmp(type, "valley") == 0) {
-            // Format: valley axis position width depth
-            // axis: x (north-south) or z (east-west)
+            // Format: valley axis position width depth minExtent maxExtent
+            // axis: x (north-south along Z) or z (east-west along X)
+            // minExtent/maxExtent: range along the perpendicular axis
             if (map.valleyCount < MAX_VALLEYS) {
                 char axisName[16];
-                float pos, width, depth;
-                if (sscanf(line, "%*s %15s %f %f %f", axisName, &pos, &width, &depth) == 4) {
+                float pos, width, depth, minExt, maxExt;
+                if (sscanf(line, "%*s %15s %f %f %f %f %f", axisName, &pos, &width, &depth, &minExt, &maxExt) == 6) {
+                    bool isXAxis = (strcmp(axisName, "x") == 0);
                     // Apply offset based on axis
-                    float adjustedPos = pos;
-                    if (strcmp(axisName, "x") == 0) {
-                        adjustedPos = pos + offsetX;
-                    } else {
-                        adjustedPos = pos + offsetZ;
-                    }
+                    float adjustedPos = pos + (isXAxis ? offsetX : offsetZ);
+                    // Apply offset to extent range (perpendicular axis)
+                    float adjustedMin = minExt + (isXAxis ? offsetZ : offsetX);
+                    float adjustedMax = maxExt + (isXAxis ? offsetZ : offsetX);
+
                     map.valleys[map.valleyCount].position = adjustedPos;
                     map.valleys[map.valleyCount].width = width;
                     map.valleys[map.valleyCount].depth = depth;
-                    map.valleys[map.valleyCount].axis = (strcmp(axisName, "x") == 0) ? 0 : 1;
+                    map.valleys[map.valleyCount].axis = isXAxis ? 0 : 1;
+                    map.valleys[map.valleyCount].minExtent = adjustedMin;
+                    map.valleys[map.valleyCount].maxExtent = adjustedMax;
                     map.valleyCount++;
                 }
             } else {

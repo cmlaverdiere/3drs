@@ -65,10 +65,11 @@ enemy troll 24.0 0.0 12.0
 enemy troll 30.0 0.0 10.0
 
 # === TERRAIN MODIFIERS ===
-# Format: valley axis position width depth
-# axis: x = runs north-south, z = runs east-west
-# River Lum valley (carves terrain down for river)
-valley x 12.0 8.0 3.0
+# Format: valley axis position width depth minExtent maxExtent
+# axis: x = runs north-south (along Z), z = runs east-west (along X)
+# minExtent/maxExtent: range along the perpendicular axis
+# River Lum valley (carves terrain down for river, only in Lumbridge area)
+valley x 12.0 8.0 3.0 -35.0 50.0
 
 # === RIVER LUM (runs north-south, east of castle) ===
 # Format: water x y z width length

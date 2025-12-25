@@ -183,10 +183,20 @@ void InitializeHeightmap(const MapData& mapData) {
                 float worldZ = (z * HEIGHTMAP_SCALE) - HEIGHTMAP_OFFSET;
 
                 float dist;
+                float extentPos;  // Position along the perpendicular axis
                 if (valley.axis == 0) {
+                    // X-axis valley: runs along Z, check Z extent
                     dist = fabsf(worldX - valley.position);
+                    extentPos = worldZ;
                 } else {
+                    // Z-axis valley: runs along X, check X extent
                     dist = fabsf(worldZ - valley.position);
+                    extentPos = worldX;
+                }
+
+                // Check if within the valley's extent range
+                if (extentPos < valley.minExtent || extentPos > valley.maxExtent) {
+                    continue;
                 }
 
                 if (dist < valley.width) {

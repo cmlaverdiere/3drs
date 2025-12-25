@@ -294,6 +294,8 @@ struct Valley {
     float width;       // Half-width of valley
     float depth;       // How deep to carve
     int axis;          // 0 = X-axis (N-S), 1 = Z-axis (E-W)
+    float minExtent;   // Start of valley along perpendicular axis
+    float maxExtent;   // End of valley along perpendicular axis
 };
 
 // Light source (decorative - lamp or campfire)
