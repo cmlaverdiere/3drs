@@ -134,6 +134,13 @@ bool AwardSkillXP(PlayerState* state, int skillIndex, int amount,
         levelUpNotif->timer = LEVEL_UP_DURATION;
         levelUpNotif->active = true;
         PlaySoundEffect(SFX_LEVEL_UP);
+
+        // Combat level up increases max HP (+1 per level)
+        if (skillIndex == SKILL_COMBAT) {
+            int hpGain = newLevel - oldLevel;
+            state->maxHP += hpGain;
+            state->currentHP += hpGain;  // Heal on level up
+        }
         return true;
     }
     return false;

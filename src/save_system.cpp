@@ -1,4 +1,5 @@
 #include "save_system.h"
+#include "xp_system.h"
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -299,6 +300,13 @@ bool LoadGame(PlayerState& state, const Quest* quests, int questCount) {
                 p = objEnd + 1;
             }
         }
+    }
+
+    // Recalculate maxHP based on combat level (migration from old hitpoints system)
+    int combatLevel = GetLevelFromXP(state.skillXP[SKILL_COMBAT]);
+    state.maxHP = GetMaxHitpoints(combatLevel);
+    if (state.currentHP > state.maxHP) {
+        state.currentHP = state.maxHP;
     }
 
     delete[] json;

@@ -157,6 +157,8 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
     DrawText("Skills:", 10, skillY, 18, GOLD);
     skillY += 22;
     for (int i = 0; i < SKILL_COUNT; i++) {
+        // Skip Hitpoints skill - HP is now derived from Combat level
+        if (i == SKILL_HITPOINTS) continue;
         int level = GetLevelFromXP(state->skillXP[i]);
         int xpForNext = (level < 99) ? XP_TABLE[level] : XP_TABLE[98];
         char skillText[64];

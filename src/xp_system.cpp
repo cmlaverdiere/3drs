@@ -124,3 +124,7 @@ int CalculateMaxHit(int strengthLevel) {
 int RollDamage(int maxHit) {
     return GetRandomValue(0, maxHit);
 }
+
+int GetMaxHitpoints(int combatLevel) {
+    return 9 + combatLevel;
+}

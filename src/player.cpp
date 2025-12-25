@@ -228,7 +228,8 @@ void UpdatePlayerDeath(Camera3D* camera, PlayerState* state, PlayerRuntime* runt
         runtime->isDead = false;
         camera->position = spawnPoint;
         camera->target = (Vector3){ spawnPoint.x, spawnPoint.y, spawnPoint.z + 1.0f };
-        state->maxHP = GetLevelFromXP(state->skillXP[SKILL_HITPOINTS]);
+        int combatLevel = GetLevelFromXP(state->skillXP[SKILL_COMBAT]);
+        state->maxHP = GetMaxHitpoints(combatLevel);
         state->currentHP = state->maxHP;
         for (int i = 0; i < enemyCount; i++) {
             enemies[i].hostile = false;

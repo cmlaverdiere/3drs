@@ -1,0 +1,14 @@
+# Future Ideas
+
+# Guns
+
+musket / glock (fuck up trolls)
+
+## Grass Blade System Improvements
+
+- Currently limited to 50-unit radius from origin (GRASS_SPAWN_RADIUS in game_init.h)
+- Options:
+  - Increase radius to cover more of map (150-200 units)
+  - Skip spawning grass blades in sand zones
+  - Make grass follow player (regenerate mesh or use instancing)
+  - Multiple grass patches around key areas

@@ -13,4 +13,7 @@ int CalculateMaxHit(int strengthLevel);
 // Random hit from 0 to max (inclusive), 0 = miss
 int RollDamage(int maxHit);
 
+// Get max hitpoints for a given combat level (10 HP at level 1, +1 per level)
+int GetMaxHitpoints(int combatLevel);
+
 #endif

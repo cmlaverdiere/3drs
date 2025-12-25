@@ -4,3 +4,6 @@ build:
 
 run: build
     ./build/game
+
+commit:
+    ./jj-commit.sh

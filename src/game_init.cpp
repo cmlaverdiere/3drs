@@ -37,7 +37,6 @@ void InitPlayerState(PlayerState* state) {
     for (int i = 0; i < SKILL_COUNT; i++) {
         state->skillXP[i] = 0;
     }
-    state->skillXP[SKILL_HITPOINTS] = XP_TABLE[9];
 
     for (int i = 0; i < INV_SLOTS; i++) {
         state->inventory[i] = ITEM_NONE;
@@ -46,8 +45,10 @@ void InitPlayerState(PlayerState* state) {
 
     state->equippedWeapon = ITEM_NONE;
     state->swordPickedUp = false;
-    state->maxHP = 10;
-    state->currentHP = 10;
+    // HP based on combat level (10 HP at level 1, +1 per level)
+    int combatLevel = GetLevelFromXP(state->skillXP[SKILL_COMBAT]);
+    state->maxHP = GetMaxHitpoints(combatLevel);
+    state->currentHP = state->maxHP;
     state->timeOfDay = 0.5f;  // Start at midday
 }
 
