@@ -57,6 +57,7 @@ Screenshots are saved to `screenshots/` with timestamp filenames.
 - **src/combat.cpp** - Player attacks, weapon damage, tree chopping
 - **src/enemy_ai.cpp** - Enemy behavior: wandering, chasing, attacking
 - **src/inventory.cpp** - Inventory management, item pickup/drop, context menus, drag-and-swap
+- **src/menu_system.cpp** - Unified menu system for input handling across all game menus
 - **src/player.cpp** - Movement, jumping, running, death/respawn
 - **src/xp_system.cpp** - OSRS-style XP table, level calculation, damage rolls
 - **src/save_system.cpp** - JSON save/load of player state
@@ -160,6 +161,59 @@ Text after quest is finished.
 ```
 
 See `quests/pest_control.quest` for a complete example.
+
+## Menu System
+
+The game uses a unified menu system (`src/menu_system.h/cpp`) that centralizes input handling across all menus.
+
+### Query Functions
+
+Instead of checking individual menu states, use these query functions:
+
+```cpp
+// Check if any menu is open (including inventory)
+bool IsAnyMenuOpen(const MenuSystem* menu);
+
+// Check if game input should be processed (movement, camera, attacks)
+bool CanProcessGameInput(const MenuSystem* menu);
+
+// Check if world interaction is allowed (E key, pickups)
+bool CanProcessWorldInteraction(const MenuSystem* menu);
+
+// Check if screenshot key (P) should work
+bool CanProcessScreenshotKey(const MenuSystem* menu);
+
+// Check if hotkeys should work (0, T, H)
+bool CanProcessHotkeys(const MenuSystem* menu);
+```
+
+### Adding a New Menu
+
+1. Add a new `MenuType` enum value in `menu_system.h`
+2. Add state struct if needed (or use existing patterns)
+3. Update query functions to check the new menu state
+4. Add open/close functions
+5. Handle ESC key in `HandleMenuEscape()` priority order
+
+## Banking System
+
+The bank provides 48 slots (8x6 grid) of persistent item storage separate from inventory.
+
+### Controls
+
+- **E** near banker NPC - Open bank
+- **Click bank slot** - Select item for withdrawal
+- **Click inventory slot** - Select item for deposit
+- **Deposit button** - Move selected inventory item to bank
+- **Withdraw button** - Move selected bank item to inventory
+- **Deposit All** - Move all inventory items to bank
+- **ESC** - Close bank
+
+### Technical Details
+
+- Bank storage is saved in `savegame.json` (`bank` and `bankCount` arrays)
+- Stackable items (gil) combine into single slots
+- Bank state is managed by `MenuSystem.bank`
 
 ## Adding New Content
 

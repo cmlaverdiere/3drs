@@ -41,6 +41,7 @@ add_executable(game
     src/quest_system.cpp
     src/voice_system.cpp
     src/help_system.cpp
+    src/menu_system.cpp
 )
 
 target_include_directories(game PRIVATE ${PIPER_INCLUDE_DIR})

@@ -22,6 +22,7 @@
 #include "quest_system.h"
 #include "voice_system.h"
 #include "help_system.h"
+#include "menu_system.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -214,6 +215,9 @@ int main(int argc, char* argv[]) {
     // Time selection menu
     TimeSelectMenu timeSelectMenu = {};
 
+    // Unified menu system (initialized below after mouseMode is declared)
+    MenuSystem menuSystem = {};
+
     // Snow system (only initialized in winter mode)
     SnowSystem snowSystem = {};
     if (g_winterMode) {
@@ -242,6 +246,10 @@ int main(int argc, char* argv[]) {
     bool mouseMode = false;
     bool showQuitConfirm = false;
     bool shouldQuit = false;
+
+    // Initialize menu system (after mouseMode is declared)
+    InitMenuSystem(&menuSystem, &mouseMode, &dialogueState, &shopState, &timeSelectMenu, &helpSystem);
+
     DisableCursor();
     SetTargetFPS(60);
 
@@ -278,9 +286,8 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Player movement (when not in mouse mode, dialogue, shop, help UI, time menu, and alive)
-        if (!mouseMode && !playerRuntime.isDead && !dialogueState.active &&
-            !shopState.active && !timeSelectMenu.active && helpSystem.state == HelpState::CLOSED) {
+        // Player movement (when not in any menu and alive)
+        if (!playerRuntime.isDead && CanProcessGameInput(&menuSystem)) {
             std::vector<int> nearbyWalls;
             g_spatial.walls.Query(camera.position.x, camera.position.z, PLAYER_RADIUS + 20.0f, nearbyWalls);
             UpdatePlayerMovement(&camera, &playerRuntime, walls, resources.wallCount, nearbyWalls, dt);
@@ -321,9 +328,8 @@ int main(int argc, char* argv[]) {
         // Item respawning
         UpdateItemRespawns(worldItems, worldItemCount, dt);
 
-        // Player attack (don't attack while in dialogue, shop, help UI, time menu, or other UI)
-        if (!mouseMode && !playerRuntime.isDead && !dialogueState.active &&
-            !shopState.active && !timeSelectMenu.active && helpSystem.state == HelpState::CLOSED &&
+        // Player attack (don't attack while in any menu)
+        if (!playerRuntime.isDead && CanProcessGameInput(&menuSystem) &&
             IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
             attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
             const char* newAttackMsg = nullptr;
@@ -432,9 +438,12 @@ int main(int argc, char* argv[]) {
                 }
             }
         } else if (IsKeyPressed(KEY_ESCAPE) && !helpJustClosed) {
-            // ESC priority: help UI > dialogue > shop > time menu > show quit prompt
+            // ESC priority: help UI > bank > dialogue > shop > time menu > show quit prompt
             if (helpSystem.state != HelpState::CLOSED) {
                 // Help system handles its own ESC
+            } else if (menuSystem.bank.active) {
+                // Close bank
+                CloseBank(&menuSystem);
             } else if (dialogueState.active) {
                 // Dialogue handles its own ESC (see below)
             } else if (shopState.active) {
@@ -507,8 +516,17 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // NPC dialogue handling (only when help UI is closed, shop is closed, and time menu is closed)
-        if (helpSystem.state == HelpState::CLOSED && !shopState.active && !timeSelectMenu.active) {
+        // Bank input handling
+        if (menuSystem.bank.active) {
+            const char* bankMsg = UpdateBankInput(&menuSystem, &playerState, screenWidth, screenHeight);
+            if (bankMsg) {
+                strncpy(screenshotMsg, bankMsg, sizeof(screenshotMsg) - 1);
+                screenshotMsgTimer = 2.0f;
+            }
+        }
+
+        // NPC dialogue handling (only when no blocking menus are open)
+        if (CanProcessWorldInteraction(&menuSystem)) {
             if (!dialogueState.active) {
                 // Start dialogue when pressing E near an NPC
                 if (nearestNPCIndex >= 0 && !mouseMode && !playerRuntime.isDead) {
@@ -526,6 +544,9 @@ int main(int argc, char* argv[]) {
                             shopState.items[1] = {ITEM_MITHRIL_SCIMITAR, 500};
                             shopState.items[2] = {ITEM_ADAMANT_SCIMITAR, 3000};
                             EnableCursor();
+                        } else if (npcType == NPC_BANKER) {
+                            // Open bank UI
+                            OpenBank(&menuSystem);
                         } else {
                             // Normal dialogue
                             dialogueState.active = true;
@@ -724,7 +745,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Screenshot (not while typing in help UI)
-        if (IsKeyPressed(KEY_P) && helpSystem.state == HelpState::CLOSED) {
+        if (IsKeyPressed(KEY_P) && CanProcessScreenshotKey(&menuSystem)) {
             time_t now = time(nullptr);
             char filename[64];
             strftime(filename, sizeof(filename), "screenshots/%Y%m%d_%H%M%S.png", localtime(&now));
@@ -736,8 +757,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Time selection menu toggle (T key)
-        if (IsKeyPressed(KEY_T) && helpSystem.state == HelpState::CLOSED &&
-            !dialogueState.active && !shopState.active) {
+        if (IsKeyPressed(KEY_T) && CanProcessHotkeys(&menuSystem)) {
             timeSelectMenu.active = !timeSelectMenu.active;
             if (timeSelectMenu.active) {
                 EnableCursor();
@@ -770,8 +790,8 @@ int main(int argc, char* argv[]) {
             SaveGame(playerState, quests, questCount);
         }
 
-        // Reload game (0 key) - useful for development (not while typing in help UI)
-        if (IsKeyPressed(KEY_ZERO) && helpSystem.state == HelpState::CLOSED) {
+        // Reload game (0 key) - useful for development (not while in menus)
+        if (IsKeyPressed(KEY_ZERO) && CanProcessHotkeys(&menuSystem)) {
             // Save current state first
             playerState.posX = camera.position.x;
             playerState.posY = camera.position.y;
@@ -1041,8 +1061,9 @@ int main(int argc, char* argv[]) {
                 mouseMode, statusMessage,
                 screenWidth, screenHeight);
 
-        // Draw NPC prompt (when near an NPC but not in dialogue)
-        if (nearestNPCIndex >= 0 && !dialogueState.active && !shopState.active && !mouseMode && !playerRuntime.isDead) {
+        // Draw NPC prompt (when near an NPC but not in dialogue/shop/bank)
+        if (nearestNPCIndex >= 0 && !dialogueState.active && !shopState.active &&
+            !menuSystem.bank.active && !mouseMode && !playerRuntime.isDead) {
             const NPCConfig& config = NPC_CONFIGS[npcs[nearestNPCIndex].type];
             DrawNPCPrompt(config.name, screenWidth, screenHeight);
         }
@@ -1053,6 +1074,9 @@ int main(int argc, char* argv[]) {
 
         // Draw shop UI (when shop is open)
         DrawShopUI(&shopState, &playerState, screenWidth, screenHeight);
+
+        // Draw bank UI (when bank is open)
+        DrawBankUI(&menuSystem, &playerState, screenWidth, screenHeight);
 
         // Draw time selection menu and handle clicks
         int timePreset = DrawTimeSelectMenu(&timeSelectMenu, lighting.timeOfDay, screenWidth, screenHeight);

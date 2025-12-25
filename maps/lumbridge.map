@@ -197,6 +197,9 @@ npc guard 3.0 0.0 -3.0
 # Cook - near castle kitchen area
 npc cook -5.0 0.0 -8.0
 
+# Banker - near castle (northwest corner of courtyard)
+npc banker -6.0 0.0 -2.0
+
 # === LIGHT SOURCES ===
 # Street lamps - Castle courtyard
 lamp -4.0 0.0 -3.0

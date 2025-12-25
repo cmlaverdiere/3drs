@@ -163,6 +163,20 @@ const NPCConfig NPC_CONFIGS[NPC_COUNT] = {
             "Scimitars are lighter and faster than regular swords."
         },
         .dialogueCount = 3
+    },
+    // NPC_BANKER - Bank teller
+    {
+        .name = "Banker",
+        .skinColor = {245, 220, 190, 255},   // Fair skin
+        .shirtColor = {40, 40, 80, 255},     // Dark blue formal vest
+        .pantsColor = {30, 30, 30, 255},     // Black formal pants
+        .height = 1.0f,
+        .dialogueLines = {
+            "Good day! Welcome to the Bank of Lumbridge.",
+            "I can help you store your valuables safely.",
+            "Your items will be protected here."
+        },
+        .dialogueCount = 3
     }
 };
 

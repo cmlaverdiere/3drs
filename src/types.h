@@ -52,6 +52,11 @@ const int INV_SLOTS = INV_COLS * INV_ROWS;
 const int SLOT_SIZE = 40;
 const int SLOT_PADDING = 4;
 
+// Bank constants
+const int BANK_COLS = 8;
+const int BANK_ROWS = 6;
+const int BANK_SLOTS = BANK_COLS * BANK_ROWS;  // 48 slots
+
 // Item types
 // WARNING: Only add new items BEFORE ITEM_COUNT, never reorder existing items!
 // Reordering will corrupt existing save files since inventory stores item IDs.
@@ -111,6 +116,8 @@ enum NPCType {
     NPC_ALKHARID_SPICE,    // Ali the spice trader
     // === Shop NPCs ===
     NPC_SCIMITAR_SHOP,     // Zeke - Varrock scimitar seller
+    // === Bank NPCs ===
+    NPC_BANKER,            // Bank teller
     // === ADD NEW NPCs HERE ===
     NPC_COUNT
 };
@@ -425,6 +432,9 @@ struct PlayerState {
     float timeOfDay;  // 0.0 to 1.0, for day/night cycle persistence
     int questPoints;
     QuestProgress questProgress[MAX_QUESTS];
+    // Bank storage
+    ItemType bank[BANK_SLOTS];
+    int bankCount[BANK_SLOTS];  // Stack count for each bank slot
 };
 
 // Check if an item type is stackable

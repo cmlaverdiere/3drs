@@ -263,6 +263,8 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         npcType = NPC_ALKHARID_SPICE;
                     } else if (strcmp(npcName, "scimitar_shop") == 0) {
                         npcType = NPC_SCIMITAR_SHOP;
+                    } else if (strcmp(npcName, "banker") == 0) {
+                        npcType = NPC_BANKER;
                     } else {
                         TraceLog(LOG_WARNING, "Unknown NPC type: %s", npcName);
                     }

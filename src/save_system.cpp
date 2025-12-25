@@ -117,6 +117,16 @@ void SaveGame(const PlayerState& state, const Quest* quests, int questCount) {
         fprintf(f, "%d%s", state.inventoryCount[i], i < INV_SLOTS - 1 ? ", " : "");
     }
     fprintf(f, "],\n");
+    fprintf(f, "  \"bank\": [");
+    for (int i = 0; i < BANK_SLOTS; i++) {
+        fprintf(f, "%d%s", state.bank[i], i < BANK_SLOTS - 1 ? ", " : "");
+    }
+    fprintf(f, "],\n");
+    fprintf(f, "  \"bankCount\": [");
+    for (int i = 0; i < BANK_SLOTS; i++) {
+        fprintf(f, "%d%s", state.bankCount[i], i < BANK_SLOTS - 1 ? ", " : "");
+    }
+    fprintf(f, "],\n");
     fprintf(f, "  \"equippedWeapon\": %d,\n", state.equippedWeapon);
     fprintf(f, "  \"swordPickedUp\": %s,\n", state.swordPickedUp ? "true" : "false");
     fprintf(f, "  \"currentHP\": %d,\n", state.currentHP);
@@ -252,6 +262,40 @@ bool LoadGame(PlayerState& state, const Quest* quests, int questCount) {
         // Default: set count to 1 for any existing items (backwards compatibility)
         for (int i = 0; i < INV_SLOTS; i++) {
             state.inventoryCount[i] = (state.inventory[i] != ITEM_NONE) ? 1 : 0;
+        }
+    }
+
+    // Parse bank storage (new field - default to empty for old saves)
+    for (int i = 0; i < BANK_SLOTS; i++) {
+        state.bank[i] = ITEM_NONE;
+        state.bankCount[i] = 0;
+    }
+    const char* bankSection = strstr(json, "\"bank\"");
+    if (bankSection) {
+        const char* bracket = strchr(bankSection, '[');
+        if (bracket) {
+            const char* p = bracket + 1;
+            for (int i = 0; i < BANK_SLOTS && *p; i++) {
+                while (*p && (*p == ' ' || *p == ',')) p++;
+                if (*p == ']') break;
+                state.bank[i] = (ItemType)atoi(p);
+                while (*p && *p != ',' && *p != ']') p++;
+            }
+        }
+    }
+
+    // Parse bank counts
+    const char* bankCountSection = strstr(json, "\"bankCount\"");
+    if (bankCountSection) {
+        const char* bracket = strchr(bankCountSection, '[');
+        if (bracket) {
+            const char* p = bracket + 1;
+            for (int i = 0; i < BANK_SLOTS && *p; i++) {
+                while (*p && (*p == ' ' || *p == ',')) p++;
+                if (*p == ']') break;
+                state.bankCount[i] = atoi(p);
+                while (*p && *p != ',' && *p != ']') p++;
+            }
         }
     }
 
