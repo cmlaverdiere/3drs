@@ -30,10 +30,9 @@ struct GrassSystem {
 // All game resources that need cleanup
 struct GameResources {
     // Shaders
-    Shader grassShader;
+    Shader grassShader;  // Also handles sand zones
     Shader wallShaders[WALL_MATERIAL_COUNT];
     Shader waterShader;
-    Shader sandShader;
     Shader entityShader;  // For lit entities (enemies, trees, items)
     Shader depthShader;   // For shadow map pass
     Shader skyShader;     // For sky rendering
@@ -46,7 +45,6 @@ struct GameResources {
     Model groundModel;
     Model wallModels[MAX_WALLS];
     Model waterModels[MAX_WATER];
-    Model sandModels[MAX_SAND];
 
     // Entity primitive models (for DrawModelEx-based rendering)
     EntityModels entityModels;
@@ -57,7 +55,7 @@ struct GameResources {
     // Counts for cleanup
     int wallCount;
     int waterCount;
-    int sandCount;
+    int sandCount;  // Still tracked for spatial queries
 };
 
 // Initialize window and audio

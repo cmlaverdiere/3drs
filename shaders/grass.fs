@@ -18,6 +18,10 @@ uniform mat4 lightVP;
 uniform sampler2D shadowMap;
 uniform int shadowMapResolution;
 
+// Sand zone uniforms (max 16 zones)
+uniform int sandZoneCount;
+uniform vec4 sandZones[16];  // x, z, width, length for each zone
+
 out vec4 finalColor;
 
 // Simple hash function for noise
@@ -49,6 +53,24 @@ float fbm(vec2 p) {
         amplitude *= 0.5;
     }
     return value;
+}
+
+// Check how much this point is in sand (0 = grass, 1 = sand)
+float getSandFactor(vec2 worldXZ) {
+    float sandFactor = 0.0;
+    for (int i = 0; i < sandZoneCount; i++) {
+        vec2 center = sandZones[i].xy;
+        vec2 halfSize = sandZones[i].zw * 0.5;
+
+        // Distance from edge (negative = inside)
+        vec2 d = abs(worldXZ - center) - halfSize;
+        float distFromEdge = max(d.x, d.y);
+
+        // Soft blend at edges (5 unit transition)
+        float factor = 1.0 - smoothstep(-5.0, 0.0, distFromEdge);
+        sandFactor = max(sandFactor, factor);
+    }
+    return sandFactor;
 }
 
 // Calculate shadow factor (0.0 = full shadow, 1.0 = no shadow)
@@ -103,6 +125,11 @@ void main() {
     vec3 midGrass = vec3(0.2, 0.5, 0.15);
     vec3 lightGrass = vec3(0.3, 0.6, 0.2);
 
+    // Sand color palette
+    vec3 darkSand = vec3(0.6, 0.5, 0.3);
+    vec3 midSand = vec3(0.76, 0.65, 0.45);
+    vec3 lightSand = vec3(0.85, 0.75, 0.55);
+
     // Blend between colors based on noise
     vec3 grassColor;
     if (combined < 0.4) {
@@ -111,8 +138,21 @@ void main() {
         grassColor = mix(midGrass, lightGrass, (combined - 0.4) / 0.6);
     }
 
+    vec3 sandColor;
+    if (combined < 0.4) {
+        sandColor = mix(darkSand, midSand, combined / 0.4);
+    } else {
+        sandColor = mix(midSand, lightSand, (combined - 0.4) / 0.6);
+    }
+
+    // Check if we're in a sand zone
+    float sandFactor = getSandFactor(worldXZ);
+
+    // Blend grass and sand
+    vec3 groundColor = mix(grassColor, sandColor, sandFactor);
+
     // Add subtle variation
-    grassColor += (n3 - 0.5) * 0.08;
+    groundColor += (n3 - 0.5) * 0.08;
 
     // Calculate lighting
     vec3 normal = normalize(fragNormal);
@@ -123,7 +163,7 @@ void main() {
     vec3 diffuse = sunColor * NdotL * shadow;
 
     // Combine ambient and diffuse
-    vec3 litColor = grassColor * (ambientColor + diffuse);
+    vec3 litColor = groundColor * (ambientColor + diffuse);
 
     // Apply distance fog
     float dist = length(viewPos - fragWorldPos);

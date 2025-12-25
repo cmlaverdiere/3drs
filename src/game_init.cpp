@@ -62,11 +62,27 @@ void InitCamera(Camera3D* camera, const PlayerState* state) {
 GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* waterBodies, Sand* sandZones) {
     GameResources res = {};
 
-    // Grass shader and ground model
+    // Grass/ground shader and ground model
     res.grassShader = LoadShader("shaders/grass.vs", "shaders/grass.fs");
     Mesh groundMesh = GenHeightmapMesh(512.0f, 512.0f, 256, 256);
     res.groundModel = LoadModelFromMesh(groundMesh);
     res.groundModel.materials[0].shader = res.grassShader;
+
+    // Pass sand zone data to ground shader
+    int sandZoneCountLoc = GetShaderLocation(res.grassShader, "sandZoneCount");
+    int sandZonesLoc = GetShaderLocation(res.grassShader, "sandZones");
+    int sandCount = mapData.sandCount;
+    SetShaderValue(res.grassShader, sandZoneCountLoc, &sandCount, SHADER_UNIFORM_INT);
+    // Pack sand zones as vec4 (x, z, width, length)
+    for (int i = 0; i < mapData.sandCount && i < 16; i++) {
+        float zoneData[4] = {
+            mapData.sandZones[i].position.x,
+            mapData.sandZones[i].position.z,
+            mapData.sandZones[i].width,
+            mapData.sandZones[i].length
+        };
+        SetShaderValue(res.grassShader, sandZonesLoc + i, zoneData, SHADER_UNIFORM_VEC4);
+    }
 
     // Wall shaders
     res.wallShaders[WALL_WOOD] = LoadShader("shaders/wall.vs", "shaders/wood.fs");
@@ -76,9 +92,6 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     // Water shader
     res.waterShader = LoadShader("shaders/water.vs", "shaders/water.fs");
     res.waterTimeLoc = GetShaderLocation(res.waterShader, "time");
-
-    // Sand shader
-    res.sandShader = LoadShader("shaders/grass.vs", "shaders/sand.fs");
 
     // Entity shader for lit enemies/trees/items
     res.entityShader = LoadShader("shaders/entity.vs", "shaders/entity.fs");
@@ -131,13 +144,10 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
         res.waterModels[i].materials[0].shader = res.waterShader;
     }
 
-    // Create sand models
+    // Copy sand zones (still needed for spatial data, but no longer rendered as separate models)
     res.sandCount = mapData.sandCount;
     for (int i = 0; i < res.sandCount; i++) {
         sandZones[i] = mapData.sandZones[i];
-        Mesh sandMesh = GenMeshPlane(sandZones[i].width, sandZones[i].length, 20, 20);
-        res.sandModels[i] = LoadModelFromMesh(sandMesh);
-        res.sandModels[i].materials[0].shader = res.sandShader;
     }
 
     return res;
@@ -439,11 +449,6 @@ void CleanupGameResources(GameResources* res) {
         UnloadModel(res->waterModels[i]);
     }
     UnloadShader(res->waterShader);
-
-    for (int i = 0; i < res->sandCount; i++) {
-        UnloadModel(res->sandModels[i]);
-    }
-    UnloadShader(res->sandShader);
 
     UnloadShader(res->entityShader);
     UnloadShader(res->depthShader);

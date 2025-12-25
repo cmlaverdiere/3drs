@@ -680,7 +680,6 @@ int main(int argc, char* argv[]) {
         // ========== MAIN PASS ==========
         // Set lighting uniforms for all shaders
         SetShaderLightingUniforms(&lighting, resources.grassShader, camera.position);
-        SetShaderLightingUniforms(&lighting, resources.sandShader, camera.position);
         SetShaderLightingUniforms(&lighting, resources.waterShader, camera.position);
         SetShaderLightingUniforms(&lighting, resources.entityShader, camera.position);
         SetShaderLightingUniforms(&lighting, resources.grass.bladeShader, camera.position);
@@ -690,7 +689,6 @@ int main(int argc, char* argv[]) {
 
         // Bind shadow map to all shaders
         BindShadowMapToShader(&lighting, resources.grassShader);
-        BindShadowMapToShader(&lighting, resources.sandShader);
         BindShadowMapToShader(&lighting, resources.waterShader);
         BindShadowMapToShader(&lighting, resources.entityShader);
         for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
@@ -775,13 +773,6 @@ int main(int argc, char* argv[]) {
             SetShaderValue(resources.waterShader, resources.waterTimeLoc, &gameTime, SHADER_UNIFORM_FLOAT);
             for (int i = 0; i < resources.waterCount; i++) {
                 DrawModel(resources.waterModels[i], waterBodies[i].position, 1.0f, WHITE);
-            }
-
-            // Sand
-            for (int i = 0; i < resources.sandCount; i++) {
-                Vector3 sandPos = sandZones[i].position;
-                sandPos.y = GetTerrainHeight(sandPos.x, sandPos.z) + 0.02f;
-                DrawModel(resources.sandModels[i], sandPos, 1.0f, WHITE);
             }
         EndMode3D();
 
