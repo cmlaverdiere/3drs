@@ -31,3 +31,7 @@ musket / glock (fuck up trolls)
 
 - The quest system is solid, just needs content
 
+## Additional light sources
+
+- Add some lamps / campfires around the city. for now, campfires are cosmetic
+  only.

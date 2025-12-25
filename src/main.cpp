@@ -928,6 +928,11 @@ int main(int argc, char* argv[]) {
         EndTextureMode();
 
         // ========== POST-PROCESSING ==========
+        // Get projection matrix for SSAO
+        Matrix projMatrix = MatrixPerspective(camera.fovy * DEG2RAD,
+                                               (float)screenWidth / (float)screenHeight,
+                                               0.1f, 1000.0f);
+        RenderSSAO(&postProcess, camera, projMatrix);
         RenderBloom(&postProcess);
 
         // ========== FINAL COMPOSITE + HUD ==========

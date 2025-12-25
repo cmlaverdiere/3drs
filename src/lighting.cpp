@@ -341,6 +341,63 @@ TimeOfDay GetTimeOfDayPhase(float timeOfDay) {
 // Post-Processing System Implementation
 // ============================================================================
 
+// Generate hemisphere sample kernel for SSAO
+static void GenerateSSAOKernel(Vector3* kernel, int sampleCount) {
+    for (int i = 0; i < sampleCount; i++) {
+        // Random point in hemisphere (z >= 0)
+        Vector3 sample = {
+            (float)GetRandomValue(-1000, 1000) / 1000.0f,
+            (float)GetRandomValue(-1000, 1000) / 1000.0f,
+            (float)GetRandomValue(0, 1000) / 1000.0f
+        };
+
+        // Normalize
+        float len = sqrtf(sample.x * sample.x + sample.y * sample.y + sample.z * sample.z);
+        if (len > 0.0f) {
+            sample.x /= len;
+            sample.y /= len;
+            sample.z /= len;
+        }
+
+        // Scale to distribute more samples closer to origin
+        float scale = (float)i / (float)sampleCount;
+        scale = 0.1f + scale * scale * 0.9f;  // lerp(0.1, 1.0, scale^2)
+        sample.x *= scale;
+        sample.y *= scale;
+        sample.z *= scale;
+
+        kernel[i] = sample;
+    }
+}
+
+// Generate 4x4 noise texture for SSAO rotation
+static Texture2D GenerateSSAONoiseTexture() {
+    unsigned char noiseData[4 * 4 * 4];  // 4x4 RGBA
+
+    for (int i = 0; i < 16; i++) {
+        // Random rotation vector in XY plane
+        float angle = (float)GetRandomValue(0, 3141) / 500.0f;  // 0 to ~2*PI
+        noiseData[i * 4 + 0] = (unsigned char)((cosf(angle) * 0.5f + 0.5f) * 255);
+        noiseData[i * 4 + 1] = (unsigned char)((sinf(angle) * 0.5f + 0.5f) * 255);
+        noiseData[i * 4 + 2] = 0;  // Z = 0
+        noiseData[i * 4 + 3] = 255;
+    }
+
+    Image noiseImage = {
+        .data = noiseData,
+        .width = 4,
+        .height = 4,
+        .mipmaps = 1,
+        .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
+    };
+
+    Texture2D texture = LoadTextureFromImage(noiseImage);
+    SetTextureFilter(texture, TEXTURE_FILTER_POINT);  // No interpolation
+    SetTextureWrap(texture, TEXTURE_WRAP_REPEAT);
+
+    return texture;
+}
+
 void InitPostProcessSystem(PostProcessSystem* pp, int screenWidth, int screenHeight) {
     pp->screenWidth = screenWidth;
     pp->screenHeight = screenHeight;
@@ -365,12 +422,24 @@ void InitPostProcessSystem(PostProcessSystem* pp, int screenWidth, int screenHei
     pp->bloomIntensity = 1.2f;
     pp->bloomEnabled = true;
 
-    // SSAO will be initialized separately (Phase 3)
-    pp->ssaoEnabled = false;
+    // Initialize SSAO
+    pp->ssaoTexture = LoadRenderTexture(screenWidth, screenHeight);
+    pp->ssaoBlurTexture = LoadRenderTexture(screenWidth, screenHeight);
+    pp->ssaoShader = LoadShader("shaders/fullscreen.vs", "shaders/ssao.fs");
+    pp->ssaoBlurShader = LoadShader("shaders/fullscreen.vs", "shaders/ssao_blur.fs");
+
+    // Generate SSAO kernel and noise
+    GenerateSSAOKernel(pp->ssaoKernel, 32);
+    pp->noiseTexture = GenerateSSAONoiseTexture();
+
+    // Set SSAO parameters
+    pp->ssaoRadius = 0.3f;   // Smaller radius = less spread
+    pp->ssaoBias = 0.03f;    // Higher bias = less self-occlusion
+    pp->ssaoEnabled = true;
 
     pp->initialized = true;
 
-    TraceLog(LOG_INFO, "Post-processing system initialized (%dx%d, bloom half-res: %dx%d)",
+    TraceLog(LOG_INFO, "Post-processing system initialized (%dx%d, bloom half-res: %dx%d, SSAO enabled)",
              screenWidth, screenHeight, halfWidth, halfHeight);
 }
 
@@ -472,10 +541,76 @@ void RenderBloom(PostProcessSystem* pp) {
 }
 
 void RenderSSAO(PostProcessSystem* pp, Camera3D camera, Matrix projection) {
-    // SSAO implementation will be added in Phase 3
-    (void)pp;
-    (void)camera;
-    (void)projection;
+    if (!pp->ssaoEnabled || !pp->initialized) return;
+
+    (void)camera;  // May use later for view matrix
+
+    // Pass 1: Render SSAO
+    BeginTextureMode(pp->ssaoTexture);
+    ClearBackground(WHITE);  // Default to no occlusion
+    BeginShaderMode(pp->ssaoShader);
+
+        // Set uniforms
+        int samplesLoc = GetShaderLocation(pp->ssaoShader, "samples");
+        int projLoc = GetShaderLocation(pp->ssaoShader, "projection");
+        int screenSizeLoc = GetShaderLocation(pp->ssaoShader, "screenSize");
+        int radiusLoc = GetShaderLocation(pp->ssaoShader, "radius");
+        int biasLoc = GetShaderLocation(pp->ssaoShader, "bias");
+        int nearLoc = GetShaderLocation(pp->ssaoShader, "near");
+        int farLoc = GetShaderLocation(pp->ssaoShader, "far");
+        int depthTexLoc = GetShaderLocation(pp->ssaoShader, "depthTexture");
+        int noiseTexLoc = GetShaderLocation(pp->ssaoShader, "noiseTexture");
+
+        // Upload kernel samples
+        SetShaderValueV(pp->ssaoShader, samplesLoc, pp->ssaoKernel, SHADER_UNIFORM_VEC3, 32);
+
+        // Upload projection matrix
+        SetShaderValueMatrix(pp->ssaoShader, projLoc, projection);
+
+        // Upload other uniforms
+        float screenSize[2] = {(float)pp->screenWidth, (float)pp->screenHeight};
+        SetShaderValue(pp->ssaoShader, screenSizeLoc, screenSize, SHADER_UNIFORM_VEC2);
+        SetShaderValue(pp->ssaoShader, radiusLoc, &pp->ssaoRadius, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(pp->ssaoShader, biasLoc, &pp->ssaoBias, SHADER_UNIFORM_FLOAT);
+
+        float nearPlane = 0.1f;
+        float farPlane = 1000.0f;
+        SetShaderValue(pp->ssaoShader, nearLoc, &nearPlane, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(pp->ssaoShader, farLoc, &farPlane, SHADER_UNIFORM_FLOAT);
+
+        // Bind depth texture (from scene render)
+        rlActiveTextureSlot(1);
+        rlEnableTexture(pp->sceneTexture.depth.id);
+        SetShaderValue(pp->ssaoShader, depthTexLoc, (int[]){1}, SHADER_UNIFORM_INT);
+
+        // Bind noise texture
+        rlActiveTextureSlot(2);
+        rlEnableTexture(pp->noiseTexture.id);
+        SetShaderValue(pp->ssaoShader, noiseTexLoc, (int[]){2}, SHADER_UNIFORM_INT);
+
+        rlActiveTextureSlot(0);
+
+        // Draw fullscreen quad (just draw a texture to trigger the shader)
+        DrawRectangle(0, 0, pp->screenWidth, pp->screenHeight, WHITE);
+
+    EndShaderMode();
+    EndTextureMode();
+
+    // Pass 2: Blur SSAO
+    BeginTextureMode(pp->ssaoBlurTexture);
+    ClearBackground(WHITE);
+    BeginShaderMode(pp->ssaoBlurShader);
+
+        int texelSizeLoc = GetShaderLocation(pp->ssaoBlurShader, "texelSize");
+        float texelSize[2] = {1.0f / pp->screenWidth, 1.0f / pp->screenHeight};
+        SetShaderValue(pp->ssaoBlurShader, texelSizeLoc, texelSize, SHADER_UNIFORM_VEC2);
+
+        DrawTextureRec(pp->ssaoTexture.texture,
+                       (Rectangle){0, 0, (float)pp->screenWidth, (float)-pp->screenHeight},
+                       (Vector2){0, 0}, WHITE);
+
+    EndShaderMode();
+    EndTextureMode();
 }
 
 void CompositeScene(PostProcessSystem* pp) {
@@ -485,6 +620,15 @@ void CompositeScene(PostProcessSystem* pp) {
     DrawTextureRec(pp->sceneTexture.texture,
                    (Rectangle){0, 0, (float)pp->screenWidth, (float)-pp->screenHeight},
                    (Vector2){0, 0}, WHITE);
+
+    // Apply SSAO as multiplicative darkening
+    if (pp->ssaoEnabled) {
+        BeginBlendMode(BLEND_MULTIPLIED);
+        DrawTextureRec(pp->ssaoBlurTexture.texture,
+                       (Rectangle){0, 0, (float)pp->screenWidth, (float)-pp->screenHeight},
+                       (Vector2){0, 0}, WHITE);
+        EndBlendMode();
+    }
 
     if (pp->bloomEnabled) {
         // Draw bloom as additive overlay (scale up from half-res)
