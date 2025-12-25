@@ -20,6 +20,7 @@
 #include "game_systems.h"
 #include "lighting.h"
 #include "quest_system.h"
+#include "voice_system.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -337,6 +338,9 @@ int main(int argc, char* argv[]) {
                     dialogueState.currentLine = 0;
                     EnableCursor();
 
+                    // Speak first line of dialogue (will be updated after quest check)
+                    NPCType speakNpcType = npcs[nearestNPCIndex].type;
+
                     // Check if this NPC has a quest
                     NPCType npcType = npcs[nearestNPCIndex].type;
                     activeQuestIndex = FindQuestByNPC(quests, questCount, npcType);
@@ -355,6 +359,14 @@ int main(int argc, char* argv[]) {
                         questDialogueLines = nullptr;
                         questDialogueCount = 0;
                         showQuestAcceptPrompt = false;
+                    }
+
+                    // Speak the first dialogue line
+                    const char* firstLine = (questDialogueLines && questDialogueCount > 0)
+                        ? questDialogueLines[0]
+                        : NPC_CONFIGS[speakNpcType].dialogueLines[0];
+                    if (firstLine) {
+                        SpeakText(firstLine, GetVoiceForNPC(speakNpcType));
                     }
                 }
             }
@@ -404,6 +416,7 @@ int main(int argc, char* argv[]) {
                 screenshotMsgTimer = 3.0f;
 
                 // Close dialogue
+                StopSpeaking();
                 dialogueState.active = false;
                 dialogueState.npcIndex = -1;
                 dialogueState.currentLine = 0;
@@ -415,6 +428,7 @@ int main(int argc, char* argv[]) {
                 }
             } else if (declineClicked) {
                 // Decline - just close dialogue
+                StopSpeaking();
                 dialogueState.active = false;
                 dialogueState.npcIndex = -1;
                 dialogueState.currentLine = 0;
@@ -433,6 +447,15 @@ int main(int argc, char* argv[]) {
                     if (dialogueState.currentLine < totalLines - 1) {
                         // Advance to next line
                         dialogueState.currentLine++;
+
+                        // Speak the new line
+                        NPCType speakNpc = npcs[dialogueState.npcIndex].type;
+                        const char* nextLine = isQuestDialogue
+                            ? questDialogueLines[dialogueState.currentLine]
+                            : NPC_CONFIGS[speakNpc].dialogueLines[dialogueState.currentLine];
+                        if (nextLine) {
+                            SpeakText(nextLine, GetVoiceForNPC(speakNpc));
+                        }
                     } else {
                         // Last line - handle quest advancement or close
                         if (isQuestDialogue && activeQuestIndex >= 0) {
@@ -458,6 +481,7 @@ int main(int argc, char* argv[]) {
                         }
 
                         // End dialogue
+                        StopSpeaking();
                         dialogueState.active = false;
                         dialogueState.npcIndex = -1;
                         dialogueState.currentLine = 0;
@@ -473,6 +497,7 @@ int main(int argc, char* argv[]) {
 
             // Escape to exit dialogue early
             if (IsKeyPressed(KEY_ESCAPE)) {
+                StopSpeaking();
                 dialogueState.active = false;
                 dialogueState.npcIndex = -1;
                 dialogueState.currentLine = 0;

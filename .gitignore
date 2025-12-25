@@ -4,3 +4,8 @@ screenshots/
 savegame.json
 save_backups/
 compile_commands.json
+
+# Voice system (large files)
+external/
+voices/*.onnx
+voices/*.json

@@ -14,6 +14,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(raylib)
 
+# Piper TTS library (pre-built in external/piper/libpiper/install)
+set(PIPER_INSTALL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/piper/libpiper/install)
+set(PIPER_INCLUDE_DIR ${PIPER_INSTALL_DIR}/include)
+set(PIPER_LIB_DIR ${PIPER_INSTALL_DIR})
+set(ONNX_LIB_DIR ${PIPER_INSTALL_DIR}/lib)
+
 add_executable(game
     src/main.cpp
     src/types.cpp
@@ -32,5 +38,15 @@ add_executable(game
     src/game_init.cpp
     src/lighting.cpp
     src/quest_system.cpp
+    src/voice_system.cpp
 )
-target_link_libraries(game raylib)
+
+target_include_directories(game PRIVATE ${PIPER_INCLUDE_DIR})
+target_link_directories(game PRIVATE ${PIPER_LIB_DIR} ${ONNX_LIB_DIR})
+target_link_libraries(game raylib piper onnxruntime)
+
+# Set RPATH so the game can find the dynamic libraries at runtime
+set_target_properties(game PROPERTIES
+    BUILD_RPATH "${PIPER_LIB_DIR};${ONNX_LIB_DIR}"
+    INSTALL_RPATH "${PIPER_LIB_DIR};${ONNX_LIB_DIR}"
+)

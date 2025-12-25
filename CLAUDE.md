@@ -155,3 +155,45 @@ This renders a few frames, saves a screenshot, and exits immediately. The screen
 3. **src/map.cpp** - Add to NPC type parsing in `LoadMap()`
 4. **src/quest_system.cpp** - Add to `ParseNPCType()` if used in quests
 5. **maps/*.map** - Place NPC with `npc <type> x y z`
+6. **src/voice_system.cpp** - Optionally add NPC to `GetVoiceForNPC()` for custom voice
+
+## Voice System (TTS)
+
+NPC dialogue is spoken aloud using Piper TTS (local neural text-to-speech).
+
+### First-Time Setup
+
+The voice system requires building libpiper and downloading voice models:
+
+```bash
+# 1. Build libpiper (auto-downloads ONNX Runtime and espeak-ng)
+cd external/piper/libpiper
+cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/install
+cmake --build build
+cmake --install build
+cd ../../..
+
+# 2. Download voice models (~60MB each)
+mkdir -p voices
+cd voices
+curl -L -o en_US-ryan-medium.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/medium/en_US-ryan-medium.onnx?download=true"
+curl -L -o en_US-ryan-medium.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/medium/en_US-ryan-medium.onnx.json?download=true"
+curl -L -o en_US-joe-medium.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/joe/medium/en_US-joe-medium.onnx?download=true"
+curl -L -o en_US-joe-medium.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/joe/medium/en_US-joe-medium.onnx.json?download=true"
+cd ..
+```
+
+### Voice Types
+
+- **MALE_DEEP** (Ryan) - Guards, authoritative NPCs
+- **MALE_NEUTRAL** (Joe) - Friendly NPCs, traders
+
+Edit `src/voice_system.cpp` `GetVoiceForNPC()` to assign voices to NPC types.
+
+### Adding More Voices
+
+1. Download from [Piper Voices](https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US)
+2. Add `.onnx` and `.onnx.json` files to `voices/`
+3. Add new `VoiceType` enum value in `voice_system.h`
+4. Add model path in `VOICE_MODELS[]` in `voice_system.cpp`
+5. Update `GetVoiceForNPC()` to use the new voice

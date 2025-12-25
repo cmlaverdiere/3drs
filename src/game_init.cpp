@@ -2,6 +2,7 @@
 #include "math_utils.h"
 #include "enemy_ai.h"
 #include "sound_system.h"
+#include "voice_system.h"
 #include "xp_system.h"
 #include "rlgl.h"
 #include "raymath.h"
@@ -22,6 +23,7 @@ void InitGameWindow(int* screenWidth, int* screenHeight) {
 
     InitAudioDevice();
     InitSoundSystem();
+    InitVoiceSystem();
 }
 
 void InitPlayerState(PlayerState* state) {
@@ -456,5 +458,6 @@ void CleanupGameResources(GameResources* res) {
     }
 
     UnloadSoundSystem();
+    UnloadVoiceSystem();
     CloseAudioDevice();
 }
