@@ -131,7 +131,7 @@ enum TreeType {
 };
 
 // Woodcutting level requirements
-constexpr int OAK_TREE_LEVEL = 15;
+constexpr int OAK_TREE_LEVEL = 10;
 constexpr int OAK_WOODCUTTING_XP = 38;  // More XP than normal logs
 
 // Skill indices

@@ -51,7 +51,7 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
             if (targetTree->type == TREE_OAK) {
                 int woodcuttingLevel = GetLevelFromXP(state->skillXP[SKILL_WOODCUTTING]);
                 if (woodcuttingLevel < OAK_TREE_LEVEL) {
-                    if (outMessage) *outMessage = "You need level 15 Woodcutting to chop oak trees.";
+                    if (outMessage) *outMessage = "You need level 10 Woodcutting to chop oak trees.";
                     PlaySoundEffect(SFX_MISS);
                     return true;  // Swing happened, but no damage
                 }
