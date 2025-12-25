@@ -1,6 +1,6 @@
 # Future Ideas
 
-# Guns
+## Guns
 
 musket / glock (fuck up trolls)
 
@@ -12,3 +12,24 @@ musket / glock (fuck up trolls)
   - Skip spawning grass blades in sand zones
   - Make grass follow player (regenerate mesh or use instancing)
   - Multiple grass patches around key areas
+
+## Banking
+
+- Store items in Varrock bank
+
+## Minimap
+
+- Small radar showing nearby NPCs/enemies/buildings, helps navigation
+
+## Food/healing
+
+- Cook fish or buy food from the inn, eat to heal mid-combat
+
+## Mining/Smithing
+
+- Mine ore from rocks, smelt bars, forge your own weapons. Very RuneScape, ties into the economy
+
+## More quests
+
+- The quest system is solid, just needs content
+
