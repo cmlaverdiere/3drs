@@ -521,7 +521,7 @@ int main(int argc, char* argv[]) {
             statusMessage = nullptr;
         }
 
-        // Autosave every 30 seconds
+        // Autosave every 5 seconds
         autosaveTimer += dt;
         if (autosaveTimer >= AUTOSAVE_INTERVAL) {
             autosaveTimer = 0.0f;
@@ -534,6 +534,78 @@ int main(int argc, char* argv[]) {
             playerState.targetZ = camera.target.z;
             playerState.timeOfDay = lighting.timeOfDay;
             SaveGame(playerState, quests, questCount);
+        }
+
+        // Reload game (0 key) - useful for development
+        if (IsKeyPressed(KEY_ZERO)) {
+            // Save current state first
+            playerState.posX = camera.position.x;
+            playerState.posY = camera.position.y;
+            playerState.posZ = camera.position.z;
+            playerState.targetX = camera.target.x;
+            playerState.targetY = camera.target.y;
+            playerState.targetZ = camera.target.z;
+            playerState.timeOfDay = lighting.timeOfDay;
+            SaveGame(playerState, quests, questCount);
+
+            // Reload map
+            MapData newMapData = {};
+            if (LoadMap("maps/world.map", newMapData)) {
+                mapData = newMapData;
+                InitializeHeightmap(mapData);
+
+                // Reinitialize enemies
+                enemyCount = 0;
+                memset(enemies, 0, sizeof(enemies));
+                InitEnemiesFromMap(enemies, &enemyCount, mapData);
+
+                // Reinitialize trees
+                treeCount = 0;
+                memset(trees, 0, sizeof(trees));
+                InitTreesFromMap(trees, &treeCount, mapData);
+
+                // Reinitialize items
+                worldItemCount = 0;
+                memset(worldItems, 0, sizeof(worldItems));
+                InitItemsFromMap(worldItems, &worldItemCount, mapData, playerState.swordPickedUp);
+
+                // Reinitialize NPCs
+                npcCount = 0;
+                memset(npcs, 0, sizeof(npcs));
+                for (int i = 0; i < mapData.npcCount && npcCount < MAX_NPCS; i++) {
+                    npcs[npcCount].position = mapData.npcSpawns[i];
+                    npcs[npcCount].type = mapData.npcTypes[i];
+                    npcs[npcCount].facingAngle = 0.0f;
+                    npcs[npcCount].targetFacingAngle = 0.0f;
+                    npcs[npcCount].active = true;
+                    npcCount++;
+                }
+
+                // Reload quests
+                for (int i = 0; i < questCount; i++) {
+                    FreeQuest(&quests[i]);
+                }
+                questCount = LoadAllQuests(quests, MAX_QUESTS);
+
+                // Reload save (to restore quest progress etc.)
+                LoadGame(playerState, quests, questCount);
+                camera.position = (Vector3){ playerState.posX, playerState.posY, playerState.posZ };
+                camera.target = (Vector3){ playerState.targetX, playerState.targetY, playerState.targetZ };
+                lighting.timeOfDay = playerState.timeOfDay;
+
+                // Repopulate spatial hash
+                PopulateSpatialHash(&g_spatial, walls, resources.wallCount, enemies, enemyCount, trees, treeCount);
+
+                // Reset runtime state
+                playerRuntime = {};
+                dialogueState = {false, -1, 0};
+                activeQuestIndex = -1;
+                questDialogueLines = nullptr;
+
+                snprintf(screenshotMsg, sizeof(screenshotMsg), "Game reloaded");
+                screenshotMsgTimer = 2.0f;
+                TraceLog(LOG_INFO, "Game reloaded via 0 key");
+            }
         }
 
         // ========== SHADOW PASS ==========

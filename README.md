@@ -43,6 +43,7 @@ Screenshots are saved to `screenshots/` with timestamp filenames.
 - LMB - Attack/chop
 - P - Screenshot
 - ESC - Exit
+- 0 - Reload game (hot-reload maps, quests, enemies)
 
 ## Architecture
 
