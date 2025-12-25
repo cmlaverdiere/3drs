@@ -31,7 +31,7 @@ void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted)
 void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos);
 
 // Draw a tree
-void DrawTree(const EntityModels* models, Vector3 pos, bool highlighted);
+void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highlighted);
 
 // Draw a humanoid NPC
 void DrawHumanoid(const EntityModels* models, Vector3 pos, float facingAngle,

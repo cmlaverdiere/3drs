@@ -1,2 +1,0 @@
-# jj workspaces for parallel feature development
-# Each workspace is created with: jj workspace add workspaces/<feature-name>

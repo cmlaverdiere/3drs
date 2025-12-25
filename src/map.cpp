@@ -164,10 +164,23 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                 float x, y, z;
                 if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
                     map.treeSpawns[map.treeCount] = { x + offsetX, y, z + offsetZ };
+                    map.treeTypes[map.treeCount] = TREE_NORMAL;
                     map.treeCount++;
                 }
             } else {
                 TraceLog(LOG_WARNING, "MAX_TREES (%d) exceeded, skipping tree", MAX_TREES);
+            }
+        }
+        else if (strcmp(type, "oak_tree") == 0) {
+            if (map.treeCount < MAX_TREES) {
+                float x, y, z;
+                if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
+                    map.treeSpawns[map.treeCount] = { x + offsetX, y, z + offsetZ };
+                    map.treeTypes[map.treeCount] = TREE_OAK;
+                    map.treeCount++;
+                }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_TREES (%d) exceeded, skipping oak tree", MAX_TREES);
             }
         }
         else if (strcmp(type, "water") == 0) {

@@ -456,6 +456,16 @@ static void DrawItemIcon(ItemType item, int cx, int cy) {
         DrawRectangle(cx - 12, cy - 4, 24, 8, barkColor);
         DrawCircle(cx - 12, cy, 4, woodColor);
         DrawCircle(cx + 12, cy, 4, woodColor);
+    } else if (item == ITEM_OAK_LOGS) {
+        // Oak logs - darker, larger icon
+        Color oakBark = { 80, 50, 25, 255 };
+        Color oakRings = { 150, 110, 60, 255 };
+        DrawRectangle(cx - 14, cy - 5, 28, 10, oakBark);
+        DrawCircle(cx - 14, cy, 5, oakRings);
+        DrawCircle(cx + 14, cy, 5, oakRings);
+        // Ring detail
+        DrawCircle(cx - 14, cy, 3, oakBark);
+        DrawCircle(cx + 14, cy, 3, oakBark);
     } else if (item == ITEM_CHITIN) {
         Color chitinColor = { 101, 67, 33, 255 };
         DrawRectangle(cx - 10, cy - 6, 20, 12, chitinColor);
@@ -1042,4 +1052,135 @@ void DrawShopUI(const ShopState* shop, const PlayerState* state,
     const char* closeHint = "Press ESC to close";
     int closeW = MeasureText(closeHint, 14);
     DrawText(closeHint, BOX_X + (BOX_WIDTH - closeW) / 2, BOX_Y + BOX_HEIGHT - 30, 14, PARCHMENT_TEXT);
+}
+
+// Minimap constants
+static const int MINIMAP_SIZE = 160;
+static const int MINIMAP_MARGIN = 10;
+static const int MINIMAP_TOP_OFFSET = 35;  // Below FPS counter
+static const float MINIMAP_RADIUS = 75.0f;  // World units visible from center
+
+int GetMinimapHeight() {
+    // Returns Y position where inventory should start (below minimap)
+    // Minimap starts at: MINIMAP_MARGIN + MINIMAP_TOP_OFFSET = 45
+    // Minimap ends at: 45 + MINIMAP_SIZE = 205
+    // Add margin below for inventory
+    return MINIMAP_MARGIN + MINIMAP_TOP_OFFSET + MINIMAP_SIZE + 15;
+}
+
+void DrawMinimap(Vector3 playerPos, float playerYaw,
+                 const Enemy* enemies, int enemyCount,
+                 const NPC* npcs, int npcCount,
+                 const Tree* trees, int treeCount,
+                 const Wall* walls, int wallCount,
+                 int screenWidth, int screenHeight) {
+    (void)screenHeight;  // Unused
+
+    // Minimap position (top right)
+    int mapX = screenWidth - MINIMAP_SIZE - MINIMAP_MARGIN;
+    int mapY = MINIMAP_MARGIN + MINIMAP_TOP_OFFSET;  // Below FPS counter
+    int centerX = mapX + MINIMAP_SIZE / 2;
+    int centerY = mapY + MINIMAP_SIZE / 2;
+
+    // Scale factor: world units to pixels
+    float scale = (MINIMAP_SIZE / 2.0f) / MINIMAP_RADIUS;
+
+    // Draw background (dark with border)
+    DrawRectangle(mapX - 2, mapY - 2, MINIMAP_SIZE + 4, MINIMAP_SIZE + 4, (Color){60, 50, 40, 255});
+    DrawRectangle(mapX, mapY, MINIMAP_SIZE, MINIMAP_SIZE, (Color){30, 35, 25, 220});
+
+    // Clip to minimap bounds
+    BeginScissorMode(mapX, mapY, MINIMAP_SIZE, MINIMAP_SIZE);
+
+    // Draw walls (gray rectangles)
+    for (int i = 0; i < wallCount; i++) {
+        float dx = walls[i].position.x - playerPos.x;
+        float dz = walls[i].position.z - playerPos.z;
+        float dist = sqrtf(dx * dx + dz * dz);
+        if (dist > MINIMAP_RADIUS + 20.0f) continue;  // Skip far walls
+
+        int wx = centerX + (int)(dx * scale);
+        int wy = centerY + (int)(dz * scale);  // Z is forward in world
+        int ww = (int)(walls[i].width * scale);
+        int wd = (int)(walls[i].depth * scale);
+        if (ww < 2) ww = 2;
+        if (wd < 2) wd = 2;
+        DrawRectangle(wx - ww/2, wy - wd/2, ww, wd, (Color){100, 100, 100, 180});
+    }
+
+    // Draw trees (small green circles for normal, darker for oak)
+    for (int i = 0; i < treeCount; i++) {
+        if (!trees[i].alive) continue;
+        float dx = trees[i].position.x - playerPos.x;
+        float dz = trees[i].position.z - playerPos.z;
+        float dist = sqrtf(dx * dx + dz * dz);
+        if (dist > MINIMAP_RADIUS) continue;
+
+        int tx = centerX + (int)(dx * scale);
+        int ty = centerY + (int)(dz * scale);
+        Color treeColor = (trees[i].type == TREE_OAK) ?
+            (Color){30, 80, 30, 200} : (Color){50, 120, 50, 200};
+        int radius = (trees[i].type == TREE_OAK) ? 4 : 3;
+        DrawCircle(tx, ty, radius, treeColor);
+    }
+
+    // Draw NPCs (green dots)
+    for (int i = 0; i < npcCount; i++) {
+        if (!npcs[i].active) continue;
+        float dx = npcs[i].position.x - playerPos.x;
+        float dz = npcs[i].position.z - playerPos.z;
+        float dist = sqrtf(dx * dx + dz * dz);
+        if (dist > MINIMAP_RADIUS) continue;
+
+        int nx = centerX + (int)(dx * scale);
+        int ny = centerY + (int)(dz * scale);
+        DrawCircle(nx, ny, 4, (Color){100, 200, 100, 255});
+    }
+
+    // Draw enemies (red dots)
+    for (int i = 0; i < enemyCount; i++) {
+        if (!enemies[i].alive) continue;
+        float dx = enemies[i].position.x - playerPos.x;
+        float dz = enemies[i].position.z - playerPos.z;
+        float dist = sqrtf(dx * dx + dz * dz);
+        if (dist > MINIMAP_RADIUS) continue;
+
+        int ex = centerX + (int)(dx * scale);
+        int ey = centerY + (int)(dz * scale);
+        DrawCircle(ex, ey, 4, (Color){200, 60, 60, 255});
+    }
+
+    // Draw player (yellow triangle pointing in facing direction)
+    // Player yaw: 0 = facing +Z (south), PI/2 = facing +X (east)
+    float arrowLen = 8.0f;
+    float arrowAngle = playerYaw;  // Yaw already in radians
+    // Triangle points in direction player is facing
+    float tipX = centerX + sinf(arrowAngle) * arrowLen;
+    float tipY = centerY + cosf(arrowAngle) * arrowLen;
+    float backAngle = arrowAngle + PI;
+    float sideOffset = 5.0f;
+    float leftX = centerX + sinf(backAngle - 0.5f) * sideOffset;
+    float leftY = centerY + cosf(backAngle - 0.5f) * sideOffset;
+    float rightX = centerX + sinf(backAngle + 0.5f) * sideOffset;
+    float rightY = centerY + cosf(backAngle + 0.5f) * sideOffset;
+    DrawTriangle(
+        (Vector2){tipX, tipY},
+        (Vector2){leftX, leftY},
+        (Vector2){rightX, rightY},
+        (Color){255, 220, 50, 255}
+    );
+
+    EndScissorMode();
+
+    // Draw border
+    DrawRectangleLinesEx((Rectangle){(float)(mapX - 2), (float)(mapY - 2),
+                                      (float)(MINIMAP_SIZE + 4), (float)(MINIMAP_SIZE + 4)},
+                          2, (Color){120, 100, 80, 255});
+
+    // Label
+    DrawText("Map", mapX, mapY - 18, 16, (Color){200, 180, 140, 255});
+
+    // Compass directions
+    DrawText("N", centerX - 4, mapY + 4, 12, (Color){180, 160, 140, 180});
+    DrawText("S", centerX - 4, mapY + MINIMAP_SIZE - 14, 12, (Color){180, 160, 140, 180});
 }

@@ -183,6 +183,8 @@ int main(int argc, char* argv[]) {
     float screenshotMsgTimer = 0.0f;
     char screenshotMsg[128] = "";
     const char* statusMessage = nullptr;
+    const char* attackMessage = nullptr;
+    float attackMessageTimer = 0.0f;
     float autosaveTimer = 0.0f;
     const float AUTOSAVE_INTERVAL = 5.0f;
 
@@ -276,10 +278,24 @@ int main(int argc, char* argv[]) {
             !shopState.active && helpSystem.state == HelpState::CLOSED &&
             IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
             attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
+            const char* newAttackMsg = nullptr;
             ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
                                 trees, treeCount, worldItems, &worldItemCount,
-                                damageIndicators, xpPopups, &levelUpNotif, &swingTimer);
+                                damageIndicators, xpPopups, &levelUpNotif, &swingTimer,
+                                &newAttackMsg);
             attackCooldown = GetWeaponCooldown(playerState.equippedWeapon);
+            if (newAttackMsg) {
+                attackMessage = newAttackMsg;
+                attackMessageTimer = 2.0f;  // Show for 2 seconds
+            }
+        }
+
+        // Update attack message timer
+        if (attackMessageTimer > 0) {
+            attackMessageTimer -= dt;
+            if (attackMessageTimer <= 0) {
+                attackMessage = nullptr;
+            }
         }
 
         // HUD timers
@@ -670,6 +686,8 @@ int main(int argc, char* argv[]) {
         if (screenshotMsgTimer > 0.0f) {
             screenshotMsgTimer -= dt;
             statusMessage = screenshotMsg;
+        } else if (attackMessage) {
+            statusMessage = attackMessage;
         } else {
             statusMessage = nullptr;
         }
@@ -778,7 +796,7 @@ int main(int argc, char* argv[]) {
                 if (trees[i].alive) {
                     Vector3 treePos = trees[i].position;
                     treePos.y = GetTerrainHeight(treePos.x, treePos.z);
-                    DrawTree(&resources.entityModels, treePos, false);
+                    DrawTree(&resources.entityModels, treePos, trees[i].type, false);
                 }
             }
 
@@ -885,7 +903,7 @@ int main(int argc, char* argv[]) {
                     float dist = Distance3D(camera.position, treePos);
                     bool inRange = (dist <= CHOP_RANGE) && IsFacing(camera, treePos) &&
                                    (playerState.equippedWeapon == ITEM_BRONZE_AXE);
-                    DrawTree(&resources.entityModels, treePos, inRange);
+                    DrawTree(&resources.entityModels, treePos, trees[i].type, inRange);
                 }
             }
 
@@ -903,6 +921,16 @@ int main(int argc, char* argv[]) {
                 DrawModel(resources.waterModels[i], waterBodies[i].position, 1.0f, WHITE);
             }
         EndMode3D();
+
+        // Draw minimap
+        float playerYaw = atan2f(camera.target.x - camera.position.x,
+                                  camera.target.z - camera.position.z);
+        DrawMinimap(camera.position, playerYaw,
+                    enemies, enemyCount,
+                    npcs, npcCount,
+                    trees, treeCount,
+                    walls, resources.wallCount,
+                    screenWidth, screenHeight);
 
         // Draw HUD
         DrawHUD(&camera, &playerState, &playerRuntime,

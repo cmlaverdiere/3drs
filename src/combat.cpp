@@ -11,11 +11,13 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                          DamageIndicator* damageIndicators,
                          XPPopup* xpPopups,
                          LevelUpNotification* levelUpNotif,
-                         float* swingTimer) {
+                         float* swingTimer,
+                         const char** outMessage) {
     if (state->equippedWeapon == ITEM_NONE) return false;
 
     *swingTimer = SWING_DURATION;
     bool actionTaken = false;
+    if (outMessage) *outMessage = nullptr;
 
     // Play swing sound based on weapon type
     if (state->equippedWeapon == ITEM_IRON_2H_SWORD) {
@@ -45,6 +47,16 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
         }
 
         if (targetTree != nullptr) {
+            // Check level requirement for oak trees
+            if (targetTree->type == TREE_OAK) {
+                int woodcuttingLevel = GetLevelFromXP(state->skillXP[SKILL_WOODCUTTING]);
+                if (woodcuttingLevel < OAK_TREE_LEVEL) {
+                    if (outMessage) *outMessage = "You need level 15 Woodcutting to chop oak trees.";
+                    PlaySoundEffect(SFX_MISS);
+                    return true;  // Swing happened, but no damage
+                }
+            }
+
             actionTaken = true;
             targetTree->health--;
             PlaySoundEffect(SFX_HIT);
@@ -53,9 +65,10 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                 targetTree->alive = false;
                 targetTree->respawnTimer = TREE_RESPAWN_TIME;
 
-                // Spawn logs
+                // Spawn logs (oak logs for oak trees)
                 if (*worldItemCount < MAX_WORLD_ITEMS) {
-                    worldItems[*worldItemCount].type = ITEM_LOGS;
+                    worldItems[*worldItemCount].type =
+                        (targetTree->type == TREE_OAK) ? ITEM_OAK_LOGS : ITEM_LOGS;
                     worldItems[*worldItemCount].position = targetTree->position;
                     worldItems[*worldItemCount].position.x += RandomFloat(-0.5f, 0.5f);
                     worldItems[*worldItemCount].position.z += RandomFloat(-0.5f, 0.5f);
@@ -66,7 +79,9 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                     (*worldItemCount)++;
                 }
 
-                AwardSkillXP(state, SKILL_WOODCUTTING, WOODCUTTING_XP, xpPopups, levelUpNotif);
+                // Award XP (more for oak trees)
+                int xp = (targetTree->type == TREE_OAK) ? OAK_WOODCUTTING_XP : WOODCUTTING_XP;
+                AwardSkillXP(state, SKILL_WOODCUTTING, xp, xpPopups, levelUpNotif);
             }
         }
     }

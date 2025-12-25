@@ -54,4 +54,15 @@ void DrawNPCPrompt(const char* npcName, int screenWidth, int screenHeight);
 void DrawShopUI(const ShopState* shop, const PlayerState* state,
                 int screenWidth, int screenHeight);
 
+// Draw minimap (top right corner)
+void DrawMinimap(Vector3 playerPos, float playerYaw,
+                 const Enemy* enemies, int enemyCount,
+                 const NPC* npcs, int npcCount,
+                 const Tree* trees, int treeCount,
+                 const Wall* walls, int wallCount,
+                 int screenWidth, int screenHeight);
+
+// Get minimap dimensions (for inventory positioning)
+int GetMinimapHeight();
+
 #endif

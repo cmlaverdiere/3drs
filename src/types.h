@@ -78,6 +78,8 @@ enum ItemType {
     ITEM_STEEL_SCIMITAR,
     ITEM_MITHRIL_SCIMITAR,
     ITEM_ADAMANT_SCIMITAR,
+    // === Woodcutting Items ===
+    ITEM_OAK_LOGS,
     // === ADD NEW ITEMS HERE ===
     ITEM_COUNT
 };
@@ -120,6 +122,17 @@ enum WallMaterial {
     WALL_BRICK,
     WALL_MATERIAL_COUNT
 };
+
+// Tree types
+enum TreeType {
+    TREE_NORMAL = 0,
+    TREE_OAK,
+    TREE_TYPE_COUNT
+};
+
+// Woodcutting level requirements
+constexpr int OAK_TREE_LEVEL = 15;
+constexpr int OAK_WOODCUTTING_XP = 38;  // More XP than normal logs
 
 // Skill indices
 // WARNING: Only add new skills BEFORE SKILL_COUNT, never reorder existing skills!
@@ -248,6 +261,7 @@ struct Wall {
 // Tree structure (choppable resource)
 struct Tree {
     Vector3 position;
+    TreeType type;    // Normal or oak tree
     int health;       // Chops remaining before felling
     bool alive;       // False when cut down
     float respawnTimer;
@@ -469,6 +483,7 @@ struct MapData {
     Wall walls[MAX_WALLS];
     int wallCount;
     Vector3 treeSpawns[MAX_TREES];
+    TreeType treeTypes[MAX_TREES];
     int treeCount;
     Water waterBodies[MAX_WATER];
     int waterCount;

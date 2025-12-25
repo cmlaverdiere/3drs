@@ -97,6 +97,10 @@ tree -10.0 0.0 4.0
 tree -14.0 0.0 -2.0
 tree -11.0 0.0 6.0
 
+# Oak trees (require level 15 Woodcutting) - near west forest
+oak_tree -13.0 0.0 2.0
+oak_tree -16.0 0.0 5.0
+
 # Southwest forest
 tree -15.0 0.0 10.0
 tree -18.0 0.0 14.0
@@ -105,6 +109,10 @@ tree -20.0 0.0 8.0
 tree -22.0 0.0 12.0
 tree -16.0 0.0 18.0
 tree -10.0 0.0 20.0
+
+# More oak trees in southwest forest
+oak_tree -17.0 0.0 11.0
+oak_tree -21.0 0.0 15.0
 
 # South of castle (path to Al Kharid)
 tree 5.0 0.0 8.0

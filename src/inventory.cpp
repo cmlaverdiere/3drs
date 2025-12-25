@@ -1,11 +1,14 @@
 #include "inventory.h"
 #include "combat.h"
 #include "sound_system.h"
+#include "hud.h"
 #include <cmath>
 
 void GetInventoryPosition(int screenWidth, int* outX, int* outY) {
-    *outX = screenWidth - (INV_COLS * (SLOT_SIZE + SLOT_PADDING)) - 20;
-    *outY = 60;
+    // Align right edge with minimap (same margin from screen edge)
+    int invWidth = INV_COLS * (SLOT_SIZE + SLOT_PADDING) + SLOT_PADDING;
+    *outX = screenWidth - invWidth - 5;
+    *outY = GetMinimapHeight() + 20;  // Position below minimap with gap
 }
 
 static bool IsClickInSlot(Vector2 mouse, int slotX, int slotY) {

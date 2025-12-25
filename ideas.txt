@@ -20,10 +20,22 @@ musket / glock (fuck up trolls)
 ## Minimap
 
 - Small radar showing nearby NPCs/enemies/buildings, helps navigation
+- Position in top right corner, move inventory below it
+- Show: player (yellow arrow), enemies (red dots), NPCs (green dots), trees, walls
+- ~50-100 unit radius, ~150-200px size
+
+## Oak Trees
+
+- New tree type requiring level 15 woodcutting to chop
+- Drops oak logs (new item)
+- Visually larger and darker green than regular trees
+- Place some in Lumbridge near existing trees
 
 ## Food/healing
 
 - Cook fish or buy food from the inn, eat to heal mid-combat
+- Respawning cake in Lumbridge castle (free starter food)
+- Cake item: layered cylinder rendering, heals HP when eaten
 
 ## Mining/Smithing
 

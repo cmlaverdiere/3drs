@@ -28,7 +28,9 @@ const char* ITEM_NAMES[ITEM_COUNT] = {
     // Scimitar Shop Items
     "Steel Scimitar",
     "Mithril Scimitar",
-    "Adamant Scimitar"
+    "Adamant Scimitar",
+    // Woodcutting Items
+    "Oak Logs"
 };
 
 // NPC configurations with dialogue

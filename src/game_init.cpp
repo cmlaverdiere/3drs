@@ -264,6 +264,7 @@ void InitTreesFromMap(Tree* trees, int* treeCount, const MapData& mapData) {
     *treeCount = mapData.treeCount;
     for (int i = 0; i < *treeCount; i++) {
         trees[i].position = mapData.treeSpawns[i];
+        trees[i].type = mapData.treeTypes[i];
         trees[i].health = TREE_MAX_HEALTH;
         trees[i].alive = true;
         trees[i].respawnTimer = 0.0f;

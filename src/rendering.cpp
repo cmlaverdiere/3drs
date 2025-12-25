@@ -386,6 +386,15 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
             DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.12f, 0.12f, 0.5f, barkColor);
             break;
         }
+        case ITEM_OAK_LOGS: {
+            // Oak logs - darker, larger than normal logs
+            Color oakBark = { 80, 50, 25, 255 };
+            Color oakRings = { 150, 110, 60, 255 };
+            DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.16f, 0.16f, 0.6f, oakBark);
+            // Visible rings on cut end
+            DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.01f, pos.z + 0.28f}, 0.12f, 0.12f, 0.02f, oakRings);
+            break;
+        }
         case ITEM_CHITIN: {
             Color chitinColor = { 101, 67, 33, 255 };
             Color chitinDark = { 70, 45, 20, 255 };
@@ -483,24 +492,49 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
     }
 }
 
-void DrawTree(const EntityModels* models, Vector3 pos, bool highlighted) {
-    Color trunkColor = { 101, 67, 33, 255 };
-    Color leavesColor = { 34, 139, 34, 255 };
-    Color leavesDark = { 20, 100, 20, 255 };
+void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highlighted) {
+    if (type == TREE_OAK) {
+        // Oak tree - larger and darker green
+        Color oakTrunk = { 70, 45, 20, 255 };
+        Color oakLeaves = { 25, 100, 25, 255 };      // Darker green
+        Color oakLeavesDark = { 15, 75, 15, 255 };   // Even darker
 
-    // Trunk
-    DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.3f, 0.4f, 2.5f, trunkColor);
+        // Thicker trunk
+        DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.5f, 0.6f, 3.5f, oakTrunk);
 
-    // Leaves (layered spheres)
-    DrawModelSphere(models, (Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.5f, leavesColor);
-    DrawModelSphere(models, (Vector3){pos.x - 0.5f, pos.y + 3.0f, pos.z + 0.5f}, 1.0f, leavesDark);
-    DrawModelSphere(models, (Vector3){pos.x + 0.5f, pos.y + 3.0f, pos.z - 0.5f}, 1.0f, leavesDark);
-    DrawModelSphere(models, (Vector3){pos.x, pos.y + 4.2f, pos.z}, 0.8f, leavesColor);
+        // Larger, more layered canopy
+        DrawModelSphere(models, (Vector3){pos.x, pos.y + 5.0f, pos.z}, 2.2f, oakLeaves);
+        DrawModelSphere(models, (Vector3){pos.x - 1.0f, pos.y + 4.2f, pos.z + 0.8f}, 1.6f, oakLeavesDark);
+        DrawModelSphere(models, (Vector3){pos.x + 1.0f, pos.y + 4.2f, pos.z - 0.8f}, 1.6f, oakLeavesDark);
+        DrawModelSphere(models, (Vector3){pos.x + 0.5f, pos.y + 4.5f, pos.z + 1.0f}, 1.3f, oakLeaves);
+        DrawModelSphere(models, (Vector3){pos.x - 0.5f, pos.y + 4.5f, pos.z - 1.0f}, 1.3f, oakLeaves);
+        DrawModelSphere(models, (Vector3){pos.x, pos.y + 6.0f, pos.z}, 1.2f, oakLeaves);
 
-    if (highlighted) {
-        Color outlineColor = { 255, 255, 0, 255 };
-        DrawCylinderWires((Vector3){pos.x, pos.y, pos.z}, 0.35f, 0.45f, 2.5f, 8, outlineColor);
-        DrawSphereWires((Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.55f, 8, 8, outlineColor);
+        if (highlighted) {
+            Color outlineColor = { 255, 255, 0, 255 };
+            DrawCylinderWires((Vector3){pos.x, pos.y, pos.z}, 0.55f, 0.65f, 3.5f, 8, outlineColor);
+            DrawSphereWires((Vector3){pos.x, pos.y + 5.0f, pos.z}, 2.25f, 8, 8, outlineColor);
+        }
+    } else {
+        // Normal tree
+        Color trunkColor = { 101, 67, 33, 255 };
+        Color leavesColor = { 34, 139, 34, 255 };
+        Color leavesDark = { 20, 100, 20, 255 };
+
+        // Trunk
+        DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.3f, 0.4f, 2.5f, trunkColor);
+
+        // Leaves (layered spheres)
+        DrawModelSphere(models, (Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.5f, leavesColor);
+        DrawModelSphere(models, (Vector3){pos.x - 0.5f, pos.y + 3.0f, pos.z + 0.5f}, 1.0f, leavesDark);
+        DrawModelSphere(models, (Vector3){pos.x + 0.5f, pos.y + 3.0f, pos.z - 0.5f}, 1.0f, leavesDark);
+        DrawModelSphere(models, (Vector3){pos.x, pos.y + 4.2f, pos.z}, 0.8f, leavesColor);
+
+        if (highlighted) {
+            Color outlineColor = { 255, 255, 0, 255 };
+            DrawCylinderWires((Vector3){pos.x, pos.y, pos.z}, 0.35f, 0.45f, 2.5f, 8, outlineColor);
+            DrawSphereWires((Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.55f, 8, 8, outlineColor);
+        }
     }
 }
 

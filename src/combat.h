@@ -5,6 +5,7 @@
 
 // Process player attack (handles both tree chopping and enemy combat)
 // Returns true if attack was performed
+// outMessage is set to a status message if needed (e.g., level requirement)
 bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                          Enemy* enemies, int enemyCount,
                          Tree* trees, int treeCount,
@@ -12,7 +13,8 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                          DamageIndicator* damageIndicators,
                          XPPopup* xpPopups,
                          LevelUpNotification* levelUpNotif,
-                         float* swingTimer);
+                         float* swingTimer,
+                         const char** outMessage);
 
 // Award XP to a skill and handle level up notification
 // Returns true if leveled up
