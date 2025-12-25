@@ -273,7 +273,10 @@ const char* UpdateBankInput(MenuSystem* menu, PlayerState* player, int screenWid
         }
 
         // Check inventory slots (displayed at bottom of bank UI)
-        int invGridY = bankGridY + BANK_ROWS * (SLOT_SIZE + SLOT_PADDING) + 60;
+        // Must match DrawBankUI calculation: buttonY + btnH + 15 + 25
+        int buttonY = bankGridY + BANK_ROWS * (SLOT_SIZE + SLOT_PADDING) + 15;
+        int btnH = 30;
+        int invGridY = buttonY + btnH + 15 + 25;  // Same as DrawBankUI
         int invGridX = BOX_X + (BOX_WIDTH - INV_COLS * (SLOT_SIZE + SLOT_PADDING)) / 2;
 
         for (int row = 0; row < INV_ROWS; row++) {
@@ -292,9 +295,8 @@ const char* UpdateBankInput(MenuSystem* menu, PlayerState* player, int screenWid
             }
         }
 
-        // Buttons
-        int buttonY = bankGridY + BANK_ROWS * (SLOT_SIZE + SLOT_PADDING) + 15;
-        int btnW = 100, btnH = 30;
+        // Buttons (buttonY and btnH already declared above)
+        int btnW = 100;
         int depositBtnX = BOX_X + PADDING;
         int withdrawBtnX = BOX_X + PADDING + btnW + 10;
         int depositAllBtnX = BOX_X + BOX_WIDTH - PADDING - btnW;

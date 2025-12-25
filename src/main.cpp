@@ -525,8 +525,10 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // NPC dialogue handling (only when no blocking menus are open)
-        if (CanProcessWorldInteraction(&menuSystem)) {
+        // NPC dialogue handling (only when other blocking menus are closed)
+        // Note: We check shop/help/bank/time but NOT dialogue - we need to handle active dialogue here
+        if (helpSystem.state == HelpState::CLOSED && !shopState.active &&
+            !timeSelectMenu.active && !menuSystem.bank.active) {
             if (!dialogueState.active) {
                 // Start dialogue when pressing E near an NPC
                 if (nearestNPCIndex >= 0 && !mouseMode && !playerRuntime.isDead) {

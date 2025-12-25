@@ -53,12 +53,18 @@ wall 0.0 0.5 0.0 2.0 1.5 2.0 stone
 wall -25.0 0.0 -5.0 12.0 5.0 0.5 stone
 wall -25.0 0.0 5.0 12.0 5.0 0.5 stone
 wall -31.0 0.0 0.0 0.5 5.0 10.0 stone
-wall -19.0 0.0 0.0 0.5 5.0 10.0 stone
+# East wall split for door opening (gap from Z=-1.5 to Z=1.5)
+wall -19.0 0.0 -3.5 0.5 5.0 3.0 stone
+wall -19.0 0.0 3.5 0.5 5.0 3.0 stone
+# Banker inside
+npc banker -25.0 0.0 0.0
 
 # === GENERAL STORE (east of square) ===
 wall 25.0 0.0 -5.0 10.0 4.0 0.5 wood
 wall 25.0 0.0 5.0 10.0 4.0 0.5 wood
-wall 20.0 0.0 0.0 0.5 4.0 10.0 wood
+# West wall split for door opening (gap from Z=-1.5 to Z=1.5)
+wall 20.0 0.0 -3.5 0.5 4.0 3.0 wood
+wall 20.0 0.0 3.5 0.5 4.0 3.0 wood
 wall 30.0 0.0 0.0 0.5 4.0 10.0 wood
 
 # === SWORD SHOP (southwest) ===
