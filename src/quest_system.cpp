@@ -246,22 +246,45 @@ int LoadAllQuests(Quest* quests, int maxQuests) {
         return 0;
     }
 
+    // Collect all quest filenames first
+    char filenames[MAX_QUESTS][64];
+    int fileCount = 0;
+
     struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL && count < maxQuests) {
-        // Check for .quest extension
+    while ((entry = readdir(dir)) != NULL && fileCount < MAX_QUESTS) {
         const char* name = entry->d_name;
         size_t len = strlen(name);
-        if (len > 6 && strcmp(name + len - 6, ".quest") == 0) {
-            char filepath[256];
-            snprintf(filepath, sizeof(filepath), "quests/%s", name);
+        if (len > 6 && len < 64 && strcmp(name + len - 6, ".quest") == 0) {
+            strncpy(filenames[fileCount], name, 63);
+            filenames[fileCount][63] = '\0';
+            fileCount++;
+        }
+    }
+    closedir(dir);
 
-            if (LoadQuest(filepath, &quests[count])) {
-                count++;
+    // Sort filenames alphabetically for consistent quest indices
+    // Simple bubble sort (small number of quests)
+    for (int i = 0; i < fileCount - 1; i++) {
+        for (int j = 0; j < fileCount - i - 1; j++) {
+            if (strcmp(filenames[j], filenames[j + 1]) > 0) {
+                char temp[64];
+                strcpy(temp, filenames[j]);
+                strcpy(filenames[j], filenames[j + 1]);
+                strcpy(filenames[j + 1], temp);
             }
         }
     }
 
-    closedir(dir);
+    // Load quests in sorted order
+    for (int i = 0; i < fileCount && count < maxQuests; i++) {
+        char filepath[256];
+        snprintf(filepath, sizeof(filepath), "quests/%s", filenames[i]);
+
+        if (LoadQuest(filepath, &quests[count])) {
+            count++;
+        }
+    }
+
     printf("Loaded %d quests\n", count);
     return count;
 }

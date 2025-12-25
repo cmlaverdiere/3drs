@@ -91,7 +91,7 @@ static bool ParseBoolAfter(const char* json, const char* key, bool defaultVal) {
     return strncmp(pos, "true", 4) == 0;
 }
 
-void SaveGame(const PlayerState& state) {
+void SaveGame(const PlayerState& state, const Quest* quests, int questCount) {
     // Backup existing save before overwriting
     BackupSaveFile();
 
@@ -122,18 +122,59 @@ void SaveGame(const PlayerState& state) {
     fprintf(f, "  \"maxHP\": %d,\n", state.maxHP);
     fprintf(f, "  \"timeOfDay\": %.6f,\n", state.timeOfDay);
     fprintf(f, "  \"questPoints\": %d,\n", state.questPoints);
+
+    // Save quest progress by ID (not by index) for future-proofing
     fprintf(f, "  \"questProgress\": [\n");
-    for (int i = 0; i < MAX_QUESTS; i++) {
-        fprintf(f, "    { \"state\": %d, \"objective\": %d }%s\n",
-                state.questProgress[i].state, state.questProgress[i].currentObjective,
-                i < MAX_QUESTS - 1 ? "," : "");
+    bool first = true;
+    for (int i = 0; i < questCount; i++) {
+        if (!quests[i].loaded) continue;
+        // Only save quests that have been started or completed
+        if (state.questProgress[i].state != QUEST_NOT_STARTED) {
+            if (!first) fprintf(f, ",\n");
+            fprintf(f, "    { \"id\": \"%s\", \"state\": %d, \"objective\": %d }",
+                    quests[i].id, state.questProgress[i].state,
+                    state.questProgress[i].currentObjective);
+            first = false;
+        }
     }
+    if (!first) fprintf(f, "\n");
     fprintf(f, "  ]\n");
     fprintf(f, "}\n");
     fclose(f);
 }
 
-bool LoadGame(PlayerState& state) {
+// Helper to extract a string value from JSON (returns pointer to static buffer)
+static const char* ParseStringAfter(const char* json, const char* key) {
+    static char buffer[64];
+    buffer[0] = '\0';
+
+    const char* pos = strstr(json, key);
+    if (!pos) return buffer;
+    pos = strchr(pos, ':');
+    if (!pos) return buffer;
+    pos++;
+    while (*pos && (*pos == ' ' || *pos == '"')) pos++;
+    if (!*pos) return buffer;
+
+    int i = 0;
+    while (*pos && *pos != '"' && *pos != ',' && *pos != '}' && i < 63) {
+        buffer[i++] = *pos++;
+    }
+    buffer[i] = '\0';
+    return buffer;
+}
+
+// Find quest index by ID
+static int FindQuestIndexById(const Quest* quests, int questCount, const char* id) {
+    for (int i = 0; i < questCount; i++) {
+        if (quests[i].loaded && strcmp(quests[i].id, id) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+bool LoadGame(PlayerState& state, const Quest* quests, int questCount) {
     FILE* f = fopen(SAVE_FILE, "r");
     if (!f) return false;
 
@@ -220,22 +261,40 @@ bool LoadGame(PlayerState& state) {
     state.timeOfDay = ParseFloatAfter(json, "\"timeOfDay\"", 0.5f);  // Default to midday
     state.questPoints = ParseIntAfter(json, "\"questPoints\"", 0);
 
-    // Parse quest progress
+    // Initialize all quest progress to not started
+    for (int i = 0; i < MAX_QUESTS; i++) {
+        state.questProgress[i].state = QUEST_NOT_STARTED;
+        state.questProgress[i].currentObjective = 0;
+    }
+
+    // Parse quest progress (new format with IDs)
     const char* questSection = strstr(json, "\"questProgress\"");
     if (questSection) {
         const char* bracket = strchr(questSection, '[');
         if (bracket) {
             const char* p = bracket + 1;
-            for (int i = 0; i < MAX_QUESTS && *p; i++) {
+            while (*p) {
                 // Find next { for this entry
                 const char* objStart = strchr(p, '{');
                 if (!objStart) break;
                 const char* objEnd = strchr(objStart, '}');
                 if (!objEnd) break;
 
-                // Parse state and objective within this object
-                state.questProgress[i].state = (QuestState)ParseIntAfter(objStart, "\"state\"", QUEST_NOT_STARTED);
-                state.questProgress[i].currentObjective = ParseIntAfter(objStart, "\"objective\"", 0);
+                // Check if this entry has an "id" field (new format)
+                const char* idField = strstr(objStart, "\"id\"");
+                if (idField && idField < objEnd) {
+                    // New format: find quest by ID
+                    const char* questId = ParseStringAfter(objStart, "\"id\"");
+                    int questIndex = FindQuestIndexById(quests, questCount, questId);
+                    if (questIndex >= 0) {
+                        state.questProgress[questIndex].state =
+                            (QuestState)ParseIntAfter(objStart, "\"state\"", QUEST_NOT_STARTED);
+                        state.questProgress[questIndex].currentObjective =
+                            ParseIntAfter(objStart, "\"objective\"", 0);
+                    }
+                }
+                // Old format without ID: skip (will start fresh)
+                // This loses old progress but prevents corruption
 
                 p = objEnd + 1;
             }

@@ -82,9 +82,7 @@ int main(int argc, char* argv[]) {
     // Initialize player state
     PlayerState playerState = {};
     InitPlayerState(&playerState);
-    if (LoadGame(playerState)) {
-        TraceLog(LOG_INFO, "Loaded save game");
-    }
+    // Note: LoadGame is called after quests are loaded (need quest IDs for progress)
 
     // Initialize camera
     Camera3D camera = {};
@@ -147,7 +145,12 @@ int main(int argc, char* argv[]) {
     Quest quests[MAX_QUESTS] = {};
     int questCount = LoadAllQuests(quests, MAX_QUESTS);
 
-    // Note: Quest progress is already loaded from save file (or zeroed by PlayerState default init)
+    // Load saved game (after quests so we can map progress by quest ID)
+    if (LoadGame(playerState, quests, questCount)) {
+        TraceLog(LOG_INFO, "Loaded save game");
+        // Re-apply saved time of day after loading
+        lighting.timeOfDay = playerState.timeOfDay;
+    }
 
     // Populate spatial hash
     PopulateSpatialHash(&g_spatial, walls, resources.wallCount, enemies, enemyCount, trees, treeCount);
@@ -708,7 +711,7 @@ int main(int argc, char* argv[]) {
     playerState.targetZ = camera.target.z;
     playerState.swordPickedUp = (worldItemCount > 0) ? worldItems[0].pickedUp : false;
     playerState.timeOfDay = lighting.timeOfDay;
-    SaveGame(playerState);
+    SaveGame(playerState, quests, questCount);
     TraceLog(LOG_INFO, "Game saved to %s", SAVE_FILE);
 
     // Cleanup

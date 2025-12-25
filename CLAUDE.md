@@ -95,3 +95,34 @@ This renders a few frames, saves a screenshot, and exits immediately. The screen
 3. Screenshot: `./build/game --screenshot`
 4. Get filename: `./last_screenshots.sh 1`
 5. Read the screenshot file to visually verify
+
+## Save File Migration
+
+**Location:** `savegame.json` in project root
+
+**IMPORTANT:** When making breaking changes to the save format, you MUST migrate the user's existing save file. Do NOT ask the user to delete their save.
+
+**Breaking changes include:**
+- Adding/removing fields in `PlayerState`
+- Changing enum values (ItemType, EnemyType, NPCType, Skill, etc.)
+- Changing how data is indexed or referenced (e.g., quest progress by index → by ID)
+
+**Migration process:**
+1. Read the current `savegame.json`
+2. Transform the data to the new format
+3. Write the updated save file
+4. Verify the game loads correctly with `./build/game --test`
+
+**Example:** Quest progress was changed from index-based to ID-based:
+```json
+// Old format (index-based, breaks when quest order changes)
+"questProgress": [
+  { "state": 2, "objective": 2 },
+  { "state": 0, "objective": 0 }
+]
+
+// New format (ID-based, stable across quest additions)
+"questProgress": [
+  { "id": "pest_control", "state": 2, "objective": 2 }
+]
+```
