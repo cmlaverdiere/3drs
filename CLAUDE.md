@@ -126,3 +126,32 @@ This renders a few frames, saves a screenshot, and exits immediately. The screen
   { "id": "pest_control", "state": 2, "objective": 2 }
 ]
 ```
+
+## Adding New Content
+
+### Adding a New Item
+
+**ALL of these files must be updated:**
+
+1. **src/types.h** - Add to `ItemType` enum (before `ITEM_COUNT`)
+2. **src/types.cpp** - Add name to `ITEM_NAMES` array (same index as enum)
+3. **src/rendering.cpp** - Add case in `DrawWorldItem()` for 3D world rendering
+4. **src/hud.cpp** - Add case in `DrawItemIcon()` for inventory icon
+5. **src/quest_system.cpp** - Add to `ParseItemType()` if used in quests
+6. **src/types.cpp** - Add to enemy's `drops[]` in `ENEMY_CONFIGS` if dropped by enemies
+
+### Adding a New Enemy
+
+1. **src/types.h** - Add to `EnemyType` enum (before `ENEMY_TYPE_COUNT`)
+2. **src/types.cpp** - Add config to `ENEMY_CONFIGS` array (level, HP, damage, drops)
+3. **src/rendering.cpp** - Add `Draw<Enemy>()` function and case in `DrawEnemy()` switch
+4. **src/map.cpp** - Add to enemy type parsing in `LoadMap()`
+5. **maps/*.map** - Place enemy with `enemy <type> x y z`
+
+### Adding a New NPC
+
+1. **src/types.h** - Add to `NPCType` enum (before `NPC_COUNT`)
+2. **src/types.cpp** - Add config to `NPC_CONFIGS` array (name, colors, dialogue)
+3. **src/map.cpp** - Add to NPC type parsing in `LoadMap()`
+4. **src/quest_system.cpp** - Add to `ParseNPCType()` if used in quests
+5. **maps/*.map** - Place NPC with `npc <type> x y z`

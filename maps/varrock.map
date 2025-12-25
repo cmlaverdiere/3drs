@@ -67,9 +67,11 @@ wall -35.0 0.0 32.0 8.0 4.0 0.5 wood
 wall -39.0 0.0 28.5 0.5 4.0 7.0 wood
 wall -31.0 0.0 28.5 0.5 4.0 7.0 wood
 
-# === INN (southeast) ===
+# === INN / BLUE MOON INN (southeast) ===
 wall 35.0 0.0 25.0 10.0 5.0 0.5 wood
-wall 35.0 0.0 35.0 10.0 5.0 0.5 wood
+# South wall split for door opening (gap from X=33 to X=37)
+wall 31.0 0.0 35.0 2.0 5.0 0.5 wood
+wall 39.0 0.0 35.0 2.0 5.0 0.5 wood
 wall 30.0 0.0 30.0 0.5 5.0 10.0 wood
 wall 40.0 0.0 30.0 0.5 5.0 10.0 wood
 

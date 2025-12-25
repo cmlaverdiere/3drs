@@ -148,7 +148,9 @@ int main(int argc, char* argv[]) {
     // Load saved game (after quests so we can map progress by quest ID)
     if (LoadGame(playerState, quests, questCount)) {
         TraceLog(LOG_INFO, "Loaded save game");
-        // Re-apply saved time of day after loading
+        // Re-apply saved camera position and time of day after loading
+        camera.position = (Vector3){ playerState.posX, playerState.posY, playerState.posZ };
+        camera.target = (Vector3){ playerState.targetX, playerState.targetY, playerState.targetZ };
         lighting.timeOfDay = playerState.timeOfDay;
     }
 
@@ -174,6 +176,8 @@ int main(int argc, char* argv[]) {
     float screenshotMsgTimer = 0.0f;
     char screenshotMsg[128] = "";
     const char* statusMessage = nullptr;
+    float autosaveTimer = 0.0f;
+    const float AUTOSAVE_INTERVAL = 5.0f;
 
     bool showActionMenu = false;
     WorldItem* targetItem = nullptr;
@@ -239,6 +243,15 @@ int main(int argc, char* argv[]) {
                 playerRuntime.isDead = true;
                 playerRuntime.deathFadeTimer = DEATH_FADE_DURATION;
                 playerRuntime.deathPosition = camera.position;
+                // Save on death
+                playerState.posX = camera.position.x;
+                playerState.posY = camera.position.y;
+                playerState.posZ = camera.position.z;
+                playerState.targetX = camera.target.x;
+                playerState.targetY = camera.target.y;
+                playerState.targetZ = camera.target.z;
+                playerState.timeOfDay = lighting.timeOfDay;
+                SaveGame(playerState, quests, questCount);
             }
         }
 
@@ -248,8 +261,9 @@ int main(int argc, char* argv[]) {
         // Item respawning
         UpdateItemRespawns(worldItems, worldItemCount, dt);
 
-        // Player attack
-        if (!mouseMode && !playerRuntime.isDead && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
+        // Player attack (don't attack while in dialogue or UI)
+        if (!mouseMode && !playerRuntime.isDead && !dialogueState.active &&
+            IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
             attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
             ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
                                 trees, treeCount, worldItems, &worldItemCount,
@@ -505,6 +519,21 @@ int main(int argc, char* argv[]) {
             statusMessage = screenshotMsg;
         } else {
             statusMessage = nullptr;
+        }
+
+        // Autosave every 30 seconds
+        autosaveTimer += dt;
+        if (autosaveTimer >= AUTOSAVE_INTERVAL) {
+            autosaveTimer = 0.0f;
+            // Update playerState with current camera position before saving
+            playerState.posX = camera.position.x;
+            playerState.posY = camera.position.y;
+            playerState.posZ = camera.position.z;
+            playerState.targetX = camera.target.x;
+            playerState.targetY = camera.target.y;
+            playerState.targetZ = camera.target.z;
+            playerState.timeOfDay = lighting.timeOfDay;
+            SaveGame(playerState, quests, questCount);
         }
 
         // ========== SHADOW PASS ==========

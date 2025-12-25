@@ -196,6 +196,119 @@ void DrawScorpion(const EntityModels* models, Vector3 pos, float facingAngle, bo
     rlPopMatrix();
 }
 
+void DrawBandit(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted) {
+    // Human bandit - hooded figure with dark clothes
+    Color skinColor = { 220, 180, 150, 255 };     // Skin
+    Color hoodColor = { 50, 40, 35, 255 };        // Dark hood/cloak
+    Color shirtColor = { 80, 60, 50, 255 };       // Dark brown shirt
+    Color pantsColor = { 40, 35, 30, 255 };       // Very dark pants
+    Color beltColor = { 100, 70, 40, 255 };       // Leather belt
+    Color eyeWhite = { 255, 255, 255, 255 };
+    Color eyeBlack = { 20, 20, 20, 255 };
+
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y, pos.z);
+    rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
+
+    // Legs
+    float legHeight = 0.7f;
+    float legWidth = 0.14f;
+    DrawModelCube(models, (Vector3){-0.1f, legHeight * 0.5f, 0}, legWidth, legHeight, legWidth, pantsColor);
+    DrawModelCube(models, (Vector3){0.1f, legHeight * 0.5f, 0}, legWidth, legHeight, legWidth, pantsColor);
+
+    // Torso
+    float torsoBottom = legHeight;
+    float torsoHeight = 0.55f;
+    DrawModelCube(models, (Vector3){0, torsoBottom + torsoHeight * 0.5f, 0}, 0.4f, torsoHeight, 0.22f, shirtColor);
+
+    // Belt
+    DrawModelCube(models, (Vector3){0, torsoBottom + 0.05f, 0}, 0.42f, 0.08f, 0.24f, beltColor);
+
+    // Arms
+    float armHeight = 0.5f;
+    float shoulderY = torsoBottom + torsoHeight * 0.85f;
+    DrawModelCube(models, (Vector3){-0.28f, shoulderY - armHeight * 0.5f, 0}, 0.1f, armHeight, 0.1f, shirtColor);
+    DrawModelCube(models, (Vector3){0.28f, shoulderY - armHeight * 0.5f, 0}, 0.1f, armHeight, 0.1f, shirtColor);
+
+    // Hands
+    DrawModelSphere(models, (Vector3){-0.28f, shoulderY - armHeight - 0.03f, 0}, 0.06f, skinColor);
+    DrawModelSphere(models, (Vector3){0.28f, shoulderY - armHeight - 0.03f, 0}, 0.06f, skinColor);
+
+    // Head
+    float headY = torsoBottom + torsoHeight + 0.18f;
+    DrawModelSphere(models, (Vector3){0, headY, 0}, 0.18f, skinColor);
+
+    // Hood (cube around head)
+    DrawModelCube(models, (Vector3){0, headY + 0.05f, -0.05f}, 0.4f, 0.3f, 0.25f, hoodColor);
+    DrawModelCube(models, (Vector3){0, headY + 0.15f, 0}, 0.38f, 0.15f, 0.35f, hoodColor);
+
+    // Eyes (visible under hood)
+    float faceZ = 0.16f;
+    DrawModelSphere(models, (Vector3){-0.05f, headY + 0.02f, faceZ}, 0.025f, eyeWhite);
+    DrawModelSphere(models, (Vector3){0.05f, headY + 0.02f, faceZ}, 0.025f, eyeWhite);
+    DrawModelSphere(models, (Vector3){-0.05f, headY + 0.02f, faceZ + 0.01f}, 0.012f, eyeBlack);
+    DrawModelSphere(models, (Vector3){0.05f, headY + 0.02f, faceZ + 0.01f}, 0.012f, eyeBlack);
+
+    // Dagger at hip
+    Color daggerBlade = { 180, 180, 190, 255 };
+    DrawModelCube(models, (Vector3){0.22f, torsoBottom, 0.1f}, 0.03f, 0.03f, 0.2f, daggerBlade);
+
+    (void)highlighted;
+    rlPopMatrix();
+}
+
+void DrawSandGolem(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted) {
+    // Large sand-colored elemental creature
+    Color sandLight = { 210, 180, 140, 255 };     // Light sand
+    Color sandDark = { 180, 150, 110, 255 };      // Darker sand
+    Color sandDeep = { 150, 120, 80, 255 };       // Deep sand
+    Color eyeGlow = { 255, 200, 100, 255 };       // Glowing amber eyes
+
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y, pos.z);
+    rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
+
+    // Large legs (thick pillars)
+    float legHeight = 0.9f;
+    DrawModelCube(models, (Vector3){-0.25f, legHeight * 0.5f, 0}, 0.35f, legHeight, 0.35f, sandDark);
+    DrawModelCube(models, (Vector3){0.25f, legHeight * 0.5f, 0}, 0.35f, legHeight, 0.35f, sandDark);
+
+    // Massive torso
+    float torsoBottom = legHeight * 0.8f;
+    float torsoHeight = 1.0f;
+    DrawModelCube(models, (Vector3){0, torsoBottom + torsoHeight * 0.5f, 0}, 0.9f, torsoHeight, 0.6f, sandLight);
+
+    // Chest detail
+    DrawModelCube(models, (Vector3){0, torsoBottom + torsoHeight * 0.6f, 0.25f}, 0.5f, 0.4f, 0.15f, sandDeep);
+
+    // Massive arms
+    float shoulderY = torsoBottom + torsoHeight * 0.9f;
+    float armHeight = 0.9f;
+    DrawModelCube(models, (Vector3){-0.6f, shoulderY - armHeight * 0.4f, 0}, 0.25f, armHeight, 0.25f, sandDark);
+    DrawModelCube(models, (Vector3){0.6f, shoulderY - armHeight * 0.4f, 0}, 0.25f, armHeight, 0.25f, sandDark);
+
+    // Fists
+    DrawModelSphere(models, (Vector3){-0.6f, shoulderY - armHeight - 0.1f, 0}, 0.2f, sandDeep);
+    DrawModelSphere(models, (Vector3){0.6f, shoulderY - armHeight - 0.1f, 0}, 0.2f, sandDeep);
+
+    // Head (rough rocky shape)
+    float headY = torsoBottom + torsoHeight + 0.35f;
+    DrawModelCube(models, (Vector3){0, headY, 0}, 0.5f, 0.45f, 0.4f, sandLight);
+    DrawModelCube(models, (Vector3){0, headY + 0.1f, 0}, 0.4f, 0.25f, 0.35f, sandDark);
+
+    // Glowing eyes
+    float faceZ = 0.2f;
+    DrawModelSphere(models, (Vector3){-0.12f, headY + 0.05f, faceZ}, 0.07f, eyeGlow);
+    DrawModelSphere(models, (Vector3){0.12f, headY + 0.05f, faceZ}, 0.07f, eyeGlow);
+
+    // Rough surface details
+    DrawModelCube(models, (Vector3){0.3f, torsoBottom + 0.3f, 0.2f}, 0.15f, 0.15f, 0.1f, sandDeep);
+    DrawModelCube(models, (Vector3){-0.25f, torsoBottom + 0.5f, 0.22f}, 0.12f, 0.12f, 0.08f, sandDeep);
+
+    (void)highlighted;
+    rlPopMatrix();
+}
+
 void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted) {
     switch (enemy.type) {
         case ENEMY_TROLL:
@@ -206,6 +319,12 @@ void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted)
             break;
         case ENEMY_SCORPION:
             DrawScorpion(models, enemy.position, enemy.facingAngle, highlighted);
+            break;
+        case ENEMY_BANDIT:
+            DrawBandit(models, enemy.position, enemy.facingAngle, highlighted);
+            break;
+        case ENEMY_SAND_GOLEM:
+            DrawSandGolem(models, enemy.position, enemy.facingAngle, highlighted);
             break;
         default:
             DrawModelCube(models, enemy.position, 0.5f, 1.0f, 0.5f, RED);
@@ -280,6 +399,53 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
             DrawModelCube(models, (Vector3){pos.x, pos.y + 0.06f, pos.z - 0.55f}, 0.07f, 0.07f, 0.28f, leatherGrip);
             // Pommel
             DrawModelSphere(models, (Vector3){pos.x, pos.y + 0.06f, pos.z - 0.72f}, 0.06f, ironDark);
+            break;
+        }
+        case ITEM_BANDIT_ORDERS: {
+            // Scroll/paper with wax seal
+            Color parchment = { 240, 230, 200, 255 };
+            Color parchmentDark = { 200, 190, 160, 255 };
+            Color waxSeal = { 150, 40, 40, 255 };
+            // Rolled parchment
+            DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.03f, pos.z}, 0.08f, 0.08f, 0.35f, parchment);
+            // Darker bands at ends
+            DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.03f, pos.z + 0.15f}, 0.09f, 0.09f, 0.04f, parchmentDark);
+            DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.03f, pos.z - 0.15f}, 0.09f, 0.09f, 0.04f, parchmentDark);
+            // Wax seal
+            DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.1f, pos.z}, 0.06f, 0.06f, 0.02f, waxSeal);
+            break;
+        }
+        case ITEM_DESERT_ARTIFACT: {
+            // Glowing golden artifact
+            Color gold = { 255, 200, 50, 255 };
+            Color goldDark = { 200, 150, 30, 255 };
+            Color glow = { 255, 230, 150, 255 };
+            // Base pyramid shape (using cubes)
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.05f, pos.z}, 0.25f, 0.1f, 0.25f, goldDark);
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.12f, pos.z}, 0.18f, 0.08f, 0.18f, gold);
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.18f, pos.z}, 0.1f, 0.06f, 0.1f, gold);
+            // Glowing orb on top
+            DrawModelSphere(models, (Vector3){pos.x, pos.y + 0.25f, pos.z}, 0.06f, glow);
+            break;
+        }
+        case ITEM_SILK: {
+            // Rolled silk fabric
+            Color silkColor = { 200, 50, 80, 255 };  // Rich red silk
+            Color silkHighlight = { 230, 100, 120, 255 };
+            DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.04f, pos.z}, 0.1f, 0.1f, 0.4f, silkColor);
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.08f, pos.z}, 0.08f, 0.02f, 0.35f, silkHighlight);
+            break;
+        }
+        case ITEM_SPICE: {
+            // Spice pouch/bag
+            Color bagColor = { 160, 120, 80, 255 };
+            Color spiceColor = { 200, 100, 30, 255 };  // Orange spice
+            // Bag
+            DrawModelSphere(models, (Vector3){pos.x, pos.y + 0.1f, pos.z}, 0.12f, bagColor);
+            // Tied top
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.2f, pos.z}, 0.04f, 0.06f, 0.04f, bagColor);
+            // Spice visible at opening
+            DrawModelSphere(models, (Vector3){pos.x, pos.y + 0.18f, pos.z}, 0.04f, spiceColor);
             break;
         }
         default:

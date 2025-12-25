@@ -361,33 +361,48 @@ const char** GetQuestDialogue(const Quest* quest, const QuestProgress* progress,
         return (const char**)quest->dialogueStart;
     }
     else if (progress->state == QUEST_IN_PROGRESS) {
-        int obj = progress->currentObjective;
-        if (obj < quest->objectiveCount) {
-            const QuestObjective* objective = &quest->objectives[obj];
+        int currentObj = progress->currentObjective;
 
-            // Check if we're talking to the right NPC for this objective
-            if (talkingTo != objective->targetNPC) {
-                *lineCount = 0;
-                return nullptr;  // Wrong NPC for current objective
-            }
+        // First check if this NPC is the target of the CURRENT objective
+        if (currentObj < quest->objectiveCount) {
+            const QuestObjective* objective = &quest->objectives[currentObj];
 
-            if (objective->type == OBJ_TALK_TO) {
-                // "Talk to" objective - show turnin dialogue when talking to target
-                *lineCount = quest->dialogueTurninCount[obj];
-                return (const char**)quest->dialogueTurnin[obj];
-            }
-            else if (objective->type == OBJ_ITEM) {
-                if (HasItem(state, objective->item)) {
-                    // Player has the item - show turnin dialogue
-                    *lineCount = quest->dialogueTurninCount[obj];
-                    return (const char**)quest->dialogueTurnin[obj];
-                } else {
-                    // Player doesn't have item - show "go get it" dialogue
-                    *lineCount = quest->dialogueStageCount[obj];
-                    return (const char**)quest->dialogueStage[obj];
+            if (talkingTo == objective->targetNPC) {
+                // This is the NPC for the current objective
+                if (objective->type == OBJ_TALK_TO) {
+                    // "Talk to" objective - show turnin dialogue when talking to target
+                    *lineCount = quest->dialogueTurninCount[currentObj];
+                    return (const char**)quest->dialogueTurnin[currentObj];
+                }
+                else if (objective->type == OBJ_ITEM) {
+                    if (HasItem(state, objective->item)) {
+                        // Player has the item - show turnin dialogue
+                        *lineCount = quest->dialogueTurninCount[currentObj];
+                        return (const char**)quest->dialogueTurnin[currentObj];
+                    } else {
+                        // Player doesn't have item - show "go get it" dialogue
+                        *lineCount = quest->dialogueStageCount[currentObj];
+                        return (const char**)quest->dialogueStage[currentObj];
+                    }
                 }
             }
         }
+
+        // Not the current objective's NPC - check if this NPC was a PREVIOUS objective's target
+        // If so, repeat their turnin dialogue (so they don't revert to default dialogue)
+        for (int obj = currentObj - 1; obj >= 0; obj--) {
+            if (quest->objectives[obj].targetNPC == talkingTo) {
+                // This NPC was involved in a previous objective - repeat their turnin
+                if (quest->dialogueTurnin[obj] && quest->dialogueTurninCount[obj] > 0) {
+                    *lineCount = quest->dialogueTurninCount[obj];
+                    return (const char**)quest->dialogueTurnin[obj];
+                }
+            }
+        }
+
+        // NPC is part of quest but hasn't been reached yet - no dialogue
+        *lineCount = 0;
+        return nullptr;
     }
     else if (progress->state == QUEST_COMPLETE) {
         // Any involved NPC can show completion dialogue

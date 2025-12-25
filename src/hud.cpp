@@ -383,6 +383,29 @@ static void DrawItemIcon(ItemType item, int cx, int cy) {
         DrawRectangle(cx - 2, cy + 12, 4, 10, leatherGrip);
         DrawRectangle(cx - 10, cy + 10, 20, 4, ironDark);
         DrawCircle(cx, cy + 24, 3, ironDark);
+    } else if (item == ITEM_BANDIT_ORDERS) {
+        Color parchment = { 240, 230, 200, 255 };
+        Color waxSeal = { 150, 40, 40, 255 };
+        DrawRectangle(cx - 8, cy - 10, 16, 20, parchment);
+        DrawCircle(cx, cy + 6, 4, waxSeal);
+    } else if (item == ITEM_DESERT_ARTIFACT) {
+        Color gold = { 255, 200, 50, 255 };
+        Color glow = { 255, 230, 150, 255 };
+        DrawTriangle((Vector2){(float)cx, (float)(cy - 12)},
+                     (Vector2){(float)(cx - 10), (float)(cy + 8)},
+                     (Vector2){(float)(cx + 10), (float)(cy + 8)}, gold);
+        DrawCircle(cx, cy - 4, 4, glow);
+    } else if (item == ITEM_SILK) {
+        Color silkColor = { 200, 50, 80, 255 };
+        Color silkHighlight = { 230, 100, 120, 255 };
+        DrawRectangle(cx - 10, cy - 6, 20, 12, silkColor);
+        DrawRectangle(cx - 8, cy - 2, 16, 4, silkHighlight);
+    } else if (item == ITEM_SPICE) {
+        Color bagColor = { 160, 120, 80, 255 };
+        Color spiceColor = { 200, 100, 30, 255 };
+        DrawCircle(cx, cy + 2, 10, bagColor);
+        DrawRectangle(cx - 2, cy - 10, 4, 8, bagColor);
+        DrawCircle(cx, cy - 6, 3, spiceColor);
     }
 }
 
