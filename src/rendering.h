@@ -43,4 +43,10 @@ void DrawNPC(const EntityModels* models, const NPC& npc);
 // Draw all NPCs
 void DrawNPCs(const EntityModels* models, const NPC* npcs, int npcCount);
 
+// Draw light sources (lamps, campfires)
+void DrawLamp(const EntityModels* models, Vector3 pos, bool lit);
+void DrawCampfire(const EntityModels* models, Vector3 pos);
+void DrawLightSource(const EntityModels* models, const LightSource& light, bool lampsOn);
+void DrawLightSources(const EntityModels* models, const LightSource* lights, int lightCount, bool lampsOn);
+
 #endif

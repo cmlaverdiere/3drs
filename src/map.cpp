@@ -271,6 +271,32 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                 TraceLog(LOG_WARNING, "MAX_NPCS (%d) exceeded, skipping npc", MAX_NPCS);
             }
         }
+        else if (strcmp(type, "lamp") == 0) {
+            // Format: lamp x y z
+            if (map.lightCount < MAX_LIGHTS) {
+                float x, y, z;
+                if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
+                    map.lightSpawns[map.lightCount] = { x + offsetX, y, z + offsetZ };
+                    map.lightTypes[map.lightCount] = LIGHT_LAMP;
+                    map.lightCount++;
+                }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_LIGHTS (%d) exceeded, skipping lamp", MAX_LIGHTS);
+            }
+        }
+        else if (strcmp(type, "campfire") == 0) {
+            // Format: campfire x y z
+            if (map.lightCount < MAX_LIGHTS) {
+                float x, y, z;
+                if (sscanf(line, "%*s %f %f %f", &x, &y, &z) == 3) {
+                    map.lightSpawns[map.lightCount] = { x + offsetX, y, z + offsetZ };
+                    map.lightTypes[map.lightCount] = LIGHT_CAMPFIRE;
+                    map.lightCount++;
+                }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_LIGHTS (%d) exceeded, skipping campfire", MAX_LIGHTS);
+            }
+        }
     }
 
     fclose(f);
@@ -288,13 +314,14 @@ bool LoadMap(const char* filename, MapData& map) {
     map.sandCount = 0;
     map.valleyCount = 0;
     map.npcCount = 0;
+    map.lightCount = 0;
 
     // Load the root map file with no offset
     bool success = LoadMapFile(filename, map, 0.0f, 0.0f, nullptr);
 
     if (success) {
-        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d sand, %d valleys, %d npcs)",
-            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.sandCount, map.valleyCount, map.npcCount);
+        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d water, %d sand, %d valleys, %d npcs, %d lights)",
+            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.waterCount, map.sandCount, map.valleyCount, map.npcCount, map.lightCount);
     }
 
     return success;

@@ -37,6 +37,7 @@ add_executable(game
     src/hud.cpp
     src/game_init.cpp
     src/lighting.cpp
+    src/shader_utils.cpp
     src/quest_system.cpp
     src/voice_system.cpp
     src/help_system.cpp

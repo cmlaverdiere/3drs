@@ -195,3 +195,30 @@ npc guard 3.0 0.0 -3.0
 
 # Cook - near castle kitchen area
 npc cook -5.0 0.0 -8.0
+
+# === LIGHT SOURCES ===
+# Street lamps - Castle courtyard
+lamp -4.0 0.0 -3.0
+lamp 4.0 0.0 2.0
+
+# Street lamps - Near bridge (beside the road, not on it)
+lamp 6.0 0.0 4.0
+lamp 18.0 0.0 4.0
+
+# Street lamp - General store
+lamp -14.0 0.0 -4.0
+
+# Street lamp - Church entrance
+lamp -21.0 0.0 -12.0
+
+# Campfire - Cow pasture rest spot
+campfire 27.0 0.0 -10.0
+
+# Campfire - South forest clearing
+campfire -15.0 0.0 12.0
+
+# Campfire - Goblin territory (east of river)
+campfire 28.0 0.0 8.0
+
+# Campfire - Road to Varrock rest stop
+campfire 0.0 0.0 -60.0

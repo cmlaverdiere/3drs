@@ -4,6 +4,7 @@
 #include "sound_system.h"
 #include "voice_system.h"
 #include "xp_system.h"
+#include "shader_utils.h"
 #include "rlgl.h"
 #include "raymath.h"
 #include <cstdlib>
@@ -64,8 +65,8 @@ void InitCamera(Camera3D* camera, const PlayerState* state) {
 GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* waterBodies, Sand* sandZones) {
     GameResources res = {};
 
-    // Grass/ground shader and ground model
-    res.grassShader = LoadShader("shaders/grass.vs", "shaders/grass.fs");
+    // Grass/ground shader and ground model (uses #include for common lighting)
+    res.grassShader = LoadShaderWithIncludes("shaders/grass.vs", "shaders/grass.fs");
     Mesh groundMesh = GenHeightmapMesh(512.0f, 512.0f, 256, 256);
     res.groundModel = LoadModelFromMesh(groundMesh);
     res.groundModel.materials[0].shader = res.grassShader;
@@ -86,17 +87,17 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
         SetShaderValue(res.grassShader, sandZonesLoc + i, zoneData, SHADER_UNIFORM_VEC4);
     }
 
-    // Wall shaders
-    res.wallShaders[WALL_WOOD] = LoadShader("shaders/wall.vs", "shaders/wood.fs");
-    res.wallShaders[WALL_STONE] = LoadShader("shaders/wall.vs", "shaders/stone.fs");
-    res.wallShaders[WALL_BRICK] = LoadShader("shaders/wall.vs", "shaders/brick.fs");
+    // Wall shaders (use #include for common lighting)
+    res.wallShaders[WALL_WOOD] = LoadShaderWithIncludes("shaders/wall.vs", "shaders/wood.fs");
+    res.wallShaders[WALL_STONE] = LoadShaderWithIncludes("shaders/wall.vs", "shaders/stone.fs");
+    res.wallShaders[WALL_BRICK] = LoadShaderWithIncludes("shaders/wall.vs", "shaders/brick.fs");
 
     // Water shader
     res.waterShader = LoadShader("shaders/water.vs", "shaders/water.fs");
     res.waterTimeLoc = GetShaderLocation(res.waterShader, "time");
 
     // Entity shader for lit enemies/trees/items
-    res.entityShader = LoadShader("shaders/entity.vs", "shaders/entity.fs");
+    res.entityShader = LoadShaderWithIncludes("shaders/entity.vs", "shaders/entity.fs");
 
     // Depth shader for shadow map pass
     res.depthShader = LoadShader("shaders/depth.vs", "shaders/depth.fs");
@@ -122,6 +123,13 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     Mesh cylinderMesh = GenMeshCylinder(1.0f, 1.0f, 16);
     res.entityModels.cylinder = LoadModelFromMesh(cylinderMesh);
     res.entityModels.cylinder.materials[0].shader = res.entityShader;
+
+    // Fire shader and billboard plane for campfires
+    res.entityModels.fireShader = LoadShader("shaders/fire.vs", "shaders/fire.fs");
+    res.entityModels.fireTimeLoc = GetShaderLocation(res.entityModels.fireShader, "time");
+    Mesh firePlaneMesh = GenMeshPlane(1.0f, 1.0f, 1, 1);
+    res.entityModels.firePlane = LoadModelFromMesh(firePlaneMesh);
+    res.entityModels.firePlane.materials[0].shader = res.entityModels.fireShader;
 
     res.entityModels.initialized = true;
 
@@ -463,6 +471,8 @@ void CleanupGameResources(GameResources* res) {
         UnloadModel(res->entityModels.cube);
         UnloadModel(res->entityModels.sphere);
         UnloadModel(res->entityModels.cylinder);
+        UnloadModel(res->entityModels.firePlane);
+        UnloadShader(res->entityModels.fireShader);
     }
 
     UnloadSoundSystem();

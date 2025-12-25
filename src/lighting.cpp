@@ -138,6 +138,11 @@ void InitLightingSystem(LightingSystem* lighting) {
 
     // Initial sun direction
     lighting->sunDirection = Vector3Normalize((Vector3){0.3f, -0.8f, 0.5f});
+
+    // Initialize point lights
+    lighting->lampCount = 0;
+    lighting->campfireCount = 0;
+    lighting->lampsOn = false;
 }
 
 void UpdateLightingSystem(LightingSystem* lighting, float dt, Vector3 playerPos) {
@@ -146,6 +151,9 @@ void UpdateLightingSystem(LightingSystem* lighting, float dt, Vector3 playerPos)
         lighting->timeOfDay += dt / DAY_CYCLE_DURATION;
         if (lighting->timeOfDay >= 1.0f) lighting->timeOfDay -= 1.0f;
     }
+
+    // Update lamp state based on time
+    lighting->lampsOn = AreLampsOn(lighting->timeOfDay);
 
     // Interpolate colors based on time
     TimeColors colors = InterpolateTimeColors(lighting->timeOfDay);
@@ -210,6 +218,41 @@ void SetShaderLightingUniforms(LightingSystem* lighting, Shader shader, Vector3 
 
     // Set light view-projection matrix
     SetShaderValueMatrix(shader, lightVPLoc, lighting->lightViewProj);
+
+    // Combine lamp and campfire lights into one array for shader
+    int pointLightPosLoc = GetShaderLocation(shader, "pointLightPositions");
+    int pointLightColLoc = GetShaderLocation(shader, "pointLightColors");
+    int pointLightCountLoc = GetShaderLocation(shader, "pointLightCount");
+
+    // Build combined light array
+    Vector3 combinedPositions[MAX_POINT_LIGHTS];
+    Vector3 combinedColors[MAX_POINT_LIGHTS];
+    int totalLights = 0;
+
+    // Add campfire lights (always on)
+    for (int i = 0; i < lighting->campfireCount && totalLights < MAX_POINT_LIGHTS; i++) {
+        combinedPositions[totalLights] = lighting->campfirePositions[i];
+        combinedColors[totalLights] = lighting->campfireColors[i];
+        totalLights++;
+    }
+
+    // Add lamp lights (only when lamps are on)
+    if (lighting->lampsOn) {
+        for (int i = 0; i < lighting->lampCount && totalLights < MAX_POINT_LIGHTS; i++) {
+            combinedPositions[totalLights] = lighting->lampPositions[i];
+            combinedColors[totalLights] = lighting->lampColors[i];
+            totalLights++;
+        }
+    }
+
+    if (totalLights > 0) {
+        SetShaderValueV(shader, pointLightPosLoc, combinedPositions, SHADER_UNIFORM_VEC3, totalLights);
+        SetShaderValueV(shader, pointLightColLoc, combinedColors, SHADER_UNIFORM_VEC3, totalLights);
+        SetShaderValue(shader, pointLightCountLoc, &totalLights, SHADER_UNIFORM_INT);
+    } else {
+        int zero = 0;
+        SetShaderValue(shader, pointLightCountLoc, &zero, SHADER_UNIFORM_INT);
+    }
 }
 
 void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos, Shader depthShader) {
@@ -335,6 +378,50 @@ TimeOfDay GetTimeOfDayPhase(float timeOfDay) {
     if (timeOfDay < 0.65f) return TIME_DAY;
     if (timeOfDay < 0.8f) return TIME_DUSK;
     return TIME_NIGHT;
+}
+
+bool AreLampsOn(float timeOfDay) {
+    // Lamps on from dusk through night to dawn
+    // On: 0.6 (approaching dusk) to 0.2 (after dawn)
+    return (timeOfDay >= LAMP_ON_TIME || timeOfDay < LAMP_OFF_TIME);
+}
+
+void SetLampPositions(LightingSystem* lighting, const Vector3* positions, int count) {
+    lighting->lampCount = (count > MAX_POINT_LIGHTS) ? MAX_POINT_LIGHTS : count;
+
+    // Soft warm lamp color
+    Vector3 lampColor = {0.9f, 0.7f, 0.4f};  // Warm yellow-orange
+
+    for (int i = 0; i < lighting->lampCount; i++) {
+        // Position light at top of lamp post (about 2.3 units up)
+        lighting->lampPositions[i] = (Vector3){
+            positions[i].x,
+            positions[i].y + 2.3f,
+            positions[i].z
+        };
+        lighting->lampColors[i] = lampColor;
+    }
+
+    TraceLog(LOG_INFO, "Set %d lamp positions for point lighting", lighting->lampCount);
+}
+
+void SetCampfirePositions(LightingSystem* lighting, const Vector3* positions, int count) {
+    lighting->campfireCount = (count > MAX_POINT_LIGHTS) ? MAX_POINT_LIGHTS : count;
+
+    // Warm campfire color (softer glow)
+    Vector3 campfireColor = {1.2f, 0.7f, 0.3f};  // Warm orange fire color
+
+    for (int i = 0; i < lighting->campfireCount; i++) {
+        // Position light at flame center (about 0.8 units up)
+        lighting->campfirePositions[i] = (Vector3){
+            positions[i].x,
+            positions[i].y + 0.8f,
+            positions[i].z
+        };
+        lighting->campfireColors[i] = campfireColor;
+    }
+
+    TraceLog(LOG_INFO, "Set %d campfire positions for point lighting", lighting->campfireCount);
 }
 
 // ============================================================================

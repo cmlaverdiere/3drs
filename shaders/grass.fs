@@ -7,53 +7,13 @@ in vec3 fragNormal;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 
-// Lighting uniforms
-uniform vec3 sunDirection;
-uniform vec3 sunColor;
-uniform vec3 ambientColor;
-uniform vec3 fogColor;
-uniform float fogDensity;
-uniform vec3 viewPos;
-uniform mat4 lightVP;
-uniform sampler2D shadowMap;
-uniform int shadowMapResolution;
+#include "common/lighting.glsl"
 
-// Sand zone uniforms (max 16 zones)
+// Sand zone uniforms (grass-specific)
 uniform int sandZoneCount;
-uniform vec4 sandZones[16];  // x, z, width, length for each zone
+uniform vec4 sandZones[16];
 
 out vec4 finalColor;
-
-// Simple hash function for noise
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-// Value noise
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-}
-
-// Fractal noise (multiple octaves)
-float fbm(vec2 p) {
-    float value = 0.0;
-    float amplitude = 0.5;
-    for (int i = 0; i < 4; i++) {
-        value += amplitude * noise(p);
-        p *= 2.0;
-        amplitude *= 0.5;
-    }
-    return value;
-}
 
 // Check how much this point is in sand (0 = grass, 1 = sand)
 float getSandFactor(vec2 worldXZ) {
@@ -61,79 +21,20 @@ float getSandFactor(vec2 worldXZ) {
     for (int i = 0; i < sandZoneCount; i++) {
         vec2 center = sandZones[i].xy;
         vec2 halfSize = sandZones[i].zw * 0.5;
-
-        // Distance from edge (negative = inside)
         vec2 d = abs(worldXZ - center) - halfSize;
         float distFromEdge = max(d.x, d.y);
-
-        // Soft blend at edges (5 unit transition)
         float factor = 1.0 - smoothstep(-5.0, 0.0, distFromEdge);
         sandFactor = max(sandFactor, factor);
     }
     return sandFactor;
 }
 
-// Poisson disk samples for soft shadow sampling
-const vec2 poissonDisk[16] = vec2[](
-    vec2(-0.94201624, -0.39906216), vec2(0.94558609, -0.76890725),
-    vec2(-0.094184101, -0.92938870), vec2(0.34495938, 0.29387760),
-    vec2(-0.91588581, 0.45771432), vec2(-0.81544232, -0.87912464),
-    vec2(-0.38277543, 0.27676845), vec2(0.97484398, 0.75648379),
-    vec2(0.44323325, -0.97511554), vec2(0.53742981, -0.47373420),
-    vec2(-0.26496911, -0.41893023), vec2(0.79197514, 0.19090188),
-    vec2(-0.24188840, 0.99706507), vec2(-0.81409955, 0.91437590),
-    vec2(0.19984126, 0.78641367), vec2(0.14383161, -0.14100790)
-);
-
-// Calculate shadow factor (0.0 = full shadow, 1.0 = no shadow)
-float CalculateShadow(vec3 fragPos, vec3 normal) {
-    vec4 fragPosLightSpace = lightVP * vec4(fragPos, 1.0);
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
-
-    // Check if fragment is outside shadow map
-    if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
-        projCoords.y < 0.0 || projCoords.y > 1.0 ||
-        projCoords.z > 1.0) {
-        return 1.0;
-    }
-
-    float currentDepth = projCoords.z;
-
-    // Bias based on surface angle to sun
-    float bias = max(0.005 * (1.0 - dot(normal, -sunDirection)), 0.001);
-
-    // PCF with Poisson disk sampling for softer shadows
-    float shadow = 0.0;
-    float spread = 2.5 / float(shadowMapResolution);  // Larger spread for softer edges
-
-    // Rotate samples based on screen position for less banding
-    float angle = hash(fragPos.xz) * 6.28318;
-    float s = sin(angle);
-    float c = cos(angle);
-    mat2 rotation = mat2(c, -s, s, c);
-
-    for (int i = 0; i < 16; i++) {
-        vec2 offset = rotation * poissonDisk[i] * spread;
-        float sampleDepth = texture(shadowMap, projCoords.xy + offset).r;
-        shadow += (currentDepth - bias > sampleDepth) ? 1.0 : 0.0;
-    }
-    shadow /= 16.0;
-
-    // Fade shadows at edge of shadow map
-    float fadeStart = 0.85;
-    float fadeEdge = max(abs(projCoords.x * 2.0 - 1.0), abs(projCoords.y * 2.0 - 1.0));
-    shadow *= 1.0 - smoothstep(fadeStart, 1.0, fadeEdge);
-
-    return 1.0 - shadow;
-}
-
 void main() {
     vec2 worldXZ = fragWorldPos.xz;
 
     // Multi-scale noise for natural look
-    float n1 = fbm(worldXZ * 0.5);
-    float n2 = fbm(worldXZ * 2.0 + 100.0);
+    float n1 = fbm(worldXZ * 0.5, 4);
+    float n2 = fbm(worldXZ * 2.0 + 100.0, 4);
     float n3 = noise(worldXZ * 8.0);
 
     float combined = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
@@ -168,26 +69,19 @@ void main() {
 
     // Blend grass and sand
     vec3 groundColor = mix(grassColor, sandColor, sandFactor);
-
-    // Add subtle variation
     groundColor += (n3 - 0.5) * 0.08;
 
-    // Calculate lighting
+    // Calculate lighting using common functions
     vec3 normal = normalize(fragNormal);
-    float shadow = CalculateShadow(fragWorldPos, normal);
+    float shadow = calcShadow(fragWorldPos, normal);
 
-    // Diffuse lighting
     float NdotL = max(dot(normal, -sunDirection), 0.0);
     vec3 diffuse = sunColor * NdotL * shadow;
 
-    // Combine ambient and diffuse
-    vec3 litColor = groundColor * (ambientColor + diffuse);
+    vec3 pointLighting = calcAllPointLights(fragWorldPos, normal);
 
-    // Apply distance fog
-    float dist = length(viewPos - fragWorldPos);
-    float fogFactor = exp(-pow(dist * fogDensity, 2.0));
-    fogFactor = clamp(fogFactor, 0.0, 1.0);
-    litColor = mix(fogColor, litColor, fogFactor);
+    vec3 litColor = groundColor * (ambientColor + diffuse + pointLighting);
+    litColor = applyFog(litColor, fragWorldPos);
 
     finalColor = vec4(litColor, 1.0);
 }

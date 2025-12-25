@@ -10,6 +10,9 @@ struct EntityModels {
     Model cube;
     Model sphere;
     Model cylinder;
+    Model firePlane;      // Billboard plane for fire shader
+    Shader fireShader;    // Procedural fire shader
+    int fireTimeLoc;      // Time uniform location
     bool initialized;
 };
 

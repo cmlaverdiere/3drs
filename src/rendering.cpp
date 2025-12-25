@@ -624,3 +624,134 @@ void DrawNPCs(const EntityModels* models, const NPC* npcs, int npcCount) {
         DrawNPC(models, npcs[i]);
     }
 }
+
+void DrawLamp(const EntityModels* models, Vector3 pos, bool lit) {
+    // Metal post colors
+    Color metalDark = { 50, 50, 55, 255 };
+    Color metalMid = { 70, 70, 75, 255 };
+
+    // Glass color depends on whether lamp is lit
+    Color glassColor = lit ? (Color){ 255, 220, 150, 220 } : (Color){ 150, 150, 150, 180 };
+    Color flameColor = { 255, 200, 100, 255 };  // Warm flame glow
+
+    // Post base (wider at bottom)
+    DrawModelCube(models, (Vector3){pos.x, pos.y + 0.1f, pos.z}, 0.25f, 0.2f, 0.25f, metalDark);
+
+    // Main post
+    DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.2f, pos.z}, 0.06f, 0.06f, 2.0f, metalMid);
+
+    // Lamp housing frame (top)
+    float lampY = pos.y + 2.2f;
+    DrawModelCube(models, (Vector3){pos.x, lampY + 0.25f, pos.z}, 0.35f, 0.08f, 0.35f, metalDark);  // Top cap
+    DrawModelCube(models, (Vector3){pos.x, lampY - 0.05f, pos.z}, 0.30f, 0.06f, 0.30f, metalDark);  // Bottom rim
+
+    // Glass housing (4 panels)
+    float glassY = lampY + 0.1f;
+    DrawModelCube(models, (Vector3){pos.x + 0.13f, glassY, pos.z}, 0.02f, 0.25f, 0.24f, glassColor);
+    DrawModelCube(models, (Vector3){pos.x - 0.13f, glassY, pos.z}, 0.02f, 0.25f, 0.24f, glassColor);
+    DrawModelCube(models, (Vector3){pos.x, glassY, pos.z + 0.13f}, 0.24f, 0.25f, 0.02f, glassColor);
+    DrawModelCube(models, (Vector3){pos.x, glassY, pos.z - 0.13f}, 0.24f, 0.25f, 0.02f, glassColor);
+
+    // Flame inside (only when lit)
+    if (lit) {
+        DrawModelSphere(models, (Vector3){pos.x, glassY, pos.z}, 0.08f, flameColor);
+    }
+}
+
+void DrawCampfire(const EntityModels* models, Vector3 pos) {
+    // Stone ring colors
+    Color stoneColor = { 100, 90, 80, 255 };
+    Color stoneDark = { 70, 65, 60, 255 };
+
+    // Wood colors
+    Color woodColor = { 101, 67, 33, 255 };
+    Color woodDark = { 60, 40, 25, 255 };
+    Color charColor = { 30, 25, 20, 255 };
+
+    // Stone ring (8 stones in a circle)
+    float ringRadius = 0.5f;
+    for (int i = 0; i < 8; i++) {
+        float angle = (float)i * (PI / 4.0f);
+        float sx = pos.x + cosf(angle) * ringRadius;
+        float sz = pos.z + sinf(angle) * ringRadius;
+        Color stoneC = (i % 2 == 0) ? stoneColor : stoneDark;
+        DrawModelCube(models, (Vector3){sx, pos.y + 0.08f, sz}, 0.18f, 0.16f, 0.18f, stoneC);
+    }
+
+    // Charred ground
+    DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.35f, 0.35f, 0.02f, charColor);
+
+    // Logs arranged in a teepee/cross pattern
+    // Log 1 - angled
+    rlPushMatrix();
+    rlTranslatef(pos.x + 0.1f, pos.y + 0.15f, pos.z);
+    rlRotatef(25.0f, 0, 0, 1);
+    rlRotatef(15.0f, 0, 1, 0);
+    DrawModelCylinder(models, (Vector3){0, 0, 0}, 0.06f, 0.04f, 0.45f, woodColor);
+    rlPopMatrix();
+
+    // Log 2 - opposite angle
+    rlPushMatrix();
+    rlTranslatef(pos.x - 0.1f, pos.y + 0.15f, pos.z);
+    rlRotatef(-25.0f, 0, 0, 1);
+    rlRotatef(-20.0f, 0, 1, 0);
+    DrawModelCylinder(models, (Vector3){0, 0, 0}, 0.06f, 0.04f, 0.45f, woodDark);
+    rlPopMatrix();
+
+    // Log 3 - third angle
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y + 0.15f, pos.z + 0.1f);
+    rlRotatef(20.0f, 1, 0, 0);
+    rlRotatef(30.0f, 0, 1, 0);
+    DrawModelCylinder(models, (Vector3){0, 0, 0}, 0.05f, 0.03f, 0.4f, woodColor);
+    rlPopMatrix();
+
+    // Draw fire using shader - two crossed planes for visibility from all angles
+    float gameTime = (float)GetTime();
+    SetShaderValue(models->fireShader, models->fireTimeLoc, &gameTime, SHADER_UNIFORM_FLOAT);
+
+    float fireHeight = 1.0f;
+    float fireWidth = 0.7f;
+
+    // Disable backface culling so fire is visible from both sides
+    rlDisableBackfaceCulling();
+
+    // Fire plane 1 - facing Z axis (rotated to be vertical)
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y + fireHeight * 0.5f + 0.1f, pos.z);
+    rlRotatef(90.0f, 1, 0, 0);  // Rotate to be vertical
+    rlScalef(fireWidth, 1.0f, fireHeight);
+    DrawModel(models->firePlane, (Vector3){0, 0, 0}, 1.0f, WHITE);
+    rlPopMatrix();
+
+    // Fire plane 2 - rotated 90 degrees (cross pattern)
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y + fireHeight * 0.5f + 0.1f, pos.z);
+    rlRotatef(90.0f, 1, 0, 0);  // Rotate to be vertical
+    rlRotatef(90.0f, 0, 0, 1);  // Rotate around up axis
+    rlScalef(fireWidth, 1.0f, fireHeight);
+    DrawModel(models->firePlane, (Vector3){0, 0, 0}, 1.0f, WHITE);
+    rlPopMatrix();
+
+    // Restore backface culling
+    rlEnableBackfaceCulling();
+}
+
+void DrawLightSource(const EntityModels* models, const LightSource& light, bool lampsOn) {
+    switch (light.type) {
+        case LIGHT_LAMP:
+            DrawLamp(models, light.position, lampsOn);
+            break;
+        case LIGHT_CAMPFIRE:
+            DrawCampfire(models, light.position);
+            break;
+        default:
+            break;
+    }
+}
+
+void DrawLightSources(const EntityModels* models, const LightSource* lights, int lightCount, bool lampsOn) {
+    for (int i = 0; i < lightCount; i++) {
+        DrawLightSource(models, lights[i], lampsOn);
+    }
+}

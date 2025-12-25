@@ -6,52 +6,10 @@ in vec3 fragNormal;
 
 out vec4 finalColor;
 
-// Lighting uniforms
-uniform vec3 sunDirection;
-uniform vec3 sunColor;
-uniform vec3 ambientColor;
-uniform vec3 fogColor;
-uniform float fogDensity;
-uniform vec3 viewPos;
-uniform mat4 lightVP;
-uniform sampler2D shadowMap;
-uniform int shadowMapResolution;
+#include "common/lighting.glsl"
 
-// Hash function for noise
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-// Value noise
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-}
-
-// Fractal noise
-float fbm(vec2 p) {
-    float value = 0.0;
-    float amplitude = 0.5;
-    for (int i = 0; i < 4; i++) {
-        value += amplitude * noise(p);
-        p *= 2.0;
-        amplitude *= 0.5;
-    }
-    return value;
-}
-
-// Brick pattern
-// Returns: x = brick mask (1 inside brick, 0 in mortar), y = brick ID for color variation
+// Brick pattern - returns: x = brick mask (1 inside brick, 0 in mortar), y = brick ID
 vec2 brick(vec2 uv, float brickWidth, float brickHeight, float mortarWidth) {
-    // Scale UV to brick size
     vec2 brickUV = uv / vec2(brickWidth, brickHeight);
 
     // Offset every other row
@@ -60,11 +18,10 @@ vec2 brick(vec2 uv, float brickWidth, float brickHeight, float mortarWidth) {
         brickUV.x += 0.5;
     }
 
-    // Get brick cell coordinates
     vec2 brickCell = floor(brickUV);
     vec2 brickFract = fract(brickUV);
 
-    // Calculate mortar (edges of each brick)
+    // Calculate mortar
     float mortarX = mortarWidth / brickWidth;
     float mortarY = mortarWidth / brickHeight;
 
@@ -74,53 +31,18 @@ vec2 brick(vec2 uv, float brickWidth, float brickHeight, float mortarWidth) {
         brickMask = 0.0;
     }
 
-    // Generate unique ID for each brick for color variation
     float brickID = hash(brickCell);
-
     return vec2(brickMask, brickID);
-}
-
-// Calculate shadow factor (0.0 = full shadow, 1.0 = no shadow)
-float CalculateShadow(vec3 fragPos, vec3 normal) {
-    vec4 fragPosLightSpace = lightVP * vec4(fragPos, 1.0);
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
-
-    if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
-        projCoords.y < 0.0 || projCoords.y > 1.0 ||
-        projCoords.z > 1.0) {
-        return 1.0;
-    }
-
-    float currentDepth = projCoords.z;
-    float bias = max(0.005 * (1.0 - dot(normal, -sunDirection)), 0.001);
-
-    float shadow = 0.0;
-    vec2 texelSize = vec2(1.0 / float(shadowMapResolution));
-    for (int x = -1; x <= 1; x++) {
-        for (int y = -1; y <= 1; y++) {
-            float sampleDepth = texture(shadowMap, projCoords.xy + texelSize * vec2(x, y)).r;
-            shadow += (currentDepth - bias > sampleDepth) ? 1.0 : 0.0;
-        }
-    }
-    shadow /= 9.0;
-
-    float fadeStart = 0.85;
-    float fadeEdge = max(abs(projCoords.x * 2.0 - 1.0), abs(projCoords.y * 2.0 - 1.0));
-    shadow *= 1.0 - smoothstep(fadeStart, 1.0, fadeEdge);
-
-    return 1.0 - shadow;
 }
 
 void main() {
     // Brick color palette
-    vec3 darkBrick = vec3(0.5, 0.2, 0.15);    // Dark red-brown
-    vec3 midBrick = vec3(0.65, 0.25, 0.15);   // Medium brick red
-    vec3 lightBrick = vec3(0.75, 0.35, 0.2);  // Light brick
-    vec3 mortarColor = vec3(0.7, 0.68, 0.65); // Light gray mortar
+    vec3 darkBrick = vec3(0.5, 0.2, 0.15);
+    vec3 midBrick = vec3(0.65, 0.25, 0.15);
+    vec3 lightBrick = vec3(0.75, 0.35, 0.2);
+    vec3 mortarColor = vec3(0.7, 0.68, 0.65);
 
-    // Use world position for consistent texturing
-    // Project onto the most visible face
+    // Project onto visible face
     vec2 uv;
     if (abs(fragNormal.x) > 0.5) {
         uv = fragWorldPos.zy;
@@ -130,13 +52,8 @@ void main() {
         uv = fragWorldPos.xz;
     }
 
-    // Brick parameters
-    float brickWidth = 0.4;
-    float brickHeight = 0.2;
-    float mortarWidth = 0.02;
-
     // Get brick pattern
-    vec2 brickData = brick(uv, brickWidth, brickHeight, mortarWidth);
+    vec2 brickData = brick(uv, 0.4, 0.2, 0.02);
     float brickMask = brickData.x;
     float brickID = brickData.y;
 
@@ -150,11 +67,11 @@ void main() {
         brickColor = lightBrick;
     }
 
-    // Add noise variation to each brick
-    float brickNoise = fbm(uv * 15.0 + brickID * 100.0) * 0.15;
+    // Add noise variation
+    float brickNoise = fbm(uv * 15.0 + brickID * 100.0, 4) * 0.15;
     brickColor += vec3(brickNoise * 0.5, brickNoise * 0.3, brickNoise * 0.2);
 
-    // Add some wear/aging
+    // Add wear
     float wear = noise(uv * 30.0) * 0.1;
     brickColor -= vec3(wear);
 
@@ -167,18 +84,15 @@ void main() {
 
     // Calculate lighting
     vec3 normal = normalize(fragNormal);
-    float shadow = CalculateShadow(fragWorldPos, normal);
+    float shadow = calcShadow(fragWorldPos, normal);
 
     float NdotL = max(dot(normal, -sunDirection), 0.0);
     vec3 diffuse = sunColor * NdotL * shadow;
 
-    vec3 litColor = surfaceColor * (ambientColor + diffuse);
+    vec3 pointLighting = calcAllPointLights(fragWorldPos, normal);
 
-    // Apply fog
-    float dist = length(viewPos - fragWorldPos);
-    float fogFactor = exp(-pow(dist * fogDensity, 2.0));
-    fogFactor = clamp(fogFactor, 0.0, 1.0);
-    litColor = mix(fogColor, litColor, fogFactor);
+    vec3 litColor = surfaceColor * (ambientColor + diffuse + pointLighting);
+    litColor = applyFog(litColor, fragWorldPos);
 
     finalColor = vec4(litColor, 1.0);
 }

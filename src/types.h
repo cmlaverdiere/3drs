@@ -130,6 +130,13 @@ enum TreeType {
     TREE_TYPE_COUNT
 };
 
+// Light source types (decorative)
+enum LightType {
+    LIGHT_LAMP = 0,
+    LIGHT_CAMPFIRE,
+    LIGHT_TYPE_COUNT
+};
+
 // Woodcutting level requirements
 constexpr int OAK_TREE_LEVEL = 10;
 constexpr int OAK_WOODCUTTING_XP = 38;  // More XP than normal logs
@@ -289,6 +296,13 @@ struct Valley {
     int axis;          // 0 = X-axis (N-S), 1 = Z-axis (E-W)
 };
 
+// Light source (decorative - lamp or campfire)
+struct LightSource {
+    Vector3 position;
+    LightType type;
+};
+
+const int MAX_LIGHTS = 100;
 const int MAX_TREES = 1000;
 const int MAX_WATER = 100;
 const float ITEM_RESPAWN_TIME = 60.0f;  // 60 seconds for respawning items
@@ -494,6 +508,9 @@ struct MapData {
     Vector3 npcSpawns[MAX_NPCS];
     NPCType npcTypes[MAX_NPCS];
     int npcCount;
+    Vector3 lightSpawns[MAX_LIGHTS];
+    LightType lightTypes[MAX_LIGHTS];
+    int lightCount;
 };
 
 #endif

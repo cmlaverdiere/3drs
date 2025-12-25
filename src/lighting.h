@@ -12,6 +12,11 @@ const float SHADOW_ORTHO_SIZE = 200.0f;  // Coverage area for orthographic proje
 // Day/night cycle configuration
 const float DAY_CYCLE_DURATION = 600.0f;  // 10 minutes for full cycle
 
+// Point lights (lamps)
+const int MAX_POINT_LIGHTS = 16;  // Shader limit
+const float LAMP_ON_TIME = 0.6f;   // Lamps turn on (approaching dusk)
+const float LAMP_OFF_TIME = 0.2f;  // Lamps turn off (after dawn)
+
 // Time of day phases
 enum TimeOfDay {
     TIME_DAWN = 0,    // 0.0 - 0.15
@@ -38,6 +43,17 @@ struct LightingSystem {
     // Day/night cycle
     float timeOfDay;        // 0.0 to 1.0
     bool cyclePaused;
+
+    // Lamp lights - only active at dusk/night
+    Vector3 lampPositions[MAX_POINT_LIGHTS];
+    Vector3 lampColors[MAX_POINT_LIGHTS];
+    int lampCount;
+    bool lampsOn;  // True when lamps should be lit
+
+    // Campfire lights - always active
+    Vector3 campfirePositions[MAX_POINT_LIGHTS];
+    Vector3 campfireColors[MAX_POINT_LIGHTS];
+    int campfireCount;
 
     // Light camera for shadow rendering
     Camera3D lightCamera;
@@ -85,6 +101,15 @@ void UnloadLightingSystem(LightingSystem* lighting);
 
 // Get current time of day phase
 TimeOfDay GetTimeOfDayPhase(float timeOfDay);
+
+// Set lamp positions for point lighting (call after loading map)
+void SetLampPositions(LightingSystem* lighting, const Vector3* positions, int count);
+
+// Set campfire positions for point lighting (always on)
+void SetCampfirePositions(LightingSystem* lighting, const Vector3* positions, int count);
+
+// Check if lamps should be on at current time
+bool AreLampsOn(float timeOfDay);
 
 // ============================================================================
 // Post-Processing System (Bloom + SSAO)

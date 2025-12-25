@@ -17,7 +17,37 @@ uniform vec3 fogColor;
 uniform float fogDensity;
 uniform vec3 viewPos;
 
+// Point lights (lamps)
+#define MAX_POINT_LIGHTS 16
+uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
+uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
+uniform int pointLightCount;
+
 out vec4 finalColor;
+
+// Calculate point light contribution
+vec3 calcPointLight(vec3 lightPos, vec3 lightColor, vec3 fragPos, vec3 normal, vec3 viewDir) {
+    vec3 lightDir = lightPos - fragPos;
+    float distance = length(lightDir);
+    lightDir = normalize(lightDir);
+
+    // Soft point light settings
+    float radius = 12.0;
+    float intensity = 1.2;
+
+    // Inverse square falloff
+    float attenuation = intensity / (1.0 + 0.15 * distance + 0.03 * distance * distance);
+    attenuation *= smoothstep(radius, radius * 0.1, distance);
+
+    // Diffuse
+    float diff = max(dot(normal, lightDir), 0.0);
+
+    // Specular (Blinn-Phong)
+    vec3 halfDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(normal, halfDir), 0.0), 32.0) * 0.2;
+
+    return (diff + spec) * lightColor * attenuation;
+}
 
 void main() {
     // Get base color from colDiffuse (tint passed to DrawModelEx)
@@ -50,8 +80,14 @@ void main() {
     float rimLight = max(0.0, dot(N, -L) * 0.5 + 0.5);
     vec3 rimColor = sunColor * rim * rimLight;
 
+    // Point lights contribution
+    vec3 pointLighting = vec3(0.0);
+    for (int i = 0; i < pointLightCount && i < MAX_POINT_LIGHTS; i++) {
+        pointLighting += calcPointLight(pointLightPositions[i], pointLightColors[i], fragWorldPos, N, V);
+    }
+
     // Combine lighting
-    vec3 litColor = baseColor * (ambientColor + diffuse) + specular + rimColor;
+    vec3 litColor = baseColor * (ambientColor + diffuse + pointLighting) + specular + rimColor;
 
     // Apply fog
     float dist = length(viewPos - fragWorldPos);

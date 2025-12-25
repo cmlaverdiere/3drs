@@ -60,6 +60,7 @@ int main(int argc, char* argv[]) {
         printf("  Water: %d / %d\n", mapData.waterCount, MAX_WATER);
         printf("  Sand: %d / %d\n", mapData.sandCount, MAX_SAND);
         printf("  Valleys: %d / %d\n", mapData.valleyCount, MAX_VALLEYS);
+        printf("  Lights: %d / %d\n", mapData.lightCount, MAX_LIGHTS);
         printf("  Player spawn: (%.1f, %.1f, %.1f)\n",
                mapData.playerSpawn.x, mapData.playerSpawn.y, mapData.playerSpawn.z);
 
@@ -146,6 +147,35 @@ int main(int argc, char* argv[]) {
         npcs[npcCount].active = true;
         npcCount++;
     }
+
+    // Initialize light sources from map (lamps, campfires)
+    LightSource lights[MAX_LIGHTS] = {};
+    int lightCount = 0;
+    for (int i = 0; i < mapData.lightCount && lightCount < MAX_LIGHTS; i++) {
+        lights[lightCount].position = mapData.lightSpawns[i];
+        lights[lightCount].type = mapData.lightTypes[i];
+        lightCount++;
+    }
+
+    // Extract lamp positions for point lighting
+    Vector3 lampPositions[MAX_LIGHTS];
+    int lampCount = 0;
+    for (int i = 0; i < lightCount; i++) {
+        if (lights[i].type == LIGHT_LAMP) {
+            lampPositions[lampCount++] = lights[i].position;
+        }
+    }
+    SetLampPositions(&lighting, lampPositions, lampCount);
+
+    // Extract campfire positions for point lighting (always on)
+    Vector3 campfirePositions[MAX_LIGHTS];
+    int campfireCount = 0;
+    for (int i = 0; i < lightCount; i++) {
+        if (lights[i].type == LIGHT_CAMPFIRE) {
+            campfirePositions[campfireCount++] = lights[i].position;
+        }
+    }
+    SetCampfirePositions(&lighting, campfirePositions, campfireCount);
 
     // Load quests
     Quest quests[MAX_QUESTS] = {};
@@ -825,6 +855,15 @@ int main(int argc, char* argv[]) {
                     DrawNPC(&resources.entityModels, adjustedNPC);
                 }
             }
+
+            // Light sources cast shadows (lamps, campfires)
+            for (int i = 0; i < lightCount; i++) {
+                Vector3 lightPos = lights[i].position;
+                lightPos.y = GetTerrainHeight(lightPos.x, lightPos.z);
+                LightSource adjustedLight = lights[i];
+                adjustedLight.position = lightPos;
+                DrawLightSource(&resources.entityModels, adjustedLight, lighting.lampsOn);
+            }
         EndShadowPass(&lighting);
 
         // ========== MAIN PASS ==========
@@ -909,6 +948,15 @@ int main(int argc, char* argv[]) {
                                    (playerState.equippedWeapon == ITEM_BRONZE_AXE);
                     DrawTree(&resources.entityModels, treePos, trees[i].type, inRange);
                 }
+            }
+
+            // Light sources (lamps, campfires)
+            for (int i = 0; i < lightCount; i++) {
+                Vector3 lightPos = lights[i].position;
+                lightPos.y = GetTerrainHeight(lightPos.x, lightPos.z);
+                LightSource adjustedLight = lights[i];
+                adjustedLight.position = lightPos;
+                DrawLightSource(&resources.entityModels, adjustedLight, lighting.lampsOn);
             }
 
             // Walls (have their own shaders)
