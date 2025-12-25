@@ -15,7 +15,16 @@ const char* ITEM_NAMES[ITEM_COUNT] = {
     "Bronze Axe",
     "Logs",
     "Chitin",
-    "Iron 2H Sword"
+    "Iron 2H Sword",
+    // Trading Expedition Quest Items
+    "Trade Manifest",
+    "Silk",
+    "Spice",
+    "Iron Ore",
+    "Rare Wine",
+    "Bandit Orders",
+    "Desert Artifact",
+    "Trade Ledger"
 };
 
 // NPC configurations with dialogue
@@ -78,6 +87,62 @@ const NPCConfig NPC_CONFIGS[NPC_COUNT] = {
             "Could you help me? ...No? Well, worth asking."
         },
         .dialogueCount = 4
+    },
+    // NPC_VARROCK_TRADER - Zaff, general goods merchant in Varrock
+    {
+        .name = "Zaff",
+        .skinColor = {220, 190, 160, 255},   // Tanned skin
+        .shirtColor = {120, 80, 60, 255},    // Brown merchant outfit
+        .pantsColor = {60, 50, 40, 255},     // Dark brown pants
+        .height = 1.05f,
+        .dialogueLines = {
+            "Welcome to Zaff's Superior Goods!",
+            "I trade with merchants from all across Gielinor.",
+            "Looking for rare imports? You've come to the right place."
+        },
+        .dialogueCount = 3
+    },
+    // NPC_VARROCK_BARTENDER - Blue Moon Inn
+    {
+        .name = "Bartender",
+        .skinColor = {240, 210, 180, 255},   // Fair skin
+        .shirtColor = {80, 60, 120, 255},    // Purple vest
+        .pantsColor = {40, 40, 40, 255},     // Black pants
+        .height = 0.98f,
+        .dialogueLines = {
+            "Welcome to the Blue Moon Inn!",
+            "Can I get you a drink? We have the finest wines.",
+            "Watch out for those bandits on the roads lately..."
+        },
+        .dialogueCount = 3
+    },
+    // NPC_ALKHARID_SILK - Silk trader in Al Kharid
+    {
+        .name = "Silk Merchant",
+        .skinColor = {180, 140, 100, 255},   // Desert tan
+        .shirtColor = {200, 180, 140, 255},  // Cream robes
+        .pantsColor = {160, 140, 100, 255},  // Light tan pants
+        .height = 1.0f,
+        .dialogueLines = {
+            "Finest silk in all the desert!",
+            "Imported from the eastern lands.",
+            "Only 3 gold pieces per roll!"
+        },
+        .dialogueCount = 3
+    },
+    // NPC_ALKHARID_SPICE - Ali the spice trader
+    {
+        .name = "Ali the Spice Trader",
+        .skinColor = {170, 130, 90, 255},    // Desert tan
+        .shirtColor = {180, 60, 40, 255},    // Red merchant outfit
+        .pantsColor = {100, 80, 60, 255},    // Brown pants
+        .height = 0.95f,
+        .dialogueLines = {
+            "Spices! Get your exotic spices here!",
+            "Straight from the heart of the desert.",
+            "The sand golems guard the best spice fields..."
+        },
+        .dialogueCount = 3
     }
 };
 
@@ -133,5 +198,42 @@ const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
             { ITEM_GIL, 10, 50, 0.8f },      // 80% chance 10-50 gil
         },
         .dropCount = 3
+    },
+    // ENEMY_BANDIT - Road bandits between cities
+    {
+        .name = "Bandit",
+        .combatLevel = 10,
+        .maxHealth = 20,
+        .maxHit = 4,
+        .attackCooldown = 1.2f,
+        .chaseSpeed = 4.0f,
+        .attackRange = 2.0f,
+        .respawnTime = 30.0f,
+        .aggressive = true,  // Bandits attack on sight!
+        .drops = {
+            { ITEM_BONES, 1, 1, 1.0f },          // Always drops bones
+            { ITEM_GIL, 20, 50, 1.0f },          // Always drops 20-50 gil
+            { ITEM_BANDIT_ORDERS, 1, 1, 0.5f },  // 50% chance quest item
+        },
+        .dropCount = 3
+    },
+    // ENEMY_SAND_GOLEM - Desert golem in Al Kharid
+    {
+        .name = "Sand Golem",
+        .combatLevel = 18,
+        .maxHealth = 35,
+        .maxHit = 6,
+        .attackCooldown = 2.0f,
+        .chaseSpeed = 2.0f,
+        .attackRange = 2.5f,
+        .respawnTime = 45.0f,
+        .aggressive = true,  // Sand golems attack on sight!
+        .drops = {
+            { ITEM_BONES, 1, 1, 1.0f },              // Always drops bones
+            { ITEM_GIL, 30, 80, 1.0f },              // Always drops 30-80 gil
+            { ITEM_DESERT_ARTIFACT, 1, 1, 0.4f },   // 40% chance quest item
+            { ITEM_SPICE, 1, 2, 0.6f },              // 60% chance spice
+        },
+        .dropCount = 4
     }
 };

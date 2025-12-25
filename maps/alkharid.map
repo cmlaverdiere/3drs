@@ -90,6 +90,14 @@ enemy scorpion -50.0 0.0 -10.0
 enemy scorpion -55.0 0.0 5.0
 enemy scorpion -45.0 0.0 15.0
 
+# === SAND GOLEMS (Trading Expedition Quest) ===
+# Deep desert (dangerous zone southeast)
+enemy sand_golem 70.0 0.0 30.0
+enemy sand_golem 75.0 0.0 40.0
+enemy sand_golem 65.0 0.0 45.0
+enemy sand_golem 80.0 0.0 35.0
+enemy sand_golem 72.0 0.0 50.0
+
 # === GUARDS (trolls for now) ===
 # Gate guards
 enemy troll -30.0 0.0 -5.0
@@ -113,6 +121,13 @@ item bronze_axe 52.0 0.0 22.0
 # Scorpion drops (chitin on ground for flavor)
 item chitin 58.0 0.0 0.0
 item bones 62.0 0.0 -10.0
+
+# === NPCs (Trading Expedition Quest) ===
+# Silk Merchant - Near silk trader stall (center-west)
+npc alkharid_silk -25.0 0.0 3.0
+
+# Ali the Spice Trader - Near furnace area
+npc alkharid_spice -15.0 0.0 18.0
 
 # === PALM TREES (sparse desert vegetation) ===
 # Oasis area (small cluster near city)

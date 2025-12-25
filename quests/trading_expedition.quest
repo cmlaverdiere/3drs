@@ -1,0 +1,214 @@
+# The Trading Expedition
+# A multi-city trading quest spanning Lumbridge, Varrock, and Al Kharid
+# 10 objectives - approximately 5x longer than Pest Control
+
+quest trading_expedition
+name The Trading Expedition
+
+# NPCs involved in this quest
+start_npc hans
+npc hans varrock_trader varrock_bartender alkharid_silk alkharid_spice
+
+# === OBJECTIVES (10 total) ===
+# 1. Travel to Varrock and talk to Zaff
+objective talk_to varrock_trader
+
+# 2. Zaff sends you to the bartender
+objective talk_to varrock_bartender
+
+# 3. Bartender wants bandit orders as proof you cleared the road
+objective item bandit_orders varrock_bartender
+
+# 4. Return to Zaff with the news
+objective talk_to varrock_trader
+
+# 5. Travel to Al Kharid and talk to the silk merchant
+objective talk_to alkharid_silk
+
+# 6. Silk merchant wants a desert artifact
+objective item desert_artifact alkharid_silk
+
+# 7. Take the silk to Ali the spice trader
+objective talk_to alkharid_spice
+
+# 8. Ali wants the silk in exchange for spice
+objective item silk alkharid_spice
+
+# 9. Return to Hans with the goods
+objective talk_to hans
+
+# 10. Give Hans the spice to complete the trade route
+objective item spice hans
+
+# Rewards
+reward_gil 500
+reward_quest_points 3
+reward_item iron_2h_sword
+
+# === DIALOGUE ===
+
+dialogue_start
+Ah, adventurer! Just the person I was hoping to see.
+I have an important task that requires someone brave and resourceful.
+The three cities - Lumbridge, Varrock, and Al Kharid - need better trade routes.
+Merchants are afraid to travel due to bandits and desert creatures.
+I need you to establish connections with traders in each city.
+Travel to Varrock first and speak with Zaff, the trader near the square.
+The reward will be handsome - 500 gold, quest points, and a fine weapon!
+Will you help establish these vital trade routes?
+.
+
+# Stage 1: Go to Varrock, talk to Zaff
+dialogue_stage_1
+Head north to Varrock and find Zaff near the central square.
+Watch out for bandits on the road - they've been causing trouble lately.
+Tell Zaff that Hans sent you to establish trade relations.
+.
+
+dialogue_turnin_1
+Ah, you must be the one Hans mentioned!
+I've been hoping to establish trade with Lumbridge for some time.
+But first, we have a problem - bandits have been attacking our supply wagons.
+The bartender at the Blue Moon Inn knows more about them.
+Go speak with him - he's in the inn to the southeast of the square.
+.
+
+# Stage 2: Talk to the bartender
+dialogue_stage_2
+Find the bartender at the Blue Moon Inn, southeast of the square.
+He may have information about the bandit attacks.
+.
+
+dialogue_turnin_2
+You're looking into the bandit problem? Good, good.
+Those scoundrels have been hitting wagons on the south road.
+If you want to help, clear some of them out and bring me their orders.
+That way we'll know what they're planning next.
+The bandits lurk on the road between here and Lumbridge.
+.
+
+# Stage 3: Kill bandits, get orders
+dialogue_stage_3
+Hunt down the bandits on the road south of Varrock.
+They sometimes carry orders - bring one back to the bartender.
+The bandits are dangerous, so be prepared for a fight!
+.
+
+dialogue_turnin_3
+Excellent work! Let me see those orders...
+Hmm, this mentions a hideout in the eastern mountains.
+I'll pass this to the city guards - they'll handle the rest.
+Go tell Zaff the road should be safer now.
+He'll want to proceed with the trade arrangements.
+.
+
+# Stage 4: Return to Zaff
+dialogue_stage_4
+Return to Zaff near the square and tell him the good news.
+The road should be safer for trade now.
+.
+
+dialogue_turnin_4
+The bandits have been dealt with? Excellent news!
+Now we can proceed with establishing trade routes.
+The next step is to connect with Al Kharid to the east.
+They have the finest silk and spices in the land.
+Travel there and speak with the Silk Merchant near the western stalls.
+Be careful in the desert - scorpions and worse lurk there.
+.
+
+# Stage 5: Travel to Al Kharid, talk to silk merchant
+dialogue_stage_5
+Travel east to Al Kharid and find the Silk Merchant.
+He should be near the trading stalls on the western side of the city.
+Watch out for scorpions in the desert approach!
+.
+
+dialogue_turnin_5
+Trade with Varrock and Lumbridge? How interesting!
+I have the finest silk in all the desert, as you can see.
+But I cannot simply give it away for a promise of trade.
+Bring me something valuable - a desert artifact from the sand golems.
+They guard ancient treasures in the deep desert to the southeast.
+Bring me an artifact, and you shall have my best silk.
+.
+
+# Stage 6: Kill sand golems, get desert artifact
+dialogue_stage_6
+The sand golems are in the deep desert, southeast of Al Kharid.
+They are powerful creatures - level 18, very dangerous!
+Defeat one and retrieve a desert artifact for the Silk Merchant.
+.
+
+dialogue_turnin_6
+A genuine desert artifact! Magnificent!
+This is worth more than all the silk in my stall.
+Here, take my finest rolls of silk - worth every thread.
+Now, take this silk to Ali the Spice Trader near the furnace.
+He loves quality silk and will trade generously for it.
+.
+
+# Stage 7: Take silk to Ali
+dialogue_stage_7
+Find Ali the Spice Trader near the furnace in Al Kharid.
+He should be interested in trading for the silk.
+.
+
+dialogue_turnin_7
+Is that silk from the Silk Merchant? Let me see...
+Ah, this is the finest quality! I must have it!
+I will trade you my most exotic spices for this silk.
+These spices are worth a fortune in the northern cities.
+Take them to your friend Hans in Lumbridge.
+With silk and spice flowing, the trade route will be complete!
+.
+
+# Stage 8: Give Ali the silk
+dialogue_stage_8
+Give Ali the silk in exchange for his exotic spices.
+He's eager to make the trade.
+.
+
+dialogue_turnin_8
+The deal is done! Here are the spices - the finest in the desert.
+Cinnamon, saffron, and rare peppers from far eastern lands.
+Hans will be thrilled to receive these.
+Return to Lumbridge and complete the trading expedition!
+The three cities will prosper from this new route.
+.
+
+# Stage 9: Return to Hans
+dialogue_stage_9
+Return to Lumbridge and speak with Hans.
+He'll be eager to hear about your expedition!
+.
+
+dialogue_turnin_9
+You've returned! Tell me everything!
+Zaff in Varrock... the bandits cleared... the Silk Merchant...
+Desert artifacts... Ali's spices... this is wonderful news!
+Give me those spices and we'll make it official.
+The Trading Expedition will be a resounding success!
+.
+
+# Stage 10: Turn in the spice
+dialogue_stage_10
+Give Hans the spices to complete the Trading Expedition.
+This will establish the trade route between all three cities.
+.
+
+dialogue_turnin_10
+The spices! They smell magnificent!
+With this, the trade route between Lumbridge, Varrock, and Al Kharid is complete!
+Merchants can now travel safely between all three cities.
+You've done an incredible service to the realm, adventurer.
+Here is your reward - 500 gold, 3 quest points, and this fine iron blade!
+The people of all three cities will remember your deeds.
+.
+
+dialogue_complete
+The trade routes you established are flourishing!
+Merchants speak highly of your deeds across all three cities.
+Silk and spices flow freely, and the bandits have been scattered.
+Perhaps one day there will be another grand expedition...
+.

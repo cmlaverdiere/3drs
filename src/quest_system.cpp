@@ -15,6 +15,15 @@ static ItemType ParseItemType(const char* name) {
     if (strcmp(name, "bronze_shortsword") == 0) return ITEM_BRONZE_SHORTSWORD;
     if (strcmp(name, "bronze_axe") == 0) return ITEM_BRONZE_AXE;
     if (strcmp(name, "iron_2h_sword") == 0) return ITEM_IRON_2H_SWORD;
+    // Trading Expedition quest items
+    if (strcmp(name, "trade_manifest") == 0) return ITEM_TRADE_MANIFEST;
+    if (strcmp(name, "silk") == 0) return ITEM_SILK;
+    if (strcmp(name, "spice") == 0) return ITEM_SPICE;
+    if (strcmp(name, "iron_ore") == 0) return ITEM_IRON_ORE;
+    if (strcmp(name, "rare_wine") == 0) return ITEM_RARE_WINE;
+    if (strcmp(name, "bandit_orders") == 0) return ITEM_BANDIT_ORDERS;
+    if (strcmp(name, "desert_artifact") == 0) return ITEM_DESERT_ARTIFACT;
+    if (strcmp(name, "trade_ledger") == 0) return ITEM_TRADE_LEDGER;
     return ITEM_NONE;
 }
 
@@ -24,7 +33,19 @@ static NPCType ParseNPCType(const char* name) {
     if (strcmp(name, "shopkeeper") == 0) return NPC_SHOPKEEPER;
     if (strcmp(name, "guard") == 0) return NPC_GUARD;
     if (strcmp(name, "cook") == 0) return NPC_COOK;
+    // Trading Expedition quest NPCs
+    if (strcmp(name, "varrock_trader") == 0) return NPC_VARROCK_TRADER;
+    if (strcmp(name, "varrock_bartender") == 0) return NPC_VARROCK_BARTENDER;
+    if (strcmp(name, "alkharid_silk") == 0) return NPC_ALKHARID_SILK;
+    if (strcmp(name, "alkharid_spice") == 0) return NPC_ALKHARID_SPICE;
     return NPC_HANS;  // Default
+}
+
+// Parse objective type string
+static ObjectiveType ParseObjectiveType(const char* name) {
+    if (strcmp(name, "item") == 0) return OBJ_ITEM;
+    if (strcmp(name, "talk_to") == 0) return OBJ_TALK_TO;
+    return OBJ_ITEM;  // Default
 }
 
 // Allocate and copy a string
@@ -78,7 +99,7 @@ bool LoadQuest(const char* filepath, Quest* quest) {
 
     // Initialize quest
     memset(quest, 0, sizeof(Quest));
-    quest->npc = NPC_HANS;
+    quest->startNPC = NPC_HANS;
 
     char line[512];
     while (fgets(line, sizeof(line), file)) {
@@ -104,19 +125,70 @@ bool LoadQuest(const char* filepath, Quest* quest) {
             while (*nameStart == ' ') nameStart++;
             strncpy(quest->name, nameStart, sizeof(quest->name) - 1);
         }
-        else if (strcmp(directive, "npc") == 0) {
+        else if (strcmp(directive, "start_npc") == 0) {
+            // New directive: which NPC starts the quest
             char npcName[32];
-            if (sscanf(line, "npc %31s", npcName) == 1) {
-                quest->npc = ParseNPCType(npcName);
+            if (sscanf(line, "start_npc %31s", npcName) == 1) {
+                quest->startNPC = ParseNPCType(npcName);
+                // Also add to NPCs list
+                if (quest->npcCount < MAX_QUEST_NPCS) {
+                    quest->npcs[quest->npcCount++] = quest->startNPC;
+                }
+            }
+        }
+        else if (strcmp(directive, "npc") == 0) {
+            // Legacy single NPC format OR new multi-NPC format
+            // Try to parse multiple NPCs from the line
+            char* p = line + 4; // Skip "npc "
+            char npcName[32];
+            bool first = true;
+            while (sscanf(p, "%31s", npcName) == 1) {
+                NPCType npc = ParseNPCType(npcName);
+                // Add to NPCs list if not already there
+                bool found = false;
+                for (int i = 0; i < quest->npcCount; i++) {
+                    if (quest->npcs[i] == npc) { found = true; break; }
+                }
+                if (!found && quest->npcCount < MAX_QUEST_NPCS) {
+                    quest->npcs[quest->npcCount++] = npc;
+                }
+                // First NPC in legacy format becomes startNPC
+                if (first && quest->startNPC == NPC_HANS) {
+                    quest->startNPC = npc;
+                }
+                first = false;
+                // Move pointer past this NPC name
+                p += strlen(npcName);
+                while (*p == ' ') p++;
+                if (*p == '\0') break;
             }
         }
         else if (strcmp(directive, "objective") == 0) {
-            char itemName[32];
-            if (sscanf(line, "objective %31s", itemName) == 1) {
-                if (quest->objectiveCount < MAX_QUEST_OBJECTIVES) {
-                    quest->objectives[quest->objectiveCount] = ParseItemType(itemName);
-                    quest->objectiveCount++;
+            // New format: objective <type> <target> [npc]
+            // OR legacy format: objective <item_name>
+            char arg1[32], arg2[32], arg3[32];
+            int parsed = sscanf(line, "objective %31s %31s %31s", arg1, arg2, arg3);
+
+            if (quest->objectiveCount < MAX_QUEST_OBJECTIVES) {
+                QuestObjective* obj = &quest->objectives[quest->objectiveCount];
+
+                if (parsed >= 2 && (strcmp(arg1, "item") == 0 || strcmp(arg1, "talk_to") == 0)) {
+                    // New format
+                    obj->type = ParseObjectiveType(arg1);
+                    if (obj->type == OBJ_ITEM) {
+                        obj->item = ParseItemType(arg2);
+                        obj->targetNPC = (parsed >= 3) ? ParseNPCType(arg3) : quest->startNPC;
+                    } else if (obj->type == OBJ_TALK_TO) {
+                        obj->item = ITEM_NONE;
+                        obj->targetNPC = ParseNPCType(arg2);
+                    }
+                } else {
+                    // Legacy format: objective <item_name> (uses startNPC)
+                    obj->type = OBJ_ITEM;
+                    obj->item = ParseItemType(arg1);
+                    obj->targetNPC = quest->startNPC;
                 }
+                quest->objectiveCount++;
             }
         }
         else if (strcmp(directive, "reward_gil") == 0) {
@@ -124,6 +196,14 @@ bool LoadQuest(const char* filepath, Quest* quest) {
         }
         else if (strcmp(directive, "reward_quest_points") == 0) {
             sscanf(line, "reward_quest_points %d", &quest->rewardQuestPoints);
+        }
+        else if (strcmp(directive, "reward_item") == 0) {
+            char itemName[32];
+            if (sscanf(line, "reward_item %31s", itemName) == 1) {
+                if (quest->rewardItemCount < MAX_QUEST_REWARD_ITEMS) {
+                    quest->rewardItems[quest->rewardItemCount++] = ParseItemType(itemName);
+                }
+            }
         }
         else if (strcmp(directive, "dialogue_start") == 0) {
             quest->dialogueStart = ParseDialogueBlock(file, &quest->dialogueStartCount);
@@ -152,7 +232,8 @@ bool LoadQuest(const char* filepath, Quest* quest) {
     fclose(file);
     quest->loaded = true;
 
-    printf("Loaded quest: %s (%s) with %d objectives\n", quest->name, quest->id, quest->objectiveCount);
+    printf("Loaded quest: %s (%s) with %d objectives, %d NPCs\n",
+           quest->name, quest->id, quest->objectiveCount, quest->npcCount);
     return true;
 }
 
@@ -220,8 +301,13 @@ void FreeQuest(Quest* quest) {
 
 int FindQuestByNPC(const Quest* quests, int questCount, NPCType npc) {
     for (int i = 0; i < questCount; i++) {
-        if (quests[i].loaded && quests[i].npc == npc) {
-            return i;
+        if (!quests[i].loaded) continue;
+
+        // Check if this NPC is involved in the quest (multi-NPC support)
+        for (int j = 0; j < quests[i].npcCount; j++) {
+            if (quests[i].npcs[j] == npc) {
+                return i;
+            }
         }
     }
     return -1;
@@ -237,11 +323,16 @@ int FindQuestById(const Quest* quests, int questCount, const char* id) {
 }
 
 const char** GetQuestDialogue(const Quest* quest, const QuestProgress* progress,
-                               const PlayerState* state, int* lineCount,
-                               bool* showAcceptPrompt) {
+                               const PlayerState* state, NPCType talkingTo,
+                               int* lineCount, bool* showAcceptPrompt) {
     *showAcceptPrompt = false;
 
     if (progress->state == QUEST_NOT_STARTED) {
+        // Only the start NPC can give the intro
+        if (talkingTo != quest->startNPC) {
+            *lineCount = 0;
+            return nullptr;
+        }
         *lineCount = quest->dialogueStartCount;
         *showAcceptPrompt = true;  // Show accept/decline after intro
         return (const char**)quest->dialogueStart;
@@ -249,20 +340,34 @@ const char** GetQuestDialogue(const Quest* quest, const QuestProgress* progress,
     else if (progress->state == QUEST_IN_PROGRESS) {
         int obj = progress->currentObjective;
         if (obj < quest->objectiveCount) {
-            ItemType needed = quest->objectives[obj];
+            const QuestObjective* objective = &quest->objectives[obj];
 
-            if (HasItem(state, needed)) {
-                // Player has the item - show turnin dialogue
+            // Check if we're talking to the right NPC for this objective
+            if (talkingTo != objective->targetNPC) {
+                *lineCount = 0;
+                return nullptr;  // Wrong NPC for current objective
+            }
+
+            if (objective->type == OBJ_TALK_TO) {
+                // "Talk to" objective - show turnin dialogue when talking to target
                 *lineCount = quest->dialogueTurninCount[obj];
                 return (const char**)quest->dialogueTurnin[obj];
-            } else {
-                // Player doesn't have item - show "go get it" dialogue
-                *lineCount = quest->dialogueStageCount[obj];
-                return (const char**)quest->dialogueStage[obj];
+            }
+            else if (objective->type == OBJ_ITEM) {
+                if (HasItem(state, objective->item)) {
+                    // Player has the item - show turnin dialogue
+                    *lineCount = quest->dialogueTurninCount[obj];
+                    return (const char**)quest->dialogueTurnin[obj];
+                } else {
+                    // Player doesn't have item - show "go get it" dialogue
+                    *lineCount = quest->dialogueStageCount[obj];
+                    return (const char**)quest->dialogueStage[obj];
+                }
             }
         }
     }
     else if (progress->state == QUEST_COMPLETE) {
+        // Any involved NPC can show completion dialogue
         *lineCount = quest->dialogueCompleteCount;
         return (const char**)quest->dialogueComplete;
     }
@@ -272,20 +377,34 @@ const char** GetQuestDialogue(const Quest* quest, const QuestProgress* progress,
 }
 
 bool CanAdvanceQuest(const Quest* quest, const QuestProgress* progress,
-                     const PlayerState* state) {
+                     const PlayerState* state, NPCType talkingTo) {
     if (progress->state == QUEST_NOT_STARTED) {
-        return true;  // Can always accept a new quest
+        // Only the start NPC can give the quest
+        return talkingTo == quest->startNPC;
     }
     else if (progress->state == QUEST_IN_PROGRESS) {
         int obj = progress->currentObjective;
         if (obj < quest->objectiveCount) {
-            return HasItem(state, quest->objectives[obj]);
+            const QuestObjective* objective = &quest->objectives[obj];
+
+            // Must be talking to the right NPC
+            if (talkingTo != objective->targetNPC) {
+                return false;
+            }
+
+            if (objective->type == OBJ_TALK_TO) {
+                return true;  // Just talking to them is enough
+            }
+            else if (objective->type == OBJ_ITEM) {
+                return HasItem(state, objective->item);
+            }
         }
     }
     return false;
 }
 
-bool AdvanceQuest(const Quest* quest, QuestProgress* progress, PlayerState* state) {
+bool AdvanceQuest(const Quest* quest, QuestProgress* progress,
+                  PlayerState* state, NPCType talkingTo) {
     if (progress->state == QUEST_NOT_STARTED) {
         // Start the quest
         progress->state = QUEST_IN_PROGRESS;
@@ -295,27 +414,40 @@ bool AdvanceQuest(const Quest* quest, QuestProgress* progress, PlayerState* stat
     else if (progress->state == QUEST_IN_PROGRESS) {
         int obj = progress->currentObjective;
         if (obj < quest->objectiveCount) {
-            ItemType needed = quest->objectives[obj];
+            const QuestObjective* objective = &quest->objectives[obj];
 
-            if (HasItem(state, needed)) {
-                // Remove the item
-                RemoveItem(state, needed);
+            // Verify we're talking to the right NPC
+            if (talkingTo != objective->targetNPC) {
+                return false;
+            }
 
-                // Advance to next objective
-                progress->currentObjective++;
-
-                // Check if quest is complete
-                if (progress->currentObjective >= quest->objectiveCount) {
-                    progress->state = QUEST_COMPLETE;
-
-                    // Give rewards
-                    if (quest->rewardGil > 0) {
-                        AddGil(state, quest->rewardGil);
-                    }
-                    state->questPoints += quest->rewardQuestPoints;
-
-                    return true;  // Quest completed!
+            if (objective->type == OBJ_ITEM) {
+                if (HasItem(state, objective->item)) {
+                    // Remove the item
+                    RemoveItem(state, objective->item);
                 }
+            }
+            // For OBJ_TALK_TO, no item to remove - just talking is the action
+
+            // Advance to next objective
+            progress->currentObjective++;
+
+            // Check if quest is complete
+            if (progress->currentObjective >= quest->objectiveCount) {
+                progress->state = QUEST_COMPLETE;
+
+                // Give rewards
+                if (quest->rewardGil > 0) {
+                    AddGil(state, quest->rewardGil);
+                }
+                state->questPoints += quest->rewardQuestPoints;
+
+                // Give reward items
+                for (int i = 0; i < quest->rewardItemCount; i++) {
+                    AddToInventory(state, quest->rewardItems[i]);
+                }
+
+                return true;  // Quest completed!
             }
         }
     }

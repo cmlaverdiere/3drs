@@ -120,6 +120,10 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         enemyType = ENEMY_COW;
                     } else if (strcmp(enemyName, "scorpion") == 0) {
                         enemyType = ENEMY_SCORPION;
+                    } else if (strcmp(enemyName, "bandit") == 0) {
+                        enemyType = ENEMY_BANDIT;
+                    } else if (strcmp(enemyName, "sand_golem") == 0) {
+                        enemyType = ENEMY_SAND_GOLEM;
                     }
                     map.enemySpawns[map.enemyCount] = { x + offsetX, y, z + offsetZ };
                     map.enemyTypes[map.enemyCount] = enemyType;
@@ -233,6 +237,14 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         npcType = NPC_GUARD;
                     } else if (strcmp(npcName, "cook") == 0) {
                         npcType = NPC_COOK;
+                    } else if (strcmp(npcName, "varrock_trader") == 0) {
+                        npcType = NPC_VARROCK_TRADER;
+                    } else if (strcmp(npcName, "varrock_bartender") == 0) {
+                        npcType = NPC_VARROCK_BARTENDER;
+                    } else if (strcmp(npcName, "alkharid_silk") == 0) {
+                        npcType = NPC_ALKHARID_SILK;
+                    } else if (strcmp(npcName, "alkharid_spice") == 0) {
+                        npcType = NPC_ALKHARID_SPICE;
                     } else {
                         TraceLog(LOG_WARNING, "Unknown NPC type: %s", npcName);
                     }

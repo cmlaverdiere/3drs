@@ -330,6 +330,7 @@ int main(int argc, char* argv[]) {
                             &quests[activeQuestIndex],
                             &playerState.questProgress[activeQuestIndex],
                             &playerState,
+                            npcType,
                             &questDialogueCount,
                             &showQuestAcceptPrompt
                         );
@@ -375,9 +376,10 @@ int main(int argc, char* argv[]) {
 
             if (acceptClicked) {
                 // Accept quest
+                NPCType npcType = npcs[dialogueState.npcIndex].type;
                 AdvanceQuest(&quests[activeQuestIndex],
                             &playerState.questProgress[activeQuestIndex],
-                            &playerState);
+                            &playerState, npcType);
 
                 // Show "Quest started" message
                 snprintf(screenshotMsg, sizeof(screenshotMsg), "Quest started: %s",
@@ -418,13 +420,14 @@ int main(int argc, char* argv[]) {
                         // Last line - handle quest advancement or close
                         if (isQuestDialogue && activeQuestIndex >= 0) {
                             QuestProgress* progress = &playerState.questProgress[activeQuestIndex];
+                            NPCType npcType = npcs[dialogueState.npcIndex].type;
 
                             // If in progress and can turn in, do it
                             if (progress->state == QUEST_IN_PROGRESS &&
-                                CanAdvanceQuest(&quests[activeQuestIndex], progress, &playerState)) {
+                                CanAdvanceQuest(&quests[activeQuestIndex], progress, &playerState, npcType)) {
 
                                 bool completed = AdvanceQuest(&quests[activeQuestIndex],
-                                                              progress, &playerState);
+                                                              progress, &playerState, npcType);
 
                                 if (completed) {
                                     snprintf(screenshotMsg, sizeof(screenshotMsg),

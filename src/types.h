@@ -59,6 +59,15 @@ enum ItemType {
     ITEM_LOGS,
     ITEM_CHITIN,
     ITEM_IRON_2H_SWORD,
+    // === Trading Expedition Quest Items ===
+    ITEM_TRADE_MANIFEST,
+    ITEM_SILK,
+    ITEM_SPICE,
+    ITEM_IRON_ORE,
+    ITEM_RARE_WINE,
+    ITEM_BANDIT_ORDERS,
+    ITEM_DESERT_ARTIFACT,
+    ITEM_TRADE_LEDGER,
     // === ADD NEW ITEMS HERE ===
     ITEM_COUNT
 };
@@ -70,6 +79,10 @@ enum EnemyType {
     ENEMY_TROLL = 0,
     ENEMY_COW,
     ENEMY_SCORPION,
+    // === Trading Expedition Quest Enemies ===
+    ENEMY_BANDIT,
+    ENEMY_SAND_GOLEM,
+    // === ADD NEW ENEMIES HERE ===
     ENEMY_TYPE_COUNT
 };
 
@@ -79,6 +92,12 @@ enum NPCType {
     NPC_SHOPKEEPER,      // General store merchant
     NPC_GUARD,           // Stern castle guard
     NPC_COOK,            // Frantic castle cook
+    // === Trading Expedition Quest NPCs ===
+    NPC_VARROCK_TRADER,    // Zaff - Varrock general trader
+    NPC_VARROCK_BARTENDER, // Blue Moon Inn bartender
+    NPC_ALKHARID_SILK,     // Al Kharid silk merchant
+    NPC_ALKHARID_SPICE,    // Ali the spice trader
+    // === ADD NEW NPCs HERE ===
     NPC_COUNT
 };
 
@@ -273,24 +292,46 @@ enum QuestState {
     QUEST_COMPLETE
 };
 
+// Objective types for quests
+enum ObjectiveType {
+    OBJ_ITEM = 0,       // Turn in an item to target NPC
+    OBJ_TALK_TO         // Talk to a specific NPC
+};
+
 // Quest limits
 constexpr int MAX_QUESTS = 32;
-constexpr int MAX_QUEST_OBJECTIVES = 8;
+constexpr int MAX_QUEST_OBJECTIVES = 16;
 constexpr int MAX_QUEST_DIALOGUE_LINES = 16;
+constexpr int MAX_QUEST_NPCS = 8;
+constexpr int MAX_QUEST_REWARD_ITEMS = 4;
+
+// Quest objective definition
+struct QuestObjective {
+    ObjectiveType type;     // What kind of objective
+    ItemType item;          // For OBJ_ITEM: which item to turn in
+    NPCType targetNPC;      // For OBJ_TALK_TO: which NPC to talk to
+                            // For OBJ_ITEM: which NPC receives the item
+};
 
 // Quest definition (loaded from file)
 struct Quest {
-    char id[32];                    // "pest_control"
-    char name[64];                  // "Pest Control"
-    NPCType npc;                    // Which NPC gives this quest
+    char id[32];                    // "trading_expedition"
+    char name[64];                  // "The Trading Expedition"
 
-    // Objectives (sequential item turn-ins)
-    ItemType objectives[MAX_QUEST_OBJECTIVES];
+    // NPCs involved in this quest (for multi-NPC quests)
+    NPCType npcs[MAX_QUEST_NPCS];   // All NPCs that participate
+    int npcCount;                   // How many NPCs are involved
+    NPCType startNPC;               // Which NPC gives/starts the quest
+
+    // Objectives (sequential, now supporting different types)
+    QuestObjective objectives[MAX_QUEST_OBJECTIVES];
     int objectiveCount;
 
     // Rewards
     int rewardGil;
     int rewardQuestPoints;
+    ItemType rewardItems[MAX_QUEST_REWARD_ITEMS];
+    int rewardItemCount;
 
     // Dialogue storage (heap allocated during load)
     char** dialogueStart;
