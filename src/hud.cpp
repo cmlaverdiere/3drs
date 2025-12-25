@@ -1184,3 +1184,92 @@ void DrawMinimap(Vector3 playerPos, float playerYaw,
     DrawText("N", centerX - 4, mapY + 4, 12, (Color){180, 160, 140, 180});
     DrawText("S", centerX - 4, mapY + MINIMAP_SIZE - 14, 12, (Color){180, 160, 140, 180});
 }
+
+int DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, int screenWidth, int screenHeight) {
+    if (!menu->active) return 0;
+
+    // Menu dimensions
+    const int MENU_WIDTH = 200;
+    const int MENU_HEIGHT = 210;
+    const int MENU_X = (screenWidth - MENU_WIDTH) / 2;
+    const int MENU_Y = (screenHeight - MENU_HEIGHT) / 2;
+    const int PADDING = 12;
+    const int BUTTON_HEIGHT = 28;
+    const int BUTTON_SPACING = 6;
+
+    // Background with border
+    DrawRectangle(MENU_X - 3, MENU_Y - 3, MENU_WIDTH + 6, MENU_HEIGHT + 6, (Color){60, 50, 40, 255});
+    DrawRectangle(MENU_X, MENU_Y, MENU_WIDTH, MENU_HEIGHT, (Color){40, 35, 30, 240});
+
+    // Title
+    const char* title = "Set Time";
+    int titleWidth = MeasureText(title, 20);
+    DrawText(title, MENU_X + (MENU_WIDTH - titleWidth) / 2, MENU_Y + PADDING, 20, (Color){220, 200, 160, 255});
+
+    // Current time display
+    const char* timePhase;
+    if (currentTime < 0.15f) timePhase = "Dawn";
+    else if (currentTime < 0.65f) timePhase = "Day";
+    else if (currentTime < 0.8f) timePhase = "Dusk";
+    else timePhase = "Night";
+
+    char timeStr[32];
+    snprintf(timeStr, sizeof(timeStr), "Current: %s", timePhase);
+    int timeWidth = MeasureText(timeStr, 14);
+    DrawText(timeStr, MENU_X + (MENU_WIDTH - timeWidth) / 2, MENU_Y + PADDING + 24, 14, (Color){160, 150, 130, 255});
+
+    // Preset buttons
+    struct TimeButton {
+        const char* label;
+        float time;
+        Color color;
+    };
+
+    TimeButton buttons[] = {
+        {"Dawn", TIME_PRESET_DAWN, (Color){255, 180, 120, 255}},
+        {"Noon", TIME_PRESET_NOON, (Color){255, 255, 180, 255}},
+        {"Dusk", TIME_PRESET_DUSK, (Color){255, 140, 100, 255}},
+        {"Midnight", TIME_PRESET_MIDNIGHT, (Color){100, 120, 180, 255}}
+    };
+
+    int buttonY = MENU_Y + 52;
+    Vector2 mouse = GetMousePosition();
+    int result = 0;
+
+    for (int i = 0; i < 4; i++) {
+        Rectangle btnRect = {
+            (float)(MENU_X + PADDING),
+            (float)buttonY,
+            (float)(MENU_WIDTH - PADDING * 2),
+            (float)BUTTON_HEIGHT
+        };
+
+        bool hovered = CheckCollisionPointRec(mouse, btnRect);
+        bool clicked = hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+
+        // Button background
+        Color bgColor = hovered ? (Color){80, 70, 60, 255} : (Color){60, 55, 50, 255};
+        DrawRectangleRec(btnRect, bgColor);
+        DrawRectangleLinesEx(btnRect, 1, (Color){100, 90, 80, 255});
+
+        // Button text
+        int textWidth = MeasureText(buttons[i].label, 18);
+        DrawText(buttons[i].label,
+                 (int)(btnRect.x + (btnRect.width - textWidth) / 2),
+                 (int)(btnRect.y + (btnRect.height - 18) / 2),
+                 18, buttons[i].color);
+
+        if (clicked) {
+            result = i + 1;  // 1=Dawn, 2=Noon, 3=Dusk, 4=Midnight
+        }
+
+        buttonY += BUTTON_HEIGHT + BUTTON_SPACING;
+    }
+
+    // Close hint
+    const char* hint = "[T] to close";
+    int hintWidth = MeasureText(hint, 12);
+    DrawText(hint, MENU_X + (MENU_WIDTH - hintWidth) / 2, MENU_Y + MENU_HEIGHT - 18, 12, (Color){120, 110, 100, 255});
+
+    return result;
+}

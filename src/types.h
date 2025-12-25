@@ -490,6 +490,17 @@ const float LEVEL_UP_DURATION = 5.0f;
 // Global winter mode flag (set via --winter command line flag)
 extern bool g_winterMode;
 
+// Time selection menu state
+struct TimeSelectMenu {
+    bool active;
+};
+
+// Time presets (as timeOfDay values 0.0-1.0)
+const float TIME_PRESET_DAWN = 0.08f;
+const float TIME_PRESET_NOON = 0.4f;
+const float TIME_PRESET_DUSK = 0.72f;
+const float TIME_PRESET_MIDNIGHT = 0.95f;
+
 // Map data loaded from file
 struct MapData {
     Vector3 playerSpawn;

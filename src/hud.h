@@ -65,4 +65,8 @@ void DrawMinimap(Vector3 playerPos, float playerYaw,
 // Get minimap dimensions (for inventory positioning)
 int GetMinimapHeight();
 
+// Draw time selection menu and handle clicks
+// Returns: 0 = no change, 1-4 = preset selected (dawn/noon/dusk/midnight)
+int DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, int screenWidth, int screenHeight);
+
 #endif

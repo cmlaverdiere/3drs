@@ -44,52 +44,88 @@ void main() {
 
     // Grass/Snow color palette (switches based on winter mode)
     vec3 darkGrass, midGrass, lightGrass;
+    vec3 groundColor;
+
     if (winterMode == 1) {
-        // Snow colors
-        darkGrass = vec3(0.85, 0.88, 0.92);
-        midGrass = vec3(0.92, 0.94, 0.97);
-        lightGrass = vec3(0.97, 0.98, 1.0);
+        // === REALISTIC SNOW ===
+        // Snow has blue-ish shadows and warm sunlit areas
+        vec3 snowShadow = vec3(0.65, 0.72, 0.82);    // Cool blue shadows
+        vec3 snowMid = vec3(0.85, 0.87, 0.90);       // Neutral mid-tone
+        vec3 snowBright = vec3(0.95, 0.94, 0.92);    // Slightly warm highlights
+
+        // Extra noise for snow drifts and texture
+        float drift = fbm(worldXZ * 0.15, 3);        // Large scale drifts
+        float detail = noise(worldXZ * 4.0);          // Medium detail
+        float fine = noise(worldXZ * 20.0);           // Fine grain texture
+
+        // Combine for varied snow coverage
+        float snowVariation = drift * 0.5 + combined * 0.3 + detail * 0.15 + fine * 0.05;
+
+        // Create snow color with more contrast
+        if (snowVariation < 0.35) {
+            groundColor = mix(snowShadow, snowMid, snowVariation / 0.35);
+        } else if (snowVariation < 0.65) {
+            groundColor = mix(snowMid, snowBright, (snowVariation - 0.35) / 0.3);
+        } else {
+            groundColor = snowBright;
+        }
+
+        // Add subtle color variation - some areas slightly bluer, some warmer
+        groundColor.r += (detail - 0.5) * 0.06;
+        groundColor.b += (fine - 0.5) * 0.08;
+
+        // Sparkle effect - bright spots where snow crystals catch light
+        float sparkle = noise(worldXZ * 50.0);
+        if (sparkle > 0.92) {
+            groundColor = mix(groundColor, vec3(1.0), (sparkle - 0.92) * 8.0);
+        }
+
+        // Exposed ground patches in some areas (dark spots showing through)
+        float exposure = noise(worldXZ * 1.5 + 50.0);
+        if (exposure < 0.08) {
+            vec3 dirtColor = vec3(0.3, 0.25, 0.2);
+            groundColor = mix(groundColor, dirtColor, (0.08 - exposure) * 5.0);
+        }
+
+        // Handle sand zones in winter (frozen/snowy sand)
+        float sandFactor = getSandFactor(worldXZ);
+        if (sandFactor > 0.0) {
+            vec3 frostySand = vec3(0.78, 0.75, 0.70);
+            groundColor = mix(groundColor, frostySand, sandFactor * 0.6);
+        }
     } else {
         // Normal grass colors
         darkGrass = vec3(0.1, 0.35, 0.1);
         midGrass = vec3(0.2, 0.5, 0.15);
         lightGrass = vec3(0.3, 0.6, 0.2);
+
+        // Sand color palette
+        vec3 darkSand = vec3(0.6, 0.5, 0.3);
+        vec3 midSand = vec3(0.76, 0.65, 0.45);
+        vec3 lightSand = vec3(0.85, 0.75, 0.55);
+
+        // Blend between colors based on noise
+        vec3 grassColor;
+        if (combined < 0.4) {
+            grassColor = mix(darkGrass, midGrass, combined / 0.4);
+        } else {
+            grassColor = mix(midGrass, lightGrass, (combined - 0.4) / 0.6);
+        }
+
+        vec3 sandColor;
+        if (combined < 0.4) {
+            sandColor = mix(darkSand, midSand, combined / 0.4);
+        } else {
+            sandColor = mix(midSand, lightSand, (combined - 0.4) / 0.6);
+        }
+
+        // Check if we're in a sand zone
+        float sandFactor = getSandFactor(worldXZ);
+
+        // Blend grass and sand
+        groundColor = mix(grassColor, sandColor, sandFactor);
+        groundColor += (n3 - 0.5) * 0.08;
     }
-
-    // Sand color palette (also lighter in winter)
-    vec3 darkSand, midSand, lightSand;
-    if (winterMode == 1) {
-        // Snowy sand
-        darkSand = vec3(0.75, 0.72, 0.68);
-        midSand = vec3(0.85, 0.82, 0.78);
-        lightSand = vec3(0.92, 0.90, 0.87);
-    } else {
-        darkSand = vec3(0.6, 0.5, 0.3);
-        midSand = vec3(0.76, 0.65, 0.45);
-        lightSand = vec3(0.85, 0.75, 0.55);
-    }
-
-    // Blend between colors based on noise
-    vec3 grassColor;
-    if (combined < 0.4) {
-        grassColor = mix(darkGrass, midGrass, combined / 0.4);
-    } else {
-        grassColor = mix(midGrass, lightGrass, (combined - 0.4) / 0.6);
-    }
-
-    vec3 sandColor;
-    if (combined < 0.4) {
-        sandColor = mix(darkSand, midSand, combined / 0.4);
-    } else {
-        sandColor = mix(midSand, lightSand, (combined - 0.4) / 0.6);
-    }
-
-    // Check if we're in a sand zone
-    float sandFactor = getSandFactor(worldXZ);
-
-    // Blend grass and sand
-    vec3 groundColor = mix(grassColor, sandColor, sandFactor);
-    groundColor += (n3 - 0.5) * 0.08;
 
     // Calculate lighting using common functions
     vec3 normal = normalize(fragNormal);
