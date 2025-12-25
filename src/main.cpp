@@ -228,9 +228,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Player movement (when not in mouse mode, dialogue, help UI, and alive)
+        // Player movement (when not in mouse mode, dialogue, shop, help UI, and alive)
         if (!mouseMode && !playerRuntime.isDead && !dialogueState.active &&
-            helpSystem.state == HelpState::CLOSED) {
+            !shopState.active && helpSystem.state == HelpState::CLOSED) {
             std::vector<int> nearbyWalls;
             g_spatial.walls.Query(camera.position.x, camera.position.z, PLAYER_RADIUS + 20.0f, nearbyWalls);
             UpdatePlayerMovement(&camera, &playerRuntime, walls, resources.wallCount, nearbyWalls, dt);
@@ -271,9 +271,9 @@ int main(int argc, char* argv[]) {
         // Item respawning
         UpdateItemRespawns(worldItems, worldItemCount, dt);
 
-        // Player attack (don't attack while in dialogue, help UI, or other UI)
+        // Player attack (don't attack while in dialogue, shop, help UI, or other UI)
         if (!mouseMode && !playerRuntime.isDead && !dialogueState.active &&
-            helpSystem.state == HelpState::CLOSED &&
+            !shopState.active && helpSystem.state == HelpState::CLOSED &&
             IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
             attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
             ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
@@ -368,11 +368,13 @@ int main(int argc, char* argv[]) {
                 }
             }
         } else if (IsKeyPressed(KEY_ESCAPE) && !helpJustClosed) {
-            // ESC priority: help UI > dialogue > show quit prompt
+            // ESC priority: help UI > dialogue > shop > show quit prompt
             if (helpSystem.state != HelpState::CLOSED) {
                 // Help system handles its own ESC
             } else if (dialogueState.active) {
                 // Dialogue handles its own ESC (see below)
+            } else if (shopState.active) {
+                // Shop handles its own ESC (see below)
             } else {
                 // Show quit confirmation
                 showQuitConfirm = true;

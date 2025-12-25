@@ -65,7 +65,9 @@ wall 30.0 0.0 0.0 0.5 4.0 10.0 wood
 wall -35.0 0.0 25.0 8.0 4.0 0.5 wood
 wall -35.0 0.0 32.0 8.0 4.0 0.5 wood
 wall -39.0 0.0 28.5 0.5 4.0 7.0 wood
-wall -31.0 0.0 28.5 0.5 4.0 7.0 wood
+# East wall split for door opening (gap from Z=27 to Z=30)
+wall -31.0 0.0 26.0 0.5 4.0 2.0 wood
+wall -31.0 0.0 31.0 0.5 4.0 2.0 wood
 
 # === INN / BLUE MOON INN (southeast) ===
 wall 35.0 0.0 25.0 10.0 5.0 0.5 wood
@@ -144,7 +146,7 @@ npc varrock_trader 12.0 0.0 0.0
 npc varrock_bartender 35.0 0.0 30.0
 
 # === SHOP NPCs ===
-# Zeke - Scimitar seller at the Sword Shop (southwest)
+# Zeke - Scimitar seller inside the Sword Shop (southwest)
 npc scimitar_shop -35.0 0.0 28.0
 
 # === BANDITS (on road between Lumbridge and Varrock) ===

@@ -340,6 +340,91 @@ void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int scre
         // Pommel
         Vector2 pommelPos = { wpnX + (55.0f * sinA), wpnY + (55.0f * cosA) };
         DrawCircleV(pommelPos, 8.0f, ironDark);
+    } else if (weapon == ITEM_STEEL_SCIMITAR || weapon == ITEM_MITHRIL_SCIMITAR || weapon == ITEM_ADAMANT_SCIMITAR) {
+        // Scimitar colors based on tier
+        Color bladeColor, edgeColor, darkColor;
+        if (weapon == ITEM_STEEL_SCIMITAR) {
+            bladeColor = (Color){ 180, 180, 190, 255 };
+            edgeColor = (Color){ 220, 220, 230, 255 };
+            darkColor = (Color){ 100, 100, 110, 255 };
+        } else if (weapon == ITEM_MITHRIL_SCIMITAR) {
+            bladeColor = (Color){ 80, 130, 170, 255 };
+            edgeColor = (Color){ 140, 180, 220, 255 };
+            darkColor = (Color){ 40, 80, 120, 255 };
+        } else {  // Adamant
+            bladeColor = (Color){ 60, 140, 60, 255 };
+            edgeColor = (Color){ 100, 200, 100, 255 };
+            darkColor = (Color){ 30, 90, 30, 255 };
+        }
+        Color leatherGrip = { 70, 45, 25, 255 };
+        Color goldAccent = { 200, 160, 60, 255 };
+
+        // Scimitar: wide curved blade sweeping to the right
+        // Draw as a series of connected quads to form the curve
+        int segments = 8;
+        float bladeLength = 140.0f;
+
+        // Store points for the curved blade shape
+        Vector2 outerEdge[9], innerEdge[9];
+        for (int i = 0; i <= segments; i++) {
+            float t = (float)i / segments;
+            // Parametric curve - gentle curve outward
+            float baseX = -bladeLength * t;
+            float curveAmount = sinf(t * PI) * 18.0f;  // Gentler curve
+            float bladeW = 14.0f + sinf(t * PI) * 12.0f;  // Wider blade overall
+
+            // Transform by swing angle
+            float px = baseX * sinA - curveAmount * cosA;
+            float py = baseX * cosA + curveAmount * sinA;
+
+            // Outer edge (the sharp curved side)
+            outerEdge[i] = (Vector2){ wpnX + px - bladeW * cosA * 0.5f,
+                                       wpnY + py + bladeW * sinA * 0.5f };
+            // Inner edge (spine of blade)
+            innerEdge[i] = (Vector2){ wpnX + px + bladeW * cosA * 0.5f,
+                                       wpnY + py - bladeW * sinA * 0.5f };
+        }
+
+        // Draw blade as triangles
+        for (int i = 0; i < segments; i++) {
+            // Blade body
+            DrawTriangle(outerEdge[i], innerEdge[i], outerEdge[i+1], bladeColor);
+            DrawTriangle(innerEdge[i], innerEdge[i+1], outerEdge[i+1], bladeColor);
+        }
+
+        // Shiny edge highlight on outer curve
+        for (int i = 0; i < segments; i++) {
+            DrawLineEx(outerEdge[i], outerEdge[i+1], 2.0f, edgeColor);
+        }
+
+        // Dark spine on inner edge
+        for (int i = 0; i < segments; i++) {
+            DrawLineEx(innerEdge[i], innerEdge[i+1], 2.0f, darkColor);
+        }
+
+        // Handle
+        Vector2 handleEnd = { wpnX + (40.0f * sinA), wpnY + (40.0f * cosA) };
+        DrawLineEx((Vector2){wpnX, wpnY}, handleEnd, 12.0f, leatherGrip);
+        // Wrap lines on handle
+        for (int i = 1; i <= 3; i++) {
+            float ht = i * 0.25f;
+            Vector2 wrapPos = { wpnX + (40.0f * ht * sinA), wpnY + (40.0f * ht * cosA) };
+            float wrapSize = 8.0f;
+            Vector2 wrapL = { wrapPos.x - wrapSize * cosA, wrapPos.y + wrapSize * sinA };
+            Vector2 wrapR = { wrapPos.x + wrapSize * cosA, wrapPos.y - wrapSize * sinA };
+            DrawLineEx(wrapL, wrapR, 2.0f, darkColor);
+        }
+
+        // Curved guard with gold accent
+        Vector2 guardL = { wpnX + (-18.0f * cosA), wpnY + (18.0f * sinA) };
+        Vector2 guardR = { wpnX + (6.0f * cosA), wpnY + (-6.0f * sinA) };
+        DrawLineEx(guardL, guardR, 6.0f, darkColor);
+        DrawLineEx(guardL, guardR, 3.0f, goldAccent);
+
+        // Pommel
+        Vector2 pommelPos = { wpnX + (45.0f * sinA), wpnY + (45.0f * cosA) };
+        DrawCircleV(pommelPos, 6.0f, darkColor);
+        DrawCircleV(pommelPos, 3.0f, goldAccent);
     }
 }
 

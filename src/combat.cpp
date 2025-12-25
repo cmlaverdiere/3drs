@@ -17,9 +17,14 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
     *swingTimer = SWING_DURATION;
     bool actionTaken = false;
 
-    // Play heavy swing sound for 2H weapons
+    // Play swing sound based on weapon type
     if (state->equippedWeapon == ITEM_IRON_2H_SWORD) {
         PlaySoundEffect(SFX_SWING_HEAVY);
+    } else if (state->equippedWeapon == ITEM_STEEL_SCIMITAR ||
+               state->equippedWeapon == ITEM_MITHRIL_SCIMITAR ||
+               state->equippedWeapon == ITEM_ADAMANT_SCIMITAR) {
+        // Light whoosh for fast scimitar swings
+        PlaySoundEffect(SFX_MISS);
     }
 
     // If wielding axe, check for trees first
