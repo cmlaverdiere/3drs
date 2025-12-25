@@ -166,6 +166,7 @@ int main(int argc, char* argv[]) {
     XPPopup xpPopups[MAX_XP_POPUPS] = {};
     LevelUpNotification levelUpNotif = {};
     DialogueState dialogueState = {false, -1, 0};
+    ShopState shopState = {false, -1, {}, 0, -1};
 
     // Help system
     HelpSystem helpSystem = {};
@@ -379,46 +380,118 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // NPC dialogue handling (only when help UI is closed)
-        if (helpSystem.state == HelpState::CLOSED) {
+        // Shop input handling
+        if (shopState.active) {
+            // ESC to close shop
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                shopState.active = false;
+                shopState.selectedIndex = -1;
+                if (!mouseMode) DisableCursor();
+            }
+            // Mouse click handling
+            else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                Vector2 mouse = GetMousePosition();
+                const int BOX_WIDTH = 400;
+                const int BOX_HEIGHT = 350;
+                const int BOX_X = (screenWidth - BOX_WIDTH) / 2;
+                const int BOX_Y = (screenHeight - BOX_HEIGHT) / 2;
+                const int ITEM_SIZE = 80;
+                const int ITEM_SPACING = 30;
+                int startX = BOX_X + (BOX_WIDTH - (3 * ITEM_SIZE + 2 * ITEM_SPACING)) / 2;
+                int itemY = BOX_Y + 100;
+
+                // Check item slot clicks
+                for (int i = 0; i < shopState.itemCount; i++) {
+                    int itemX = startX + i * (ITEM_SIZE + ITEM_SPACING);
+                    if (mouse.x >= itemX && mouse.x <= itemX + ITEM_SIZE &&
+                        mouse.y >= itemY && mouse.y <= itemY + ITEM_SIZE) {
+                        shopState.selectedIndex = i;
+                        break;
+                    }
+                }
+
+                // Check buy button click
+                if (shopState.selectedIndex >= 0) {
+                    int detailY = itemY + ITEM_SIZE + 50;
+                    int btnW = 120, btnH = 35;
+                    int btnX = BOX_X + (BOX_WIDTH - btnW) / 2;
+                    int btnY = detailY + 35;
+
+                    if (mouse.x >= btnX && mouse.x <= btnX + btnW &&
+                        mouse.y >= btnY && mouse.y <= btnY + btnH) {
+                        int price = shopState.items[shopState.selectedIndex].price;
+                        ItemType item = shopState.items[shopState.selectedIndex].item;
+                        if (GetGilCount(&playerState) >= price) {
+                            if (AddToInventory(&playerState, item)) {
+                                RemoveGil(&playerState, price);
+                                snprintf(screenshotMsg, sizeof(screenshotMsg),
+                                         "Purchased %s!", ITEM_NAMES[item]);
+                                screenshotMsgTimer = 2.0f;
+                            } else {
+                                snprintf(screenshotMsg, sizeof(screenshotMsg), "Inventory full!");
+                                screenshotMsgTimer = 2.0f;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // NPC dialogue handling (only when help UI is closed and shop is closed)
+        if (helpSystem.state == HelpState::CLOSED && !shopState.active) {
             if (!dialogueState.active) {
                 // Start dialogue when pressing E near an NPC
                 if (nearestNPCIndex >= 0 && !mouseMode && !playerRuntime.isDead) {
                     if (IsKeyPressed(KEY_E)) {
-                        dialogueState.active = true;
-                        dialogueState.npcIndex = nearestNPCIndex;
-                        dialogueState.currentLine = 0;
-                        EnableCursor();
-
-                        // Speak first line of dialogue (will be updated after quest check)
-                        NPCType speakNpcType = npcs[nearestNPCIndex].type;
-
-                        // Check if this NPC has a quest
                         NPCType npcType = npcs[nearestNPCIndex].type;
-                        activeQuestIndex = FindQuestByNPC(quests, questCount, npcType);
 
-                        if (activeQuestIndex >= 0) {
-                            // Get quest dialogue
-                            questDialogueLines = GetQuestDialogue(
-                                &quests[activeQuestIndex],
-                                &playerState.questProgress[activeQuestIndex],
-                                &playerState,
-                                npcType,
-                                &questDialogueCount,
-                                &showQuestAcceptPrompt
-                            );
+                        // Check if this is a shop NPC
+                        if (npcType == NPC_SCIMITAR_SHOP) {
+                            // Open shop UI instead of dialogue
+                            shopState.active = true;
+                            shopState.npcIndex = nearestNPCIndex;
+                            shopState.selectedIndex = -1;
+                            shopState.itemCount = 3;
+                            shopState.items[0] = {ITEM_STEEL_SCIMITAR, 200};
+                            shopState.items[1] = {ITEM_MITHRIL_SCIMITAR, 500};
+                            shopState.items[2] = {ITEM_ADAMANT_SCIMITAR, 3000};
+                            EnableCursor();
                         } else {
-                            questDialogueLines = nullptr;
-                            questDialogueCount = 0;
-                            showQuestAcceptPrompt = false;
-                        }
+                            // Normal dialogue
+                            dialogueState.active = true;
+                            dialogueState.npcIndex = nearestNPCIndex;
+                            dialogueState.currentLine = 0;
+                            EnableCursor();
 
-                        // Speak the first dialogue line
-                        const char* firstLine = (questDialogueLines && questDialogueCount > 0)
-                            ? questDialogueLines[0]
-                            : NPC_CONFIGS[speakNpcType].dialogueLines[0];
-                        if (firstLine) {
-                            SpeakAsNPC(firstLine, speakNpcType);
+                            // Speak first line of dialogue (will be updated after quest check)
+                            NPCType speakNpcType = npcs[nearestNPCIndex].type;
+
+                            // Check if this NPC has a quest
+                            activeQuestIndex = FindQuestByNPC(quests, questCount, npcType);
+
+                            if (activeQuestIndex >= 0) {
+                                // Get quest dialogue
+                                questDialogueLines = GetQuestDialogue(
+                                    &quests[activeQuestIndex],
+                                    &playerState.questProgress[activeQuestIndex],
+                                    &playerState,
+                                    npcType,
+                                    &questDialogueCount,
+                                    &showQuestAcceptPrompt
+                                );
+                            } else {
+                                questDialogueLines = nullptr;
+                                questDialogueCount = 0;
+                                showQuestAcceptPrompt = false;
+                            }
+
+                            // Speak the first dialogue line
+                            const char* firstLine = (questDialogueLines && questDialogueCount > 0)
+                                ? questDialogueLines[0]
+                                : NPC_CONFIGS[speakNpcType].dialogueLines[0];
+                            if (firstLine) {
+                                SpeakAsNPC(firstLine, speakNpcType);
+                            }
                         }
                     }
                 }
@@ -839,7 +912,7 @@ int main(int argc, char* argv[]) {
                 screenWidth, screenHeight);
 
         // Draw NPC prompt (when near an NPC but not in dialogue)
-        if (nearestNPCIndex >= 0 && !dialogueState.active && !mouseMode && !playerRuntime.isDead) {
+        if (nearestNPCIndex >= 0 && !dialogueState.active && !shopState.active && !mouseMode && !playerRuntime.isDead) {
             const NPCConfig& config = NPC_CONFIGS[npcs[nearestNPCIndex].type];
             DrawNPCPrompt(config.name, screenWidth, screenHeight);
         }
@@ -847,6 +920,9 @@ int main(int argc, char* argv[]) {
         // Draw dialogue box (when in dialogue)
         DrawDialogueBox(&dialogueState, npcs, questDialogueLines, questDialogueCount,
                         showQuestAcceptPrompt, screenWidth, screenHeight);
+
+        // Draw shop UI (when shop is open)
+        DrawShopUI(&shopState, &playerState, screenWidth, screenHeight);
 
         // Draw help UI (on top of everything)
         DrawHelpUI(&helpSystem, screenWidth, screenHeight);

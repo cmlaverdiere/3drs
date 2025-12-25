@@ -294,3 +294,28 @@ bool AddGil(PlayerState* state, int amount) {
 
     return false;  // No room
 }
+
+int GetGilCount(const PlayerState* state) {
+    for (int i = 0; i < INV_SLOTS; i++) {
+        if (state->inventory[i] == ITEM_GIL) {
+            return state->inventoryCount[i];
+        }
+    }
+    return 0;
+}
+
+bool RemoveGil(PlayerState* state, int amount) {
+    for (int i = 0; i < INV_SLOTS; i++) {
+        if (state->inventory[i] == ITEM_GIL) {
+            if (state->inventoryCount[i] >= amount) {
+                state->inventoryCount[i] -= amount;
+                if (state->inventoryCount[i] == 0) {
+                    state->inventory[i] = ITEM_NONE;
+                }
+                return true;
+            }
+            return false;  // Not enough gil
+        }
+    }
+    return false;  // No gil
+}

@@ -24,7 +24,11 @@ const char* ITEM_NAMES[ITEM_COUNT] = {
     "Rare Wine",
     "Bandit Orders",
     "Desert Artifact",
-    "Trade Ledger"
+    "Trade Ledger",
+    // Scimitar Shop Items
+    "Steel Scimitar",
+    "Mithril Scimitar",
+    "Adamant Scimitar"
 };
 
 // NPC configurations with dialogue
@@ -141,6 +145,20 @@ const NPCConfig NPC_CONFIGS[NPC_COUNT] = {
             "Spices! Get your exotic spices here!",
             "Straight from the heart of the desert.",
             "The sand golems guard the best spice fields..."
+        },
+        .dialogueCount = 3
+    },
+    // NPC_SCIMITAR_SHOP - Zeke, Varrock scimitar seller
+    {
+        .name = "Zeke",
+        .skinColor = {230, 190, 160, 255},   // Light tan
+        .shirtColor = {100, 80, 60, 255},    // Dark leather apron
+        .pantsColor = {50, 45, 40, 255},     // Dark pants
+        .height = 1.02f,
+        .dialogueLines = {
+            "Welcome to Zeke's Superior Scimitars!",
+            "I have the finest curved blades in Varrock.",
+            "Scimitars are lighter and faster than regular swords."
         },
         .dialogueCount = 3
     }

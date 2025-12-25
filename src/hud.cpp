@@ -408,6 +408,33 @@ static void DrawItemIcon(ItemType item, int cx, int cy) {
         DrawCircle(cx, cy + 2, 10, bagColor);
         DrawRectangle(cx - 2, cy - 10, 4, 8, bagColor);
         DrawCircle(cx, cy - 6, 3, spiceColor);
+    } else if (item == ITEM_STEEL_SCIMITAR) {
+        Color steelBlade = { 180, 180, 190, 255 };
+        Color steelHandle = { 100, 80, 60, 255 };
+        // Curved blade
+        DrawRectangle(cx - 2, cy - 14, 4, 18, steelBlade);
+        DrawRectangle(cx - 5, cy - 14, 4, 10, steelBlade);
+        // Handle
+        DrawRectangle(cx - 2, cy + 4, 4, 10, steelHandle);
+        DrawRectangle(cx - 6, cy + 2, 12, 3, steelHandle);
+    } else if (item == ITEM_MITHRIL_SCIMITAR) {
+        Color mithrilBlade = { 100, 140, 180, 255 };
+        Color mithrilHandle = { 80, 100, 120, 255 };
+        // Curved blade
+        DrawRectangle(cx - 2, cy - 14, 4, 18, mithrilBlade);
+        DrawRectangle(cx - 5, cy - 14, 4, 10, mithrilBlade);
+        // Handle
+        DrawRectangle(cx - 2, cy + 4, 4, 10, mithrilHandle);
+        DrawRectangle(cx - 6, cy + 2, 12, 3, mithrilHandle);
+    } else if (item == ITEM_ADAMANT_SCIMITAR) {
+        Color adamantBlade = { 80, 160, 80, 255 };
+        Color adamantHandle = { 60, 100, 60, 255 };
+        // Curved blade
+        DrawRectangle(cx - 2, cy - 14, 4, 18, adamantBlade);
+        DrawRectangle(cx - 5, cy - 14, 4, 10, adamantBlade);
+        // Handle
+        DrawRectangle(cx - 2, cy + 4, 4, 10, adamantHandle);
+        DrawRectangle(cx - 6, cy + 2, 12, 3, adamantHandle);
     }
 }
 
@@ -827,4 +854,107 @@ void DrawNPCPrompt(const char* npcName, int screenWidth, int screenHeight) {
     DrawText(prompt, promptX - 1, promptY + 1, promptFontSize, BLACK);
     DrawText(prompt, promptX + 1, promptY + 1, promptFontSize, BLACK);
     DrawText(prompt, promptX, promptY, promptFontSize, WHITE);
+}
+
+void DrawShopUI(const ShopState* shop, const PlayerState* state,
+                int screenWidth, int screenHeight) {
+    if (!shop->active) return;
+
+    const int BOX_WIDTH = 400;
+    const int BOX_HEIGHT = 350;
+    const int BOX_X = (screenWidth - BOX_WIDTH) / 2;
+    const int BOX_Y = (screenHeight - BOX_HEIGHT) / 2;
+    const int PADDING = 20;
+
+    // Draw parchment background
+    DrawRectangle(BOX_X - 4, BOX_Y - 4, BOX_WIDTH + 8, BOX_HEIGHT + 8, PARCHMENT_BORDER);
+    DrawRectangle(BOX_X, BOX_Y, BOX_WIDTH, BOX_HEIGHT, PARCHMENT_BG);
+    DrawRectangleLines(BOX_X + 6, BOX_Y + 6, BOX_WIDTH - 12, BOX_HEIGHT - 12, PARCHMENT_DARK);
+
+    // Title
+    const char* title = "Zeke's Superior Scimitars";
+    int titleW = MeasureText(title, 24);
+    DrawText(title, BOX_X + (BOX_WIDTH - titleW) / 2, BOX_Y + PADDING, 24, PARCHMENT_BORDER);
+
+    // Separator
+    DrawRectangle(BOX_X + PADDING, BOX_Y + 55, BOX_WIDTH - PADDING * 2, 2, PARCHMENT_BORDER);
+
+    // Player's gold display
+    int gilCount = GetGilCount(state);
+    char gilText[32];
+    snprintf(gilText, sizeof(gilText), "Your gold: %d", gilCount);
+    DrawText(gilText, BOX_X + PADDING, BOX_Y + 65, 16, GOLD_TEXT);
+
+    // Item grid (3 items horizontally)
+    const int ITEM_SIZE = 80;
+    const int ITEM_SPACING = 30;
+    int startX = BOX_X + (BOX_WIDTH - (3 * ITEM_SIZE + 2 * ITEM_SPACING)) / 2;
+    int itemY = BOX_Y + 100;
+
+    Vector2 mouse = GetMousePosition();
+
+    for (int i = 0; i < shop->itemCount; i++) {
+        int itemX = startX + i * (ITEM_SIZE + ITEM_SPACING);
+
+        // Item slot background
+        bool isHovered = (mouse.x >= itemX && mouse.x <= itemX + ITEM_SIZE &&
+                          mouse.y >= itemY && mouse.y <= itemY + ITEM_SIZE);
+        bool isSelected = (shop->selectedIndex == i);
+
+        Color slotBg = isSelected ? (Color){180, 160, 120, 255} :
+                       isHovered ? (Color){200, 180, 140, 255} : PARCHMENT_DARK;
+        DrawRectangle(itemX, itemY, ITEM_SIZE, ITEM_SIZE, slotBg);
+        DrawRectangleLines(itemX, itemY, ITEM_SIZE, ITEM_SIZE, PARCHMENT_BORDER);
+
+        // Draw item icon (centered)
+        DrawItemIcon(shop->items[i].item, itemX + ITEM_SIZE / 2, itemY + ITEM_SIZE / 2);
+
+        // Item name below
+        const char* itemName = ITEM_NAMES[shop->items[i].item];
+        int nameW = MeasureText(itemName, 12);
+        DrawText(itemName, itemX + (ITEM_SIZE - nameW) / 2, itemY + ITEM_SIZE + 5, 12, PARCHMENT_TEXT);
+
+        // Price below name
+        char priceText[32];
+        snprintf(priceText, sizeof(priceText), "%d gp", shop->items[i].price);
+        int priceW = MeasureText(priceText, 14);
+        DrawText(priceText, itemX + (ITEM_SIZE - priceW) / 2, itemY + ITEM_SIZE + 20, 14, GOLD_TEXT);
+    }
+
+    // Selected item details and buy button
+    if (shop->selectedIndex >= 0) {
+        int detailY = itemY + ITEM_SIZE + 50;
+        const ShopItem& selected = shop->items[shop->selectedIndex];
+
+        // Show weapon stats
+        float cooldown = GetWeaponCooldown(selected.item);
+        float dmgMult = GetWeaponDamageMultiplier(selected.item);
+        char statsText[128];
+        snprintf(statsText, sizeof(statsText), "Speed: %.2fs  |  Damage: x%.1f", cooldown, dmgMult);
+        int statsW = MeasureText(statsText, 16);
+        DrawText(statsText, BOX_X + (BOX_WIDTH - statsW) / 2, detailY, 16, PARCHMENT_TEXT);
+
+        // Buy button
+        bool canAfford = (gilCount >= selected.price);
+        int btnW = 120, btnH = 35;
+        int btnX = BOX_X + (BOX_WIDTH - btnW) / 2;
+        int btnY = detailY + 35;
+
+        bool btnHover = (mouse.x >= btnX && mouse.x <= btnX + btnW &&
+                         mouse.y >= btnY && mouse.y <= btnY + btnH);
+        Color btnColor = !canAfford ? (Color){100, 100, 100, 255} :
+                         btnHover ? (Color){100, 160, 100, 255} : (Color){80, 130, 80, 255};
+        DrawRectangle(btnX, btnY, btnW, btnH, btnColor);
+        DrawRectangleLines(btnX, btnY, btnW, btnH, PARCHMENT_BORDER);
+
+        const char* buyText = canAfford ? "Buy" : "Need more gold";
+        int buyTextSize = canAfford ? 18 : 14;
+        int buyW = MeasureText(buyText, buyTextSize);
+        DrawText(buyText, btnX + (btnW - buyW) / 2, btnY + (btnH - buyTextSize) / 2, buyTextSize, WHITE);
+    }
+
+    // Close hint
+    const char* closeHint = "Press ESC to close";
+    int closeW = MeasureText(closeHint, 14);
+    DrawText(closeHint, BOX_X + (BOX_WIDTH - closeW) / 2, BOX_Y + BOX_HEIGHT - 30, 14, PARCHMENT_TEXT);
 }

@@ -27,6 +27,17 @@ void DrawSword(const EntityModels* models, Vector3 pos, Color bladeColor, Color 
     DrawModelCube(models, (Vector3){pos.x, pos.y + 0.05f, pos.z - 0.25f}, 0.2f, 0.04f, 0.04f, handleColor);
 }
 
+void DrawScimitar(const EntityModels* models, Vector3 pos, Color bladeColor, Color handleColor) {
+    // Curved blade - multiple segments to approximate curve
+    DrawModelCube(models, (Vector3){pos.x, pos.y + 0.05f, pos.z + 0.1f}, 0.06f, 0.04f, 0.25f, bladeColor);
+    DrawModelCube(models, (Vector3){pos.x - 0.03f, pos.y + 0.05f, pos.z + 0.32f}, 0.05f, 0.04f, 0.2f, bladeColor);
+    DrawModelCube(models, (Vector3){pos.x - 0.06f, pos.y + 0.05f, pos.z + 0.48f}, 0.04f, 0.04f, 0.12f, bladeColor);
+    // Handle
+    DrawModelCube(models, (Vector3){pos.x, pos.y + 0.05f, pos.z - 0.1f}, 0.05f, 0.06f, 0.15f, handleColor);
+    // Guard
+    DrawModelCube(models, (Vector3){pos.x, pos.y + 0.05f, pos.z - 0.02f}, 0.12f, 0.03f, 0.03f, handleColor);
+}
+
 void DrawTroll(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted) {
     Color trollSkin = { 100, 140, 100, 255 };
     Color trollDark = { 70, 100, 70, 255 };
@@ -446,6 +457,24 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
             DrawModelCube(models, (Vector3){pos.x, pos.y + 0.2f, pos.z}, 0.04f, 0.06f, 0.04f, bagColor);
             // Spice visible at opening
             DrawModelSphere(models, (Vector3){pos.x, pos.y + 0.18f, pos.z}, 0.04f, spiceColor);
+            break;
+        }
+        case ITEM_STEEL_SCIMITAR: {
+            Color steelBlade = { 180, 180, 190, 255 };
+            Color steelHandle = { 100, 80, 60, 255 };
+            DrawScimitar(models, pos, steelBlade, steelHandle);
+            break;
+        }
+        case ITEM_MITHRIL_SCIMITAR: {
+            Color mithrilBlade = { 100, 140, 180, 255 };  // Bluish tint
+            Color mithrilHandle = { 80, 100, 120, 255 };
+            DrawScimitar(models, pos, mithrilBlade, mithrilHandle);
+            break;
+        }
+        case ITEM_ADAMANT_SCIMITAR: {
+            Color adamantBlade = { 80, 160, 80, 255 };    // Green tint
+            Color adamantHandle = { 60, 100, 60, 255 };
+            DrawScimitar(models, pos, adamantBlade, adamantHandle);
             break;
         }
         default:

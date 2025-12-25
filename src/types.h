@@ -33,6 +33,12 @@ constexpr float DEFAULT_ATTACK_COOLDOWN = 0.25f;
 constexpr float IRON_2H_ATTACK_COOLDOWN = 0.5f;
 constexpr float IRON_2H_DAMAGE_MULTIPLIER = 2.5f;
 
+// Scimitar stats (faster but lower damage than equivalent swords)
+constexpr float SCIMITAR_ATTACK_COOLDOWN = 0.2f;
+constexpr float STEEL_SCIMITAR_DAMAGE_MULTIPLIER = 1.3f;
+constexpr float MITHRIL_SCIMITAR_DAMAGE_MULTIPLIER = 1.6f;
+constexpr float ADAMANT_SCIMITAR_DAMAGE_MULTIPLIER = 2.0f;
+
 // HP regeneration
 constexpr float HP_REGEN_INTERVAL = 5.0f;
 
@@ -68,6 +74,10 @@ enum ItemType {
     ITEM_BANDIT_ORDERS,
     ITEM_DESERT_ARTIFACT,
     ITEM_TRADE_LEDGER,
+    // === Scimitar Shop Items ===
+    ITEM_STEEL_SCIMITAR,
+    ITEM_MITHRIL_SCIMITAR,
+    ITEM_ADAMANT_SCIMITAR,
     // === ADD NEW ITEMS HERE ===
     ITEM_COUNT
 };
@@ -97,6 +107,8 @@ enum NPCType {
     NPC_VARROCK_BARTENDER, // Blue Moon Inn bartender
     NPC_ALKHARID_SILK,     // Al Kharid silk merchant
     NPC_ALKHARID_SPICE,    // Ali the spice trader
+    // === Shop NPCs ===
+    NPC_SCIMITAR_SHOP,     // Zeke - Varrock scimitar seller
     // === ADD NEW NPCs HERE ===
     NPC_COUNT
 };
@@ -191,6 +203,22 @@ struct DialogueState {
     bool active;
     int npcIndex;
     int currentLine;
+};
+
+// Shop item definition
+struct ShopItem {
+    ItemType item;
+    int price;
+};
+
+// Shop state (for active shop interaction)
+constexpr int MAX_SHOP_ITEMS = 8;
+struct ShopState {
+    bool active;
+    int npcIndex;
+    ShopItem items[MAX_SHOP_ITEMS];
+    int itemCount;
+    int selectedIndex;  // -1 if none selected
 };
 
 // Generic Enemy NPC
@@ -376,18 +404,24 @@ inline bool IsItemStackable(ItemType item) {
 
 // Check if an item is a weapon
 inline bool IsWeapon(ItemType item) {
-    return item == ITEM_BRONZE_SHORTSWORD || item == ITEM_BRONZE_AXE || item == ITEM_IRON_2H_SWORD;
+    return item == ITEM_BRONZE_SHORTSWORD || item == ITEM_BRONZE_AXE || item == ITEM_IRON_2H_SWORD ||
+           item == ITEM_STEEL_SCIMITAR || item == ITEM_MITHRIL_SCIMITAR || item == ITEM_ADAMANT_SCIMITAR;
 }
 
 // Get weapon attack cooldown
 inline float GetWeaponCooldown(ItemType item) {
     if (item == ITEM_IRON_2H_SWORD) return IRON_2H_ATTACK_COOLDOWN;
+    if (item == ITEM_STEEL_SCIMITAR || item == ITEM_MITHRIL_SCIMITAR || item == ITEM_ADAMANT_SCIMITAR)
+        return SCIMITAR_ATTACK_COOLDOWN;
     return DEFAULT_ATTACK_COOLDOWN;
 }
 
 // Get weapon damage multiplier
 inline float GetWeaponDamageMultiplier(ItemType item) {
     if (item == ITEM_IRON_2H_SWORD) return IRON_2H_DAMAGE_MULTIPLIER;
+    if (item == ITEM_STEEL_SCIMITAR) return STEEL_SCIMITAR_DAMAGE_MULTIPLIER;
+    if (item == ITEM_MITHRIL_SCIMITAR) return MITHRIL_SCIMITAR_DAMAGE_MULTIPLIER;
+    if (item == ITEM_ADAMANT_SCIMITAR) return ADAMANT_SCIMITAR_DAMAGE_MULTIPLIER;
     return 1.0f;
 }
 

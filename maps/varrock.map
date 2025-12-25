@@ -143,6 +143,10 @@ npc varrock_trader 12.0 0.0 0.0
 # Bartender - Inside the Blue Moon Inn (southeast)
 npc varrock_bartender 35.0 0.0 30.0
 
+# === SHOP NPCs ===
+# Zeke - Scimitar seller at the Sword Shop (southwest)
+npc scimitar_shop -35.0 0.0 28.0
+
 # === BANDITS (on road between Lumbridge and Varrock) ===
 # South approach road - dangerous!
 enemy bandit 0.0 0.0 70.0

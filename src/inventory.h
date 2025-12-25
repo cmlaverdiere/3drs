@@ -53,4 +53,10 @@ bool RemoveItem(PlayerState* state, ItemType item);
 // Add gil to inventory (handles stacking)
 bool AddGil(PlayerState* state, int amount);
 
+// Get total gil count
+int GetGilCount(const PlayerState* state);
+
+// Remove gil from inventory (returns false if insufficient)
+bool RemoveGil(PlayerState* state, int amount);
+
 #endif

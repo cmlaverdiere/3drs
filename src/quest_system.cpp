@@ -24,6 +24,10 @@ static ItemType ParseItemType(const char* name) {
     if (strcmp(name, "bandit_orders") == 0) return ITEM_BANDIT_ORDERS;
     if (strcmp(name, "desert_artifact") == 0) return ITEM_DESERT_ARTIFACT;
     if (strcmp(name, "trade_ledger") == 0) return ITEM_TRADE_LEDGER;
+    // Scimitar shop items
+    if (strcmp(name, "steel_scimitar") == 0) return ITEM_STEEL_SCIMITAR;
+    if (strcmp(name, "mithril_scimitar") == 0) return ITEM_MITHRIL_SCIMITAR;
+    if (strcmp(name, "adamant_scimitar") == 0) return ITEM_ADAMANT_SCIMITAR;
     return ITEM_NONE;
 }
 
@@ -38,6 +42,8 @@ static NPCType ParseNPCType(const char* name) {
     if (strcmp(name, "varrock_bartender") == 0) return NPC_VARROCK_BARTENDER;
     if (strcmp(name, "alkharid_silk") == 0) return NPC_ALKHARID_SILK;
     if (strcmp(name, "alkharid_spice") == 0) return NPC_ALKHARID_SPICE;
+    // Shop NPCs
+    if (strcmp(name, "scimitar_shop") == 0) return NPC_SCIMITAR_SHOP;
     return NPC_HANS;  // Default
 }
 
