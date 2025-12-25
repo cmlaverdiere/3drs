@@ -39,11 +39,12 @@ add_executable(game
     src/lighting.cpp
     src/quest_system.cpp
     src/voice_system.cpp
+    src/help_system.cpp
 )
 
 target_include_directories(game PRIVATE ${PIPER_INCLUDE_DIR})
 target_link_directories(game PRIVATE ${PIPER_LIB_DIR} ${ONNX_LIB_DIR})
-target_link_libraries(game raylib piper onnxruntime)
+target_link_libraries(game raylib piper onnxruntime curl)
 
 # Set RPATH so the game can find the dynamic libraries at runtime
 set_target_properties(game PROPERTIES

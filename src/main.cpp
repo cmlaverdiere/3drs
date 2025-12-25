@@ -21,6 +21,7 @@
 #include "lighting.h"
 #include "quest_system.h"
 #include "voice_system.h"
+#include "help_system.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -166,6 +167,10 @@ int main(int argc, char* argv[]) {
     LevelUpNotification levelUpNotif = {};
     DialogueState dialogueState = {false, -1, 0};
 
+    // Help system
+    HelpSystem helpSystem = {};
+    InitHelpSystem(&helpSystem);
+
     // Quest dialogue state
     int activeQuestIndex = -1;              // Which quest is active in current dialogue
     const char** questDialogueLines = nullptr;  // Current quest dialogue lines
@@ -184,11 +189,13 @@ int main(int argc, char* argv[]) {
     WorldItem* targetItem = nullptr;
 
     bool mouseMode = false;
+    bool showQuitConfirm = false;
+    bool shouldQuit = false;
     DisableCursor();
     SetTargetFPS(60);
 
     // Main game loop
-    while (!WindowShouldClose()) {
+    while (!shouldQuit) {
         float dt = GetFrameTime();
         screenWidth = GetScreenWidth();
         screenHeight = GetScreenHeight();
@@ -220,8 +227,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Player movement (when not in mouse mode, dialogue, and alive)
-        if (!mouseMode && !playerRuntime.isDead && !dialogueState.active) {
+        // Player movement (when not in mouse mode, dialogue, help UI, and alive)
+        if (!mouseMode && !playerRuntime.isDead && !dialogueState.active &&
+            helpSystem.state == HelpState::CLOSED) {
             std::vector<int> nearbyWalls;
             g_spatial.walls.Query(camera.position.x, camera.position.z, PLAYER_RADIUS + 20.0f, nearbyWalls);
             UpdatePlayerMovement(&camera, &playerRuntime, walls, resources.wallCount, nearbyWalls, dt);
@@ -262,8 +270,9 @@ int main(int argc, char* argv[]) {
         // Item respawning
         UpdateItemRespawns(worldItems, worldItemCount, dt);
 
-        // Player attack (don't attack while in dialogue or UI)
+        // Player attack (don't attack while in dialogue, help UI, or other UI)
         if (!mouseMode && !playerRuntime.isDead && !dialogueState.active &&
+            helpSystem.state == HelpState::CLOSED &&
             IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
             attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
             ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
@@ -328,49 +337,84 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // NPC dialogue handling
-        if (!dialogueState.active) {
-            // Start dialogue when pressing E near an NPC
-            if (nearestNPCIndex >= 0 && !mouseMode && !playerRuntime.isDead) {
-                if (IsKeyPressed(KEY_E)) {
-                    dialogueState.active = true;
-                    dialogueState.npcIndex = nearestNPCIndex;
-                    dialogueState.currentLine = 0;
-                    EnableCursor();
+        // Help system handling (takes priority when active)
+        if (helpSystem.state != HelpState::CLOSED) {
+            UpdateHelpSystem(&helpSystem, quests, questCount, &playerState);
+        } else if (!dialogueState.active && !mouseMode && !playerRuntime.isDead) {
+            // 'H' key opens help
+            if (IsKeyPressed(KEY_H)) {
+                OpenHelpUI(&helpSystem, quests, questCount, &playerState);
+                EnableCursor();
+            }
+        }
 
-                    // Speak first line of dialogue (will be updated after quest check)
-                    NPCType speakNpcType = npcs[nearestNPCIndex].type;
-
-                    // Check if this NPC has a quest
-                    NPCType npcType = npcs[nearestNPCIndex].type;
-                    activeQuestIndex = FindQuestByNPC(quests, questCount, npcType);
-
-                    if (activeQuestIndex >= 0) {
-                        // Get quest dialogue
-                        questDialogueLines = GetQuestDialogue(
-                            &quests[activeQuestIndex],
-                            &playerState.questProgress[activeQuestIndex],
-                            &playerState,
-                            npcType,
-                            &questDialogueCount,
-                            &showQuestAcceptPrompt
-                        );
-                    } else {
-                        questDialogueLines = nullptr;
-                        questDialogueCount = 0;
-                        showQuestAcceptPrompt = false;
-                    }
-
-                    // Speak the first dialogue line
-                    const char* firstLine = (questDialogueLines && questDialogueCount > 0)
-                        ? questDialogueLines[0]
-                        : NPC_CONFIGS[speakNpcType].dialogueLines[0];
-                    if (firstLine) {
-                        SpeakAsNPC(firstLine, speakNpcType);
-                    }
+        // Quit confirmation handling
+        if (showQuitConfirm) {
+            if (IsKeyPressed(KEY_Y)) {
+                shouldQuit = true;
+            } else if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE)) {
+                showQuitConfirm = false;
+                if (!mouseMode && !dialogueState.active) {
+                    DisableCursor();
                 }
             }
-        } else {
+        } else if (IsKeyPressed(KEY_ESCAPE)) {
+            // ESC priority: help UI > dialogue > show quit prompt
+            if (helpSystem.state != HelpState::CLOSED) {
+                // Help system handles its own ESC
+            } else if (dialogueState.active) {
+                // Dialogue handles its own ESC (see below)
+            } else {
+                // Show quit confirmation
+                showQuitConfirm = true;
+                EnableCursor();
+            }
+        }
+
+        // NPC dialogue handling (only when help UI is closed)
+        if (helpSystem.state == HelpState::CLOSED) {
+            if (!dialogueState.active) {
+                // Start dialogue when pressing E near an NPC
+                if (nearestNPCIndex >= 0 && !mouseMode && !playerRuntime.isDead) {
+                    if (IsKeyPressed(KEY_E)) {
+                        dialogueState.active = true;
+                        dialogueState.npcIndex = nearestNPCIndex;
+                        dialogueState.currentLine = 0;
+                        EnableCursor();
+
+                        // Speak first line of dialogue (will be updated after quest check)
+                        NPCType speakNpcType = npcs[nearestNPCIndex].type;
+
+                        // Check if this NPC has a quest
+                        NPCType npcType = npcs[nearestNPCIndex].type;
+                        activeQuestIndex = FindQuestByNPC(quests, questCount, npcType);
+
+                        if (activeQuestIndex >= 0) {
+                            // Get quest dialogue
+                            questDialogueLines = GetQuestDialogue(
+                                &quests[activeQuestIndex],
+                                &playerState.questProgress[activeQuestIndex],
+                                &playerState,
+                                npcType,
+                                &questDialogueCount,
+                                &showQuestAcceptPrompt
+                            );
+                        } else {
+                            questDialogueLines = nullptr;
+                            questDialogueCount = 0;
+                            showQuestAcceptPrompt = false;
+                        }
+
+                        // Speak the first dialogue line
+                        const char* firstLine = (questDialogueLines && questDialogueCount > 0)
+                            ? questDialogueLines[0]
+                            : NPC_CONFIGS[speakNpcType].dialogueLines[0];
+                        if (firstLine) {
+                            SpeakAsNPC(firstLine, speakNpcType);
+                        }
+                    }
+                }
+            } else {
             // In dialogue - determine current dialogue source
             bool isQuestDialogue = (activeQuestIndex >= 0 && questDialogueLines != nullptr);
             int totalLines = isQuestDialogue ? questDialogueCount :
@@ -525,10 +569,11 @@ int main(int argc, char* argv[]) {
                     npcs[dialogueState.npcIndex].facingAngle += (angleDiff > 0 ? 1 : -1) * rotateAmount;
                 }
             }
+            }
         }
 
-        // Screenshot
-        if (IsKeyPressed(KEY_P)) {
+        // Screenshot (not while typing in help UI)
+        if (IsKeyPressed(KEY_P) && helpSystem.state == HelpState::CLOSED) {
             time_t now = time(nullptr);
             char filename[64];
             strftime(filename, sizeof(filename), "screenshots/%Y%m%d_%H%M%S.png", localtime(&now));
@@ -561,8 +606,8 @@ int main(int argc, char* argv[]) {
             SaveGame(playerState, quests, questCount);
         }
 
-        // Reload game (0 key) - useful for development
-        if (IsKeyPressed(KEY_ZERO)) {
+        // Reload game (0 key) - useful for development (not while typing in help UI)
+        if (IsKeyPressed(KEY_ZERO) && helpSystem.state == HelpState::CLOSED) {
             // Save current state first
             playerState.posX = camera.position.x;
             playerState.posY = camera.position.y;
@@ -795,6 +840,37 @@ int main(int argc, char* argv[]) {
         DrawDialogueBox(&dialogueState, npcs, questDialogueLines, questDialogueCount,
                         showQuestAcceptPrompt, screenWidth, screenHeight);
 
+        // Draw help UI (on top of everything)
+        DrawHelpUI(&helpSystem, screenWidth, screenHeight);
+
+        // Draw quit confirmation (on very top)
+        if (showQuitConfirm) {
+            // Semi-transparent overlay
+            DrawRectangle(0, 0, screenWidth, screenHeight, (Color){0, 0, 0, 150});
+
+            // Dialog box
+            const int BOX_W = 400;
+            const int BOX_H = 150;
+            const int BOX_X = (screenWidth - BOX_W) / 2;
+            const int BOX_Y = (screenHeight - BOX_H) / 2;
+
+            DrawRectangle(BOX_X - 4, BOX_Y - 4, BOX_W + 8, BOX_H + 8, (Color){139, 90, 43, 255});
+            DrawRectangle(BOX_X, BOX_Y, BOX_W, BOX_H, (Color){222, 198, 158, 240});
+            DrawRectangleLines(BOX_X + 6, BOX_Y + 6, BOX_W - 12, BOX_H - 12, (Color){180, 150, 100, 255});
+
+            const char* title = "Save and Quit?";
+            int titleW = MeasureText(title, 28);
+            DrawText(title, BOX_X + (BOX_W - titleW) / 2, BOX_Y + 25, 28, (Color){139, 90, 43, 255});
+
+            const char* prompt = "Your progress will be saved.";
+            int promptW = MeasureText(prompt, 18);
+            DrawText(prompt, BOX_X + (BOX_W - promptW) / 2, BOX_Y + 65, 18, (Color){60, 40, 20, 255});
+
+            const char* controls = "Press Y to quit, N to cancel";
+            int controlsW = MeasureText(controls, 16);
+            DrawText(controls, BOX_X + (BOX_W - controlsW) / 2, BOX_Y + 105, 16, (Color){60, 40, 20, 200});
+        }
+
         EndDrawing();
 
         // Screenshot mode: capture and exit after a few frames (allow GPU to fully render)
@@ -811,6 +887,7 @@ int main(int argc, char* argv[]) {
                 printf("Screenshot saved: %s\n", filename);
 
                 // Cleanup and exit
+                ShutdownHelpSystem(&helpSystem);
                 UnloadLightingSystem(&lighting);
                 CleanupGameResources(&resources);
                 CloseWindow();
@@ -832,6 +909,7 @@ int main(int argc, char* argv[]) {
     TraceLog(LOG_INFO, "Game saved to %s", SAVE_FILE);
 
     // Cleanup
+    ShutdownHelpSystem(&helpSystem);
     UnloadLightingSystem(&lighting);
     CleanupGameResources(&resources);
     CloseWindow();

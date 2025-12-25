@@ -20,6 +20,7 @@ void InitGameWindow(int* screenWidth, int* screenHeight) {
     *screenHeight = monitorHeight - 80;
     InitWindow(*screenWidth, *screenHeight, "3D RuneScape-style Game");
     SetWindowPosition(0, 25);
+    SetExitKey(0);  // Disable default ESC-to-close, handle manually
 
     InitAudioDevice();
     InitSoundSystem();

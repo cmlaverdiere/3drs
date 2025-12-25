@@ -311,6 +311,7 @@ struct QuestObjective {
     ItemType item;          // For OBJ_ITEM: which item to turn in
     NPCType targetNPC;      // For OBJ_TALK_TO: which NPC to talk to
                             // For OBJ_ITEM: which NPC receives the item
+    ItemType givesItem;     // For OBJ_ITEM: item received in exchange (ITEM_NONE if nothing)
 };
 
 // Quest definition (loaded from file)
