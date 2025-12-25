@@ -551,6 +551,7 @@ int main(int argc, char* argv[]) {
         SetShaderLightingUniforms(&lighting, resources.sandShader, camera.position);
         SetShaderLightingUniforms(&lighting, resources.waterShader, camera.position);
         SetShaderLightingUniforms(&lighting, resources.entityShader, camera.position);
+        SetShaderLightingUniforms(&lighting, resources.grass.bladeShader, camera.position);
         for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
             SetShaderLightingUniforms(&lighting, resources.wallShaders[i], camera.position);
         }
@@ -580,6 +581,9 @@ int main(int argc, char* argv[]) {
 
             // Draw terrain
             DrawModel(resources.groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
+
+            // Draw grass blades
+            DrawGrassBlades(&resources.grass, (float)GetTime());
 
             // Draw entities (models have entity shader assigned)
             // World items

@@ -3,6 +3,10 @@
 #include "enemy_ai.h"
 #include "sound_system.h"
 #include "xp_system.h"
+#include "rlgl.h"
+#include "raymath.h"
+#include <cstdlib>
+#include <cmath>
 
 void InitGameWindow(int* screenWidth, int* screenHeight) {
     // Get monitor size first
@@ -103,6 +107,9 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     res.entityModels.cylinder.materials[0].shader = res.entityShader;
 
     res.entityModels.initialized = true;
+
+    // Initialize grass blade system
+    InitGrassSystem(&res.grass);
 
     // Create wall models
     res.wallCount = mapData.wallCount;
@@ -282,9 +289,142 @@ void PopulateSpatialHash(WorldSpatialData* spatial, const Wall* walls, int wallC
              wallCount, enemyCount, treeCount);
 }
 
+// Generate a combined mesh with all grass blades baked in (single draw call)
+static Mesh GenCombinedGrassMesh(float bladeWidth, float bladeHeight, int bladeCount, float spawnRadius) {
+    Mesh mesh = { 0 };
+
+    int vertsPerBlade = 4;
+    int trisPerBlade = 2;
+
+    mesh.vertexCount = bladeCount * vertsPerBlade;
+    mesh.triangleCount = bladeCount * trisPerBlade;
+    mesh.vertices = (float*)RL_MALLOC(mesh.vertexCount * 3 * sizeof(float));
+    mesh.texcoords = (float*)RL_MALLOC(mesh.vertexCount * 2 * sizeof(float));
+    mesh.normals = (float*)RL_MALLOC(mesh.vertexCount * 3 * sizeof(float));
+    mesh.indices = (unsigned short*)RL_MALLOC(mesh.triangleCount * 3 * sizeof(unsigned short));
+
+    float halfWidth = bladeWidth * 0.5f;
+    float tipWidth = bladeWidth * 0.15f;
+
+    srand(12345);  // Fixed seed for consistent placement
+
+    for (int i = 0; i < bladeCount; i++) {
+        // Random position
+        float angle = ((float)rand() / RAND_MAX) * 2.0f * PI;
+        float dist = sqrtf((float)rand() / RAND_MAX) * spawnRadius;
+        float x = cosf(angle) * dist;
+        float z = sinf(angle) * dist;
+        float y = GetTerrainHeight(x, z);
+
+        // Random rotation and scale
+        float rotY = ((float)rand() / RAND_MAX) * 2.0f * PI;
+        float scale = 0.8f + ((float)rand() / RAND_MAX) * 0.4f;
+        float cosR = cosf(rotY);
+        float sinR = sinf(rotY);
+
+        float w = halfWidth * scale;
+        float tw = tipWidth * scale;
+        float h = bladeHeight * scale;
+
+        int vi = i * vertsPerBlade * 3;
+        int ti = i * vertsPerBlade * 2;
+        int ii = i * trisPerBlade * 3;
+
+        // Bottom left
+        mesh.vertices[vi + 0] = x + (-w * cosR);
+        mesh.vertices[vi + 1] = y;
+        mesh.vertices[vi + 2] = z + (-w * sinR);
+        mesh.texcoords[ti + 0] = 0.0f; mesh.texcoords[ti + 1] = 0.0f;
+
+        // Bottom right
+        mesh.vertices[vi + 3] = x + (w * cosR);
+        mesh.vertices[vi + 4] = y;
+        mesh.vertices[vi + 5] = z + (w * sinR);
+        mesh.texcoords[ti + 2] = 1.0f; mesh.texcoords[ti + 3] = 0.0f;
+
+        // Top left
+        mesh.vertices[vi + 6] = x + (-tw * cosR);
+        mesh.vertices[vi + 7] = y + h;
+        mesh.vertices[vi + 8] = z + (-tw * sinR);
+        mesh.texcoords[ti + 4] = 0.0f; mesh.texcoords[ti + 5] = 1.0f;
+
+        // Top right
+        mesh.vertices[vi + 9] = x + (tw * cosR);
+        mesh.vertices[vi + 10] = y + h;
+        mesh.vertices[vi + 11] = z + (tw * sinR);
+        mesh.texcoords[ti + 6] = 1.0f; mesh.texcoords[ti + 7] = 1.0f;
+
+        // Normals pointing up-ish
+        for (int j = 0; j < vertsPerBlade; j++) {
+            int ni = (i * vertsPerBlade + j) * 3;
+            mesh.normals[ni + 0] = sinR * 0.3f;
+            mesh.normals[ni + 1] = 0.9f;
+            mesh.normals[ni + 2] = cosR * 0.3f;
+        }
+
+        // Indices
+        unsigned short base = i * vertsPerBlade;
+        mesh.indices[ii + 0] = base + 0;
+        mesh.indices[ii + 1] = base + 1;
+        mesh.indices[ii + 2] = base + 2;
+        mesh.indices[ii + 3] = base + 1;
+        mesh.indices[ii + 4] = base + 3;
+        mesh.indices[ii + 5] = base + 2;
+    }
+
+    UploadMesh(&mesh, false);
+    return mesh;
+}
+
+void InitGrassSystem(GrassSystem* grass) {
+    // Load grass blade shader
+    grass->bladeShader = LoadShader("shaders/grass_blade.vs", "shaders/grass_blade.fs");
+    grass->timeLoc = GetShaderLocation(grass->bladeShader, "time");
+
+    // Generate combined mesh with all blades baked in (single draw call!)
+    grass->bladeMesh = GenCombinedGrassMesh(0.12f, 0.22f, GRASS_BLADE_COUNT, GRASS_SPAWN_RADIUS);
+
+    // Setup material
+    grass->bladeMaterial = LoadMaterialDefault();
+    grass->bladeMaterial.shader = grass->bladeShader;
+
+    // No transforms needed - positions baked into mesh
+    grass->transforms = NULL;
+    grass->bladeCount = GRASS_BLADE_COUNT;
+
+    grass->initialized = true;
+    TraceLog(LOG_INFO, "Grass system initialized with %d blades (baked mesh)", GRASS_BLADE_COUNT);
+}
+
+void DrawGrassBlades(GrassSystem* grass, float time) {
+    if (!grass->initialized) return;
+
+    // Update time uniform for wind animation
+    SetShaderValue(grass->bladeShader, grass->timeLoc, &time, SHADER_UNIFORM_FLOAT);
+
+    // Disable backface culling so grass is visible from both sides
+    rlDisableBackfaceCulling();
+
+    // Single draw call for all grass (positions baked into mesh)
+    DrawMesh(grass->bladeMesh, grass->bladeMaterial, MatrixIdentity());
+
+    // Restore state
+    rlEnableBackfaceCulling();
+}
+
+void CleanupGrassSystem(GrassSystem* grass) {
+    if (!grass->initialized) return;
+
+    UnloadMesh(grass->bladeMesh);
+    UnloadShader(grass->bladeShader);
+    // transforms is NULL with baked mesh approach
+    grass->initialized = false;
+}
+
 void CleanupGameResources(GameResources* res) {
     UnloadModel(res->groundModel);
     UnloadShader(res->grassShader);
+    CleanupGrassSystem(&res->grass);
 
     for (int i = 0; i < res->wallCount; i++) {
         UnloadModel(res->wallModels[i]);

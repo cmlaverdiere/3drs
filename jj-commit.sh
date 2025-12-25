@@ -29,4 +29,6 @@ echo
 [[ $REPLY =~ ^[Yy]$ ]] || exit 1
 jj describe -m "$MESSAGE"
 jj new -m "wip"
+jj bookmark set main -r @-
+jj git push
 echo "Done"

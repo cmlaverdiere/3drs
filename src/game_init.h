@@ -13,6 +13,20 @@ struct EntityModels {
     bool initialized;
 };
 
+// Grass blade system (baked mesh = 1 draw call, very efficient)
+static const int GRASS_BLADE_COUNT = 20000;  // Dense coverage, single draw call
+static const float GRASS_SPAWN_RADIUS = 50.0f;  // Grass spawns within this radius of origin
+
+struct GrassSystem {
+    Mesh bladeMesh;
+    Material bladeMaterial;
+    Shader bladeShader;
+    Matrix* transforms;
+    int bladeCount;
+    int timeLoc;
+    bool initialized;
+};
+
 // All game resources that need cleanup
 struct GameResources {
     // Shaders
@@ -36,6 +50,9 @@ struct GameResources {
 
     // Entity primitive models (for DrawModelEx-based rendering)
     EntityModels entityModels;
+
+    // Grass blade system
+    GrassSystem grass;
 
     // Counts for cleanup
     int wallCount;
@@ -77,5 +94,14 @@ void PopulateSpatialHash(WorldSpatialData* spatial, const Wall* walls, int wallC
 
 // Cleanup all game resources
 void CleanupGameResources(GameResources* res);
+
+// Initialize grass blade system
+void InitGrassSystem(GrassSystem* grass);
+
+// Draw grass blades (call after terrain, before transparent objects)
+void DrawGrassBlades(GrassSystem* grass, float time);
+
+// Cleanup grass system
+void CleanupGrassSystem(GrassSystem* grass);
 
 #endif
