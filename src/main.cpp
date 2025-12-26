@@ -1207,13 +1207,9 @@ int main(int argc, char* argv[]) {
                 damageIndicators, xpPopups, &levelUpNotif,
                 &invMenu, targetItem, showActionMenu,
                 attackCooldown, swingTimer,
+                &bowState,
                 mouseMode, statusMessage,
                 screenWidth, screenHeight);
-
-        // Draw bow draw power indicator (when drawing bow)
-        if (playerState.equippedWeapon == ITEM_BOW) {
-            DrawBowDrawPower(&bowState, screenWidth, screenHeight);
-        }
 
         // Draw NPC prompt (when near an NPC but not in dialogue/shop/bank)
         if (nearestNPCIndex >= 0 && !dialogueState.active && !shopState.active &&

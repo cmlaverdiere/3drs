@@ -6,6 +6,9 @@
 #include "player.h"
 #include "inventory.h"
 
+// Forward declaration for BowState
+struct BowState;
+
 // Draw all HUD elements
 void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRuntime* runtime,
              const Enemy* enemies, int enemyCount,
@@ -15,17 +18,13 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
              const InventoryMenu* invMenu,
              const WorldItem* targetItem, bool showActionMenu,
              float attackCooldown, float swingTimer,
+             const BowState* bowState,
              bool mouseMode, const char* statusMessage,
              int screenWidth, int screenHeight);
 
 // Draw FPS weapon view
-void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int screenHeight);
-
-// Forward declaration for BowState
-struct BowState;
-
-// Draw bow draw power indicator
-void DrawBowDrawPower(const BowState* bowState, int screenWidth, int screenHeight);
+void DrawWeaponView(ItemType weapon, float swingTimer, const BowState* bowState,
+                    int screenWidth, int screenHeight);
 
 // Draw inventory UI
 void DrawInventoryUI(const PlayerState* state, const InventoryMenu* menu,

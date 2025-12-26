@@ -40,6 +40,7 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
              const InventoryMenu* invMenu,
              const WorldItem* targetItem, bool showActionMenu,
              float attackCooldown, float swingTimer,
+             const BowState* bowState,
              bool mouseMode, const char* statusMessage,
              int screenWidth, int screenHeight) {
 
@@ -108,7 +109,7 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
     }
 
     // Weapon view
-    DrawWeaponView(state->equippedWeapon, swingTimer, screenWidth, screenHeight);
+    DrawWeaponView(state->equippedWeapon, swingTimer, bowState, screenWidth, screenHeight);
 
     // XP popups
     int xpPopupY = screenHeight / 3;
@@ -267,7 +268,8 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
     }
 }
 
-void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int screenHeight) {
+void DrawWeaponView(ItemType weapon, float swingTimer, const BowState* bowState,
+                    int screenWidth, int screenHeight) {
     if (weapon == ITEM_NONE) return;
 
     float weaponBaseX = screenWidth - 150.0f;
@@ -456,29 +458,77 @@ void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int scre
         Color woodDark = { 100, 65, 30, 255 };
         Color stringColor = { 220, 220, 200, 255 };
 
-        // Bow - static view (no swing animation for ranged)
+        // Bow position
         float bowCenterX = screenWidth - 120.0f;
         float bowCenterY = screenHeight - 160.0f;
 
-        // Upper limb
-        DrawLineEx((Vector2){bowCenterX + 15.0f, bowCenterY},
-                   (Vector2){bowCenterX + 25.0f, bowCenterY - 70.0f}, 8.0f, woodColor);
-        DrawLineEx((Vector2){bowCenterX + 25.0f, bowCenterY - 70.0f},
-                   (Vector2){bowCenterX + 15.0f, bowCenterY - 100.0f}, 6.0f, woodColor);
+        // Calculate draw amount (0 to 1)
+        float drawRatio = 0.0f;
+        if (bowState && bowState->isDrawing) {
+            drawRatio = bowState->drawTime / BOW_MAX_DRAW_TIME;
+            if (drawRatio > 1.0f) drawRatio = 1.0f;
+        }
 
-        // Lower limb
+        // String pull amount (how far back the string goes)
+        float stringPull = drawRatio * 50.0f;
+
+        // Limb bend amount (limbs curve more when drawn)
+        float limbBend = drawRatio * 15.0f;
+
+        // Upper limb (bends more when drawn)
         DrawLineEx((Vector2){bowCenterX + 15.0f, bowCenterY},
-                   (Vector2){bowCenterX + 25.0f, bowCenterY + 70.0f}, 8.0f, woodColor);
-        DrawLineEx((Vector2){bowCenterX + 25.0f, bowCenterY + 70.0f},
-                   (Vector2){bowCenterX + 15.0f, bowCenterY + 100.0f}, 6.0f, woodColor);
+                   (Vector2){bowCenterX + 25.0f + limbBend, bowCenterY - 70.0f}, 8.0f, woodColor);
+        DrawLineEx((Vector2){bowCenterX + 25.0f + limbBend, bowCenterY - 70.0f},
+                   (Vector2){bowCenterX + 15.0f + limbBend * 0.5f, bowCenterY - 100.0f}, 6.0f, woodColor);
+
+        // Lower limb (bends more when drawn)
+        DrawLineEx((Vector2){bowCenterX + 15.0f, bowCenterY},
+                   (Vector2){bowCenterX + 25.0f + limbBend, bowCenterY + 70.0f}, 8.0f, woodColor);
+        DrawLineEx((Vector2){bowCenterX + 25.0f + limbBend, bowCenterY + 70.0f},
+                   (Vector2){bowCenterX + 15.0f + limbBend * 0.5f, bowCenterY + 100.0f}, 6.0f, woodColor);
 
         // Grip
         DrawLineEx((Vector2){bowCenterX + 12.0f, bowCenterY - 15.0f},
                    (Vector2){bowCenterX + 18.0f, bowCenterY + 15.0f}, 12.0f, woodDark);
 
-        // Bowstring (straight when not drawing)
-        DrawLineEx((Vector2){bowCenterX + 15.0f, bowCenterY - 100.0f},
-                   (Vector2){bowCenterX + 15.0f, bowCenterY + 100.0f}, 2.0f, stringColor);
+        // Bowstring - curves back when drawn
+        float stringTopX = bowCenterX + 15.0f + limbBend * 0.5f;
+        float stringBottomX = bowCenterX + 15.0f + limbBend * 0.5f;
+        float stringMidX = bowCenterX + 15.0f - stringPull;  // Pull back from bow
+
+        // Draw string in two parts (top half and bottom half)
+        DrawLineEx((Vector2){stringTopX, bowCenterY - 100.0f},
+                   (Vector2){stringMidX, bowCenterY}, 2.0f, stringColor);
+        DrawLineEx((Vector2){stringMidX, bowCenterY},
+                   (Vector2){stringBottomX, bowCenterY + 100.0f}, 2.0f, stringColor);
+
+        // Draw arrow nocked on string when drawing
+        if (drawRatio > 0.05f) {
+            Color shaftColor = { 160, 140, 100, 255 };
+            Color tipColor = { 100, 100, 110, 255 };
+            Color fletchColor = { 200, 50, 50, 255 };
+
+            float arrowX = stringMidX;
+            float arrowY = bowCenterY;
+            float arrowLen = 80.0f;
+
+            // Arrow shaft (pointing left toward target)
+            DrawLineEx((Vector2){arrowX, arrowY},
+                       (Vector2){arrowX - arrowLen, arrowY}, 3.0f, shaftColor);
+
+            // Arrowhead
+            DrawTriangle((Vector2){arrowX - arrowLen - 10.0f, arrowY},
+                         (Vector2){arrowX - arrowLen, arrowY - 5.0f},
+                         (Vector2){arrowX - arrowLen, arrowY + 5.0f}, tipColor);
+
+            // Fletching at nock
+            DrawTriangle((Vector2){arrowX, arrowY - 8.0f},
+                         (Vector2){arrowX - 15.0f, arrowY},
+                         (Vector2){arrowX, arrowY}, fletchColor);
+            DrawTriangle((Vector2){arrowX, arrowY + 8.0f},
+                         (Vector2){arrowX - 15.0f, arrowY},
+                         (Vector2){arrowX, arrowY}, fletchColor);
+        }
     }
 }
 

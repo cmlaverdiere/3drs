@@ -109,8 +109,9 @@ void FireArrow(Camera3D* camera, PlayerState* state, BowState* bow,
     arrow->position = spawnPos;
     arrow->direction = direction;
 
-    // Apply speed based on draw time (more draw = faster)
-    float speedMult = 0.7f + 0.3f * drawRatio;
+    // Apply speed based on draw time (more draw = much faster/further)
+    // Min draw: 40% speed, Max draw: 140% speed (3.5x difference)
+    float speedMult = 0.4f + 1.0f * drawRatio;
     arrow->velocity = {
         direction.x * ARROW_SPEED * speedMult,
         direction.y * ARROW_SPEED * speedMult,
@@ -279,7 +280,8 @@ void SpawnArrowItem(WorldItem* worldItems, int* worldItemCount, Vector3 pos) {
 
     worldItems[*worldItemCount].type = ITEM_ARROW;
     worldItems[*worldItemCount].position = pos;
-    worldItems[*worldItemCount].position.y = GetTerrainHeight(pos.x, pos.z);
+    // Y is relative to terrain - rendering adds terrain height
+    worldItems[*worldItemCount].position.y = 0.0f;
     worldItems[*worldItemCount].pickedUp = false;
     worldItems[*worldItemCount].canRespawn = false;
     worldItems[*worldItemCount].respawnTimer = 0.0f;
