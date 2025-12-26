@@ -116,11 +116,11 @@ oak_tree -17.0 0.0 11.0
 oak_tree -21.0 0.0 15.0
 
 # South of castle (path to Al Kharid)
-tree 5.0 0.0 8.0
+tree 1.0 0.0 8.0
 tree -5.0 0.0 10.0
-tree 8.0 0.0 12.0
+tree 1.0 0.0 12.0
 tree -3.0 0.0 15.0
-tree 10.0 0.0 18.0
+tree 2.0 0.0 18.0
 
 # East of river (goblin territory)
 tree 32.0 0.0 0.0
@@ -203,11 +203,11 @@ npc banker -6.0 0.0 -2.0
 # === LIGHT SOURCES ===
 # Street lamps - Castle courtyard
 lamp -4.0 0.0 -3.0
-lamp 4.0 0.0 2.0
+lamp 2.0 0.0 2.0
 
-# Street lamps - Near bridge (beside the road, not on it)
-lamp 6.0 0.0 4.0
-lamp 18.0 0.0 4.0
+# Street lamps - Near bridge (on the banks, outside valley)
+lamp 2.0 0.0 6.0
+lamp 22.0 0.0 6.0
 
 # Street lamp - General store
 lamp -14.0 0.0 -4.0
