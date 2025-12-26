@@ -454,7 +454,7 @@ void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int scre
 }
 
 // Helper to draw an item icon at a given center position
-static void DrawItemIcon(ItemType item, int cx, int cy) {
+void DrawItemIcon(ItemType item, int cx, int cy) {
     if (item == ITEM_BRONZE_SHORTSWORD) {
         DrawRectangle(cx - 2, cy - 14, 4, 24, BRONZE);
         DrawRectangle(cx - 2, cy + 10, 4, 8, BROWN);

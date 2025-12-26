@@ -241,7 +241,7 @@ const char* UpdateBankInput(MenuSystem* menu, PlayerState* player, int screenWid
     if (!menu->bank.active) return nullptr;
 
     const int BOX_WIDTH = 500;
-    const int BOX_HEIGHT = 380;  // Must match DrawBankUI
+    const int BOX_HEIGHT = 410;  // Must match DrawBankUI
     const int BOX_X = (screenWidth - BOX_WIDTH) / 2;
     const int BOX_Y = (screenHeight - BOX_HEIGHT) / 2;
     const int PADDING = 20;
@@ -415,80 +415,11 @@ const char* UpdateBankInput(MenuSystem* menu, PlayerState* player, int screenWid
     return nullptr;
 }
 
-// Simple item icon drawing (duplicated from hud.cpp since DrawItemIcon is static)
-static void DrawBankItemIcon(ItemType item, int cx, int cy) {
-    const int SIZE = 16;
-
-    switch (item) {
-        case ITEM_BRONZE_SHORTSWORD:
-            DrawRectangle(cx - 2, cy - SIZE/2, 4, SIZE, BROWN);
-            DrawRectangle(cx - 6, cy + SIZE/2 - 4, 12, 4, DARKBROWN);
-            break;
-        case ITEM_COW_HIDE:
-            DrawRectangle(cx - SIZE/2, cy - SIZE/2, SIZE, SIZE, BROWN);
-            DrawCircle(cx - 4, cy - 2, 3, WHITE);
-            DrawCircle(cx + 4, cy + 2, 3, WHITE);
-            break;
-        case ITEM_BONES:
-            DrawRectangle(cx - 2, cy - SIZE/2, 4, SIZE, RAYWHITE);
-            DrawCircle(cx, cy - SIZE/2, 4, RAYWHITE);
-            DrawCircle(cx, cy + SIZE/2, 4, RAYWHITE);
-            break;
-        case ITEM_GIL:
-            DrawCircle(cx, cy, SIZE/2, GOLD);
-            DrawCircle(cx, cy, SIZE/2 - 2, YELLOW);
-            break;
-        case ITEM_BRONZE_AXE:
-            DrawRectangle(cx - 2, cy - SIZE/2, 4, SIZE, BROWN);
-            DrawTriangle(
-                (Vector2){(float)(cx + 2), (float)(cy - SIZE/2)},
-                (Vector2){(float)(cx + SIZE/2 + 2), (float)(cy - SIZE/4)},
-                (Vector2){(float)(cx + 2), (float)(cy)}
-            , DARKGRAY);
-            break;
-        case ITEM_LOGS:
-        case ITEM_OAK_LOGS:
-            DrawRectangle(cx - SIZE/2, cy - 4, SIZE, 8, BROWN);
-            DrawCircle(cx - SIZE/2, cy, 4, DARKBROWN);
-            DrawCircle(cx + SIZE/2, cy, 4, DARKBROWN);
-            break;
-        case ITEM_CHITIN:
-            DrawRectangle(cx - SIZE/2, cy - SIZE/2, SIZE, SIZE, DARKGREEN);
-            DrawRectangle(cx - SIZE/2 + 2, cy - SIZE/2 + 2, SIZE - 4, SIZE - 4, GREEN);
-            break;
-        case ITEM_IRON_2H_SWORD:
-            DrawRectangle(cx - 3, cy - SIZE/2 - 4, 6, SIZE + 8, GRAY);
-            DrawRectangle(cx - 10, cy + SIZE/2 - 2, 20, 6, DARKGRAY);
-            break;
-        case ITEM_STEEL_SCIMITAR:
-        case ITEM_MITHRIL_SCIMITAR:
-        case ITEM_ADAMANT_SCIMITAR: {
-            Color bladeColor = (item == ITEM_STEEL_SCIMITAR) ? LIGHTGRAY :
-                              (item == ITEM_MITHRIL_SCIMITAR) ? (Color){100, 149, 237, 255} :
-                              (Color){34, 139, 34, 255};
-            // Curved blade
-            DrawRectangle(cx - 2, cy - SIZE/2, 4, SIZE - 4, bladeColor);
-            DrawTriangle(
-                (Vector2){(float)(cx - 2), (float)(cy - SIZE/2)},
-                (Vector2){(float)(cx + 6), (float)(cy - SIZE/2 + 4)},
-                (Vector2){(float)(cx + 2), (float)(cy - SIZE/2)}
-            , bladeColor);
-            // Handle
-            DrawRectangle(cx - 4, cy + SIZE/2 - 6, 8, 6, BROWN);
-            break;
-        }
-        default:
-            // Generic box for unknown items
-            DrawRectangle(cx - SIZE/2, cy - SIZE/2, SIZE, SIZE, GRAY);
-            break;
-    }
-}
-
 void DrawBankUI(const MenuSystem* menu, const PlayerState* player, int screenWidth, int screenHeight) {
     if (!menu->bank.active) return;
 
     const int BOX_WIDTH = 500;
-    const int BOX_HEIGHT = 380;  // Just bank + buttons, no embedded inventory
+    const int BOX_HEIGHT = 410;  // Just bank + buttons + close hint
     const int BOX_X = (screenWidth - BOX_WIDTH) / 2;
     const int BOX_Y = (screenHeight - BOX_HEIGHT) / 2;
     const int PADDING = 20;
@@ -533,7 +464,7 @@ void DrawBankUI(const MenuSystem* menu, const PlayerState* player, int screenWid
             DrawRectangleLines(slotX, slotY, SLOT_SIZE, SLOT_SIZE, PARCHMENT_BORDER);
 
             if (player->bank[slot] != ITEM_NONE) {
-                DrawBankItemIcon(player->bank[slot], slotX + SLOT_SIZE / 2, slotY + SLOT_SIZE / 2);
+                DrawItemIcon(player->bank[slot], slotX + SLOT_SIZE / 2, slotY + SLOT_SIZE / 2);
 
                 // Track hover for tooltip
                 if (isHovered) {
@@ -591,10 +522,10 @@ void DrawBankUI(const MenuSystem* menu, const PlayerState* player, int screenWid
     int depositAllTextW = MeasureText(depositAllText, 12);
     DrawText(depositAllText, depositAllBtnX + (btnW - depositAllTextW) / 2, buttonY + 9, 12, WHITE);
 
-    // Hovered item tooltip (show bank item name when hovering)
+    // Hovered item tooltip (show bank item name when hovering) - above buttons
     if (hoveredItemName) {
         int tooltipW = MeasureText(hoveredItemName, 16);
-        int tooltipY = buttonY + btnH + 15;
+        int tooltipY = buttonY - 20;
         DrawText(hoveredItemName, BOX_X + (BOX_WIDTH - tooltipW) / 2, tooltipY, 16, GOLD_TEXT);
     }
 
@@ -611,8 +542,8 @@ void DrawBankUI(const MenuSystem* menu, const PlayerState* player, int screenWid
         DrawRectangleLines(slotX - 1, slotY - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, GREEN);
     }
 
-    // Close hint
+    // Close hint (below buttons)
     const char* closeHint = "Press ESC to close";
     int closeW = MeasureText(closeHint, 14);
-    DrawText(closeHint, BOX_X + (BOX_WIDTH - closeW) / 2, BOX_Y + BOX_HEIGHT - 25, 14, PARCHMENT_TEXT);
+    DrawText(closeHint, BOX_X + (BOX_WIDTH - closeW) / 2, buttonY + btnH + 10, 14, PARCHMENT_TEXT);
 }
