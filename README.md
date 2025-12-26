@@ -74,7 +74,102 @@ Screenshots are saved to `screenshots/` with timestamp filenames.
 
 - **src/rendering.cpp** - 3D world rendering (terrain, walls, trees, water, enemies, items)
 - **src/hud.cpp** - 2D UI (health, energy, inventory, XP popups, damage numbers)
-- **src/lighting.cpp** - Day/night cycle, sun position, sky colors
+- **src/lighting.cpp** - Day/night cycle, sun position, sky colors, post-processing
+- **src/frustum.cpp** - View frustum culling for performance
+
+## Graphics Techniques
+
+### Rendering Pipeline
+
+Multi-pass deferred-style rendering:
+
+1. **Shadow Pass** - Depth-only rendering to 2048x2048 shadow map from sun's perspective
+2. **Main Pass** - Render scene to off-screen texture with lighting and shadows
+3. **Post-Processing** - Apply SSAO and bloom effects
+4. **Composite** - Combine scene, bloom, and AO; output to screen
+
+### Shadow Mapping
+
+- Orthographic projection from sun position (200 unit coverage)
+- PCF (Percentage Closer Filtering) with 3x3 kernel for soft shadows
+- Shadow edge fade to prevent hard cutoffs
+- Per-material shadow bias to reduce shadow acne
+- Distance-based shadow culling (100 units) for performance
+
+### Post-Processing Effects
+
+**Bloom:**
+- Bright pixel extraction (threshold-based)
+- Two-pass Gaussian blur (horizontal + vertical) at half resolution
+- Ping-pong blur buffers for multi-pass smoothing
+- Additive blend with scene in composite pass
+
+**SSAO (Screen-Space Ambient Occlusion):**
+- 32-sample hemisphere kernel
+- 4x4 noise texture for sample rotation (reduces banding)
+- Depth-based position reconstruction
+- Normal reconstruction from depth derivatives
+- Bilateral blur pass to smooth result
+- Multiplicative blend in composite
+
+### Procedural Shaders
+
+All textures are generated procedurally in fragment shaders (no image files):
+
+- **Terrain** - Grass and sand with noise-based color variation
+- **Water** - Animated multi-octave noise, scrolling patterns, sparkle highlights
+- **Walls** - Brick, stone, and wood materials with procedural patterns
+- **Fire** - Animated procedural flames for campfires
+- **Sky** - Gradient based on time of day with sun/moon positioning
+- **Leaves** - SDF-based leaf shape with procedural vein patterns
+
+### Lighting System
+
+- **Day/Night Cycle** - 20-minute full cycle with dawn/day/dusk/night phases
+- **Directional Sun** - Position and color change throughout the day
+- **Point Lights** - Up to 16 dynamic lights (lamps turn on at dusk, campfires always on)
+- **Exponential Fog** - Distance-based fog with color matching sky
+- **Blinn-Phong Shading** - Diffuse + specular for water and shiny materials
+
+### Culling & Optimization
+
+**Frustum Culling:**
+- Gribb/Hartmann plane extraction from view-projection matrix
+- Sphere-based visibility tests for trees (radius 3.5), rocks (1.5), enemies (2-5)
+- Applied to main pass and selectively to shadow pass
+
+**Distance Culling:**
+- Trees: 150 units
+- Rocks/Enemies: 120 units
+- Shadow pass: 100 units (shadows beyond this aren't visible anyway)
+
+**Spatial Hashing:**
+- Grid-based spatial partitioning for O(1) neighbor queries
+- Used for collision detection, NPC/enemy proximity checks
+
+### Particle Systems
+
+**Snow (Winter):**
+- 2000 particles falling with drift/wobble
+- Respawn at top when hitting ground
+- Follows player position
+
+**Falling Leaves (Autumn):**
+- 800 leaf particles with tumbling rotation
+- Procedural leaf shader with SDF shape
+- Color variation (red, orange, yellow)
+
+**Leaf Burst (Tree Chopping):**
+- 250 particles per burst, up to 8 simultaneous
+- Physics-based velocity with gravity
+- Triggered when chopping trees in autumn mode
+
+### Vegetation System
+
+**Grass Blades:**
+- 20,000 blades baked into single mesh (1 draw call)
+- Vertex shader wind animation
+- Height-based sway (tips move more than base)
 
 ### Utilities
 
