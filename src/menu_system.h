@@ -4,6 +4,7 @@
 #include "raylib.h"
 #include "types.h"
 #include "help_system.h"
+#include "monster_generator.h"
 
 // ============================================================================
 // MENU SYSTEM
@@ -14,12 +15,13 @@
 // Menu types supported by the unified system
 enum class MenuType {
     NONE = 0,
-    INVENTORY,      // Shift-held inventory
-    DIALOGUE,       // NPC dialogue
-    SHOP,           // Shop interface
-    TIME_SELECT,    // Time-of-day picker
-    HELP,           // Help UI
-    BANKING         // Bank storage
+    INVENTORY,          // Shift-held inventory
+    DIALOGUE,           // NPC dialogue
+    SHOP,               // Shop interface
+    TIME_SELECT,        // Time-of-day picker
+    HELP,               // Help UI
+    BANKING,            // Bank storage
+    MONSTER_GENERATOR   // Monster generation UI
 };
 
 // Bank constants are defined in types.h (BANK_SLOTS, BANK_COLS, BANK_ROWS)
@@ -39,6 +41,7 @@ struct MenuSystem {
     ShopState* shop;
     TimeSelectMenu* timeSelect;
     HelpSystem* help;
+    MonsterGenerator* generator;    // Monster generation UI
 
     // Banking state (owned by MenuSystem)
     BankState bank;
@@ -54,7 +57,8 @@ void InitMenuSystem(MenuSystem* menu,
                     DialogueState* dialogue,
                     ShopState* shop,
                     TimeSelectMenu* timeSelect,
-                    HelpSystem* help);
+                    HelpSystem* help,
+                    MonsterGenerator* generator = nullptr);
 
 // ============================================================================
 // QUERY FUNCTIONS

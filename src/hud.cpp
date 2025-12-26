@@ -34,6 +34,7 @@ static void DrawOutlinedText(const char* text, int x, int y, int fontSize, Color
 
 void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRuntime* runtime,
              const Enemy* enemies, int enemyCount,
+             const CustomMonster* customMonsters, int customMonsterCount,
              const DamageIndicator* damageIndicators,
              const XPPopup* xpPopups,
              const LevelUpNotification* levelUpNotif,
@@ -98,7 +99,8 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
 
     // Enemy health bars
     int playerCombatLevel = GetLevelFromXP(state->skillXP[SKILL_COMBAT]);
-    DrawEnemyHealthBars(camera, enemies, enemyCount, playerCombatLevel, screenWidth, screenHeight);
+    DrawEnemyHealthBars(camera, enemies, enemyCount, customMonsters, customMonsterCount,
+                        playerCombatLevel, screenWidth, screenHeight);
 
     // Crosshair
     if (!mouseMode) {
@@ -909,11 +911,30 @@ void DrawDamageIndicators(const Camera3D* camera, const DamageIndicator* indicat
 }
 
 void DrawEnemyHealthBars(const Camera3D* camera, const Enemy* enemies, int enemyCount,
+                         const CustomMonster* customMonsters, int customMonsterCount,
                          int playerCombatLevel, int screenWidth, int screenHeight) {
     for (int i = 0; i < enemyCount; i++) {
         if (!enemies[i].alive) continue;
 
-        const EnemyConfig& config = ENEMY_CONFIGS[enemies[i].type];
+        // Get enemy stats - either from config or custom monster
+        const char* enemyName;
+        int enemyLevel;
+        int enemyMaxHealth;
+
+        if (enemies[i].customMonsterIndex >= 0 && enemies[i].customMonsterIndex < customMonsterCount) {
+            // Custom monster
+            const CustomMonster& cm = customMonsters[enemies[i].customMonsterIndex];
+            enemyName = cm.name;
+            enemyLevel = cm.level;
+            enemyMaxHealth = cm.maxHealth;
+        } else {
+            // Built-in enemy type
+            const EnemyConfig& config = ENEMY_CONFIGS[enemies[i].type];
+            enemyName = config.name;
+            enemyLevel = config.combatLevel;
+            enemyMaxHealth = config.maxHealth;
+        }
+
         float enemyTerrainY = GetTerrainHeight(enemies[i].position.x, enemies[i].position.z);
         Vector3 enemyPos = { enemies[i].position.x, enemyTerrainY, enemies[i].position.z };
         float dist = Distance3D(camera->position, enemyPos);
@@ -937,13 +958,13 @@ void DrawEnemyHealthBars(const Camera3D* camera, const Enemy* enemies, int enemy
             screenPos.y < 0 || screenPos.y > screenHeight) continue;
 
         int barWidth = 40, barHeight = 6;
-        int healthWidth = (int)(barWidth * enemies[i].health / (float)config.maxHealth);
+        int healthWidth = (int)(barWidth * enemies[i].health / (float)enemyMaxHealth);
         DrawRectangle((int)screenPos.x - barWidth/2, (int)screenPos.y, barWidth, barHeight, DARKGRAY);
         DrawRectangle((int)screenPos.x - barWidth/2, (int)screenPos.y, healthWidth, barHeight, GREEN);
         DrawRectangleLines((int)screenPos.x - barWidth/2, (int)screenPos.y, barWidth, barHeight, BLACK);
 
         // OSRS-style level color coding
-        int levelDiff = config.combatLevel - playerCombatLevel;
+        int levelDiff = enemyLevel - playerCombatLevel;
         Color levelColor;
         if (levelDiff < -5) {
             levelColor = (Color){ 0, 255, 0, 255 };       // Green - much lower level
@@ -956,7 +977,7 @@ void DrawEnemyHealthBars(const Camera3D* camera, const Enemy* enemies, int enemy
         }
 
         char nameText[64];
-        snprintf(nameText, sizeof(nameText), "Level %d %s", config.combatLevel, config.name);
+        snprintf(nameText, sizeof(nameText), "Level %d %s", enemyLevel, enemyName);
         int fontSize = 18;
         int nameWidth = MeasureText(nameText, fontSize);
         DrawText(nameText, (int)screenPos.x - nameWidth/2, (int)screenPos.y - 20, fontSize, levelColor);

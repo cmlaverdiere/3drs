@@ -6,6 +6,7 @@
 // Update all enemies (AI behavior, attacks, respawning)
 // Returns damage dealt to player this frame (0 if none)
 int UpdateEnemies(Enemy* enemies, int enemyCount,
+                  const CustomMonster* customMonsters, int customMonsterCount,
                   Vector3 playerPos, bool playerDead,
                   DamageIndicator* damageIndicators, float dt);
 

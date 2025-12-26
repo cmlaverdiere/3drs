@@ -453,7 +453,44 @@ void DrawDragon(const EntityModels* models, Vector3 pos, float facingAngle, bool
     rlPopMatrix();
 }
 
-void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted) {
+void DrawCustomMonster(const EntityModels* models, const CustomMonster* monster,
+                       Vector3 pos, float facingAngle, bool highlighted) {
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y, pos.z);
+    rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
+
+    for (int i = 0; i < monster->primitiveCount; i++) {
+        const MonsterPrimitive* prim = &monster->primitives[i];
+        Color color = prim->hasColorOverride ? prim->colorOverride : monster->bodyColor;
+        Vector3 primPos = { prim->x, prim->y, prim->z };
+
+        switch (prim->type) {
+            case PRIM_CUBE:
+                DrawModelCube(models, primPos, prim->w, prim->h, prim->d, color);
+                break;
+            case PRIM_SPHERE:
+                DrawModelSphere(models, primPos, prim->w, color);
+                break;
+            case PRIM_CYLINDER:
+                DrawModelCylinder(models, primPos, prim->w, prim->w, prim->h, color);
+                break;
+        }
+    }
+
+    rlPopMatrix();
+    (void)highlighted;
+}
+
+void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted,
+               const CustomMonster* customMonsters, int customMonsterCount) {
+    // Check if this is a custom monster
+    if (enemy.customMonsterIndex >= 0 && customMonsters != nullptr &&
+        enemy.customMonsterIndex < customMonsterCount) {
+        DrawCustomMonster(models, &customMonsters[enemy.customMonsterIndex],
+                         enemy.position, enemy.facingAngle, highlighted);
+        return;
+    }
+
     switch (enemy.type) {
         case ENEMY_TROLL:
             DrawTroll(models, enemy.position, enemy.facingAngle, highlighted);

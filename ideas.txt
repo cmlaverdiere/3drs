@@ -1,5 +1,16 @@
 # Future Ideas
 
+## AI Input entry / fully autonomous testing
+
+AI should be able to input sequences of keypresses/holds in order to properly
+test/validate feedback loop autonomously. Generate a sequence of keypresses +
+controls context in claude code. Or maybe warp the player to a set startup
+point, and pre-generate a test "script" of keypresses / holds to execute, and
+screenshot commands interwoven for claude to analyze in bulk after. Even
+better, a testing "subagent" that gets passed in the context of the current
+feature, and we @include in the subagent definition all relevant control/gfx
+files that it needs to understand to analyze the situation.
+
 ## Guns
 
 musket / glock (fuck up trolls)

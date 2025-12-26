@@ -12,6 +12,7 @@ struct BowState;
 // Draw all HUD elements
 void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRuntime* runtime,
              const Enemy* enemies, int enemyCount,
+             const CustomMonster* customMonsters, int customMonsterCount,
              const DamageIndicator* damageIndicators,
              const XPPopup* xpPopups,
              const LevelUpNotification* levelUpNotif,
@@ -36,6 +37,7 @@ void DrawDamageIndicators(const Camera3D* camera, const DamageIndicator* indicat
 
 // Draw enemy health bars (when in range)
 void DrawEnemyHealthBars(const Camera3D* camera, const Enemy* enemies, int enemyCount,
+                         const CustomMonster* customMonsters, int customMonsterCount,
                          int playerCombatLevel, int screenWidth, int screenHeight);
 
 // Update timers for damage indicators, XP popups, level up notifications

@@ -165,6 +165,17 @@ enum LightType {
     LIGHT_TYPE_COUNT
 };
 
+// Primitive types for custom monster rendering
+enum PrimitiveType {
+    PRIM_CUBE = 0,
+    PRIM_SPHERE,
+    PRIM_CYLINDER
+};
+
+// Custom monster limits
+constexpr int MAX_MONSTER_PRIMITIVES = 24;
+constexpr int MAX_CUSTOM_MONSTERS = 64;
+
 // Woodcutting level requirements
 constexpr int OAK_TREE_LEVEL = 10;
 constexpr int OAK_WOODCUTTING_XP = 38;  // More XP than normal logs
@@ -290,6 +301,7 @@ struct Enemy {
     bool hostile;
     float attackCooldown;
     float facingAngle;  // Rotation in radians (0 = facing +Z)
+    int customMonsterIndex;  // -1 for built-in types, >= 0 for custom monsters
 };
 
 // Wall structure (for buildings/barriers)
@@ -354,6 +366,41 @@ struct Ladder {
     Vector3 position;     // Base position
     float height;         // How tall the ladder is
     float facingAngle;    // Which direction the ladder faces (for rendering)
+};
+
+// Single visual primitive for custom monster rendering
+struct MonsterPrimitive {
+    PrimitiveType type;
+    float x, y, z;           // Position offset from monster center
+    float w, h, d;           // Dimensions (sphere uses w as radius)
+    bool hasColorOverride;
+    Color colorOverride;
+};
+
+// Custom monster definition (loaded from data file)
+struct CustomMonster {
+    char id[32];              // Unique key "fire_imp_001"
+    char name[64];            // Display name
+    char description[256];    // User's original description
+
+    // Stats
+    int level;
+    int maxHealth;
+    int maxDamage;
+    float attackCooldown;
+    float chaseSpeed;
+    float attackRange;
+    bool aggressive;
+
+    // Colors
+    Color bodyColor;
+    Color limbColor;
+
+    // Visual representation
+    MonsterPrimitive primitives[MAX_MONSTER_PRIMITIVES];
+    int primitiveCount;
+
+    bool loaded;
 };
 
 const int MAX_LADDERS = 50;

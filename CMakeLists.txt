@@ -44,6 +44,8 @@ add_executable(game
     src/menu_system.cpp
     src/frustum.cpp
     src/arrow_system.cpp
+    src/monster_system.cpp
+    src/monster_generator.cpp
 )
 
 target_include_directories(game PRIVATE ${PIPER_INCLUDE_DIR})

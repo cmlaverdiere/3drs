@@ -26,6 +26,7 @@
 #include "menu_system.h"
 #include "frustum.h"
 #include "arrow_system.h"
+#include "monster_system.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -211,6 +212,10 @@ int main(int argc, char* argv[]) {
     Quest quests[MAX_QUESTS] = {};
     int questCount = LoadAllQuests(quests, MAX_QUESTS);
 
+    // Load custom monsters
+    CustomMonster customMonsters[MAX_CUSTOM_MONSTERS] = {};
+    int customMonsterCount = LoadCustomMonsters("monsters/custom.monster", customMonsters, MAX_CUSTOM_MONSTERS);
+
     // Load saved game (after quests so we can map progress by quest ID)
     if (LoadGame(playerState, quests, questCount)) {
         TraceLog(LOG_INFO, "Loaded save game");
@@ -242,6 +247,10 @@ int main(int argc, char* argv[]) {
     // Help system
     HelpSystem helpSystem = {};
     InitHelpSystem(&helpSystem);
+
+    // Monster generator
+    MonsterGenerator monsterGenerator = {};
+    InitMonsterGenerator(&monsterGenerator);
 
     // Time selection menu
     TimeSelectMenu timeSelectMenu = {};
@@ -298,7 +307,7 @@ int main(int argc, char* argv[]) {
     bool shouldQuit = false;
 
     // Initialize menu system (after mouseMode is declared)
-    InitMenuSystem(&menuSystem, &mouseMode, &dialogueState, &shopState, &timeSelectMenu, &helpSystem);
+    InitMenuSystem(&menuSystem, &mouseMode, &dialogueState, &shopState, &timeSelectMenu, &helpSystem, &monsterGenerator);
 
     DisableCursor();
     SetTargetFPS(60);
@@ -357,7 +366,9 @@ int main(int argc, char* argv[]) {
         if (swingTimer > 0) swingTimer -= dt;
 
         // Enemy AI
-        int damageToPlayer = UpdateEnemies(enemies, enemyCount, camera.position,
+        int damageToPlayer = UpdateEnemies(enemies, enemyCount,
+                                           customMonsters, customMonsterCount,
+                                           camera.position,
                                            playerRuntime.isDead, damageIndicators, dt);
         if (damageToPlayer > 0) {
             playerState.currentHP -= damageToPlayer;
@@ -400,6 +411,7 @@ int main(int argc, char* argv[]) {
                 // Melee combat: instant attack on click
                 const char* newAttackMsg = nullptr;
                 ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
+                                    customMonsters, customMonsterCount,
                                     trees, treeCount, rocks, rockCount,
                                     worldItems, &worldItemCount,
                                     damageIndicators, xpPopups, &levelUpNotif, &swingTimer,
@@ -416,6 +428,7 @@ int main(int argc, char* argv[]) {
 
         // Update arrow projectiles
         UpdateArrows(&arrowSystem, enemies, enemyCount,
+                     customMonsters, customMonsterCount,
                      worldItems, &worldItemCount,
                      damageIndicators, xpPopups, &levelUpNotif,
                      &playerState, &bloodSystem, dt);
@@ -595,6 +608,27 @@ int main(int argc, char* argv[]) {
             DisableCursor();
         }
 
+        // Monster generator handling - always update for egg hatching, even when menu is closed
+        bool generatorWasOpen = IsGeneratorOpen(&monsterGenerator);
+        UpdateMonsterGenerator(&monsterGenerator, customMonsters, &customMonsterCount, MAX_CUSTOM_MONSTERS,
+                               enemies, &enemyCount, MAX_ENEMIES, dt);
+        if (generatorWasOpen) {
+            HandleMonsterGeneratorInput(&monsterGenerator, customMonsters, &customMonsterCount, MAX_CUSTOM_MONSTERS,
+                                        enemies, &enemyCount, MAX_ENEMIES, &camera, screenWidth, screenHeight);
+        } else if (CanProcessHotkeys(&menuSystem) && !playerRuntime.isDead) {
+            // 'G' key opens monster generator
+            if (IsKeyPressed(KEY_G)) {
+                OpenMonsterGenerator(&monsterGenerator);
+                EnableCursor();
+            }
+        }
+
+        // Handle generator just closed - restore cursor state
+        bool generatorJustClosed = generatorWasOpen && !IsGeneratorOpen(&monsterGenerator);
+        if (generatorJustClosed && !mouseMode && !dialogueState.active) {
+            DisableCursor();
+        }
+
         // Quit confirmation handling
         // Skip if help UI just closed (it consumed the ESC)
         if (showQuitConfirm) {
@@ -607,9 +641,13 @@ int main(int argc, char* argv[]) {
                 }
             }
         } else if (IsKeyPressed(KEY_ESCAPE) && !helpJustClosed) {
-            // ESC priority: help UI > bank > dialogue > shop > time menu > show quit prompt
+            // ESC priority: help UI > generator > bank > dialogue > shop > time menu > show quit prompt
             if (helpSystem.state != HelpState::CLOSED) {
                 // Help system handles its own ESC
+            } else if (IsGeneratorOpen(&monsterGenerator)) {
+                // Close monster generator
+                CloseMonsterGenerator(&monsterGenerator);
+                if (!mouseMode && !dialogueState.active) DisableCursor();
             } else if (menuSystem.bank.active) {
                 // Close bank
                 CloseBank(&menuSystem);
@@ -1019,6 +1057,10 @@ int main(int argc, char* argv[]) {
                 }
                 questCount = LoadAllQuests(quests, MAX_QUESTS);
 
+                // Reload custom monsters
+                memset(customMonsters, 0, sizeof(customMonsters));
+                customMonsterCount = LoadCustomMonsters("monsters/custom.monster", customMonsters, MAX_CUSTOM_MONSTERS);
+
                 // Reload save (to restore quest progress etc.)
                 LoadGame(playerState, quests, questCount);
                 camera.position = (Vector3){ playerState.posX, playerState.posY, playerState.posZ };
@@ -1103,7 +1145,7 @@ int main(int argc, char* argv[]) {
                     enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
                     Enemy adjustedEnemy = enemies[i];
                     adjustedEnemy.position = enemyPos;
-                    DrawEnemy(&resources.entityModels, adjustedEnemy, false);
+                    DrawEnemy(&resources.entityModels, adjustedEnemy, false, customMonsters, customMonsterCount);
                 }
             }
 
@@ -1194,9 +1236,12 @@ int main(int argc, char* argv[]) {
                     bool inRange = (dist <= PLAYER_ATTACK_RANGE) && IsFacing(camera, enemyPos);
                     Enemy adjustedEnemy = enemies[i];
                     adjustedEnemy.position = enemyPos;
-                    DrawEnemy(&resources.entityModels, adjustedEnemy, inRange);
+                    DrawEnemy(&resources.entityModels, adjustedEnemy, inRange, customMonsters, customMonsterCount);
                 }
             }
+
+            // Monster eggs (pending generations)
+            DrawMonsterEggs(&resources.entityModels, &monsterGenerator);
 
             // Arrows in flight
             DrawArrows(&resources.entityModels, &arrowSystem);
@@ -1324,6 +1369,7 @@ int main(int argc, char* argv[]) {
         // Draw HUD
         DrawHUD(&camera, &playerState, &playerRuntime,
                 enemies, enemyCount,
+                customMonsters, customMonsterCount,
                 damageIndicators, xpPopups, &levelUpNotif,
                 &invMenu, targetItem, showActionMenu,
                 attackCooldown, swingTimer,
@@ -1382,6 +1428,9 @@ int main(int argc, char* argv[]) {
 
         // Draw help UI (on top of everything)
         DrawHelpUI(&helpSystem, screenWidth, screenHeight);
+
+        // Draw monster generator UI
+        DrawMonsterGenerator(&monsterGenerator, customMonsters, customMonsterCount, screenWidth, screenHeight);
 
         // Draw quit confirmation (on very top)
         if (showQuitConfirm) {
@@ -1442,6 +1491,7 @@ int main(int argc, char* argv[]) {
 
                 // Cleanup and exit
                 ShutdownHelpSystem(&helpSystem);
+                ShutdownMonsterGenerator(&monsterGenerator);
                 UnloadLightingSystem(&lighting);
                 UnloadBackgroundMusic();
                 CleanupLeafSystem(&leafSystem);
@@ -1469,6 +1519,7 @@ int main(int argc, char* argv[]) {
 
     // Cleanup
     ShutdownHelpSystem(&helpSystem);
+    ShutdownMonsterGenerator(&monsterGenerator);
     UnloadPostProcessSystem(&postProcess);
     UnloadLightingSystem(&lighting);
     UnloadBackgroundMusic();

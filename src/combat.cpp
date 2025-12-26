@@ -7,6 +7,7 @@
 
 bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                          Enemy* enemies, int enemyCount,
+                         const CustomMonster* customMonsters, int customMonsterCount,
                          Tree* trees, int treeCount,
                          Rock* rocks, int rockCount,
                          WorldItem* worldItems, int* worldItemCount,
@@ -165,7 +166,6 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
         }
 
         if (target != nullptr) {
-            const EnemyConfig& config = ENEMY_CONFIGS[target->type];
             target->hostile = true;
 
             int damage = (int)(RollDamage(maxHit) * GetWeaponDamageMultiplier(state->equippedWeapon));
@@ -193,14 +193,23 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
 
             if (target->health <= 0) {
                 target->alive = false;
-                target->respawnTimer = config.respawnTime;
                 PlaySoundEffect(SFX_ENEMY_DEATH);
 
-                SpawnEnemyDrops(config, target->position, worldItems, *worldItemCount);
-
-                // Award XP for kill (4 XP per hitpoint, like OSRS)
-                int xpGain = config.maxHealth * 4;
-                AwardSkillXP(state, SKILL_COMBAT, xpGain, xpPopups, levelUpNotif);
+                // Handle death based on enemy type (built-in vs custom)
+                if (target->customMonsterIndex >= 0 && target->customMonsterIndex < customMonsterCount) {
+                    // Custom monster - no respawn, no drops for now
+                    const CustomMonster& cm = customMonsters[target->customMonsterIndex];
+                    target->respawnTimer = 9999.0f;  // Effectively no respawn
+                    int xpGain = cm.maxHealth * 4;
+                    AwardSkillXP(state, SKILL_COMBAT, xpGain, xpPopups, levelUpNotif);
+                } else {
+                    // Built-in enemy type
+                    const EnemyConfig& config = ENEMY_CONFIGS[target->type];
+                    target->respawnTimer = config.respawnTime;
+                    SpawnEnemyDrops(config, target->position, worldItems, *worldItemCount);
+                    int xpGain = config.maxHealth * 4;
+                    AwardSkillXP(state, SKILL_COMBAT, xpGain, xpPopups, levelUpNotif);
+                }
             }
         }
     }

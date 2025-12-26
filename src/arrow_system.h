@@ -61,6 +61,7 @@ void FireArrow(Camera3D* camera, PlayerState* state, BowState* bow,
 
 // Update all arrows (physics, collision)
 void UpdateArrows(ArrowSystem* arrows, Enemy* enemies, int enemyCount,
+                  const CustomMonster* customMonsters, int customMonsterCount,
                   WorldItem* worldItems, int* worldItemCount,
                   DamageIndicator* damageIndicators,
                   XPPopup* xpPopups, LevelUpNotification* levelUpNotif,

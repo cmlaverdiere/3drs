@@ -21,12 +21,14 @@ void InitMenuSystem(MenuSystem* menu,
                     DialogueState* dialogue,
                     ShopState* shop,
                     TimeSelectMenu* timeSelect,
-                    HelpSystem* help) {
+                    HelpSystem* help,
+                    MonsterGenerator* generator) {
     menu->inventoryActive = inventoryActive;
     menu->dialogue = dialogue;
     menu->shop = shop;
     menu->timeSelect = timeSelect;
     menu->help = help;
+    menu->generator = generator;
 
     // Initialize bank state
     menu->bank.active = false;
@@ -45,6 +47,7 @@ bool IsAnyMenuOpen(const MenuSystem* menu) {
     if (menu->timeSelect && menu->timeSelect->active) return true;
     if (menu->help && menu->help->state != HelpState::CLOSED) return true;
     if (menu->bank.active) return true;
+    if (menu->generator && IsGeneratorOpen(menu->generator)) return true;
     return false;
 }
 
@@ -56,30 +59,34 @@ bool CanProcessGameInput(const MenuSystem* menu) {
     if (menu->timeSelect && menu->timeSelect->active) return false;
     if (menu->help && menu->help->state != HelpState::CLOSED) return false;
     if (menu->bank.active) return false;
+    if (menu->generator && IsGeneratorOpen(menu->generator)) return false;
     return true;
 }
 
 bool CanProcessWorldInteraction(const MenuSystem* menu) {
-    // World interaction (E key, pickups) is blocked by dialogue, shop, bank, help
+    // World interaction (E key, pickups) is blocked by dialogue, shop, bank, help, generator
     if (menu->dialogue && menu->dialogue->active) return false;
     if (menu->shop && menu->shop->active) return false;
     if (menu->help && menu->help->state != HelpState::CLOSED) return false;
     if (menu->bank.active) return false;
+    if (menu->generator && IsGeneratorOpen(menu->generator)) return false;
     return true;
 }
 
 bool CanProcessScreenshotKey(const MenuSystem* menu) {
-    // Screenshot key (P) works except during help UI (might want to type P)
+    // Screenshot key (P) works except during help UI or generator (might want to type P)
     if (menu->help && menu->help->state == HelpState::TYPING) return false;
+    if (menu->generator && menu->generator->state == GeneratorState::TYPING) return false;
     return true;
 }
 
 bool CanProcessHotkeys(const MenuSystem* menu) {
-    // Hotkeys (0 reload, T time, H help) blocked during certain menus
+    // Hotkeys (0 reload, T time, H help, G generator) blocked during certain menus
     if (menu->dialogue && menu->dialogue->active) return false;
     if (menu->shop && menu->shop->active) return false;
     if (menu->help && menu->help->state != HelpState::CLOSED) return false;
     if (menu->bank.active) return false;
+    if (menu->generator && IsGeneratorOpen(menu->generator)) return false;
     return true;
 }
 
@@ -106,6 +113,9 @@ void OpenMenu(MenuSystem* menu, MenuType type) {
             break;
         case MenuType::BANKING:
             OpenBank(menu);
+            break;
+        case MenuType::MONSTER_GENERATOR:
+            if (menu->generator) OpenMonsterGenerator(menu->generator);
             break;
         default:
             break;
@@ -140,6 +150,9 @@ void CloseMenu(MenuSystem* menu, MenuType type) {
         case MenuType::BANKING:
             CloseBank(menu);
             break;
+        case MenuType::MONSTER_GENERATOR:
+            if (menu->generator) CloseMonsterGenerator(menu->generator);
+            break;
         default:
             break;
     }
@@ -155,6 +168,13 @@ bool HandleMenuEscape(MenuSystem* menu) {
     // Help UI has highest priority
     if (menu->help && menu->help->state != HelpState::CLOSED) {
         menu->help->state = HelpState::CLOSED;
+        if (!IsAnyMenuOpen(menu)) DisableCursor();
+        return true;
+    }
+
+    // Monster generator
+    if (menu->generator && IsGeneratorOpen(menu->generator)) {
+        CloseMonsterGenerator(menu->generator);
         if (!IsAnyMenuOpen(menu)) DisableCursor();
         return true;
     }

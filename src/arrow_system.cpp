@@ -124,6 +124,7 @@ void FireArrow(Camera3D* camera, PlayerState* state, BowState* bow,
 }
 
 void UpdateArrows(ArrowSystem* arrows, Enemy* enemies, int enemyCount,
+                  const CustomMonster* customMonsters, int customMonsterCount,
                   WorldItem* worldItems, int* worldItemCount,
                   DamageIndicator* damageIndicators,
                   XPPopup* xpPopups, LevelUpNotification* levelUpNotif,
@@ -192,7 +193,6 @@ void UpdateArrows(ArrowSystem* arrows, Enemy* enemies, int enemyCount,
             if (horizDist < enemyRadius + ARROW_HIT_RADIUS &&
                 dy > 0 && dy < enemyHeight) {
                 // Hit!
-                const EnemyConfig& config = ENEMY_CONFIGS[enemies[e].type];
                 enemies[e].hostile = true;
 
                 int damage = RollDamage(arrow->damage);
@@ -221,13 +221,23 @@ void UpdateArrows(ArrowSystem* arrows, Enemy* enemies, int enemyCount,
 
                 if (enemies[e].health <= 0) {
                     enemies[e].alive = false;
-                    enemies[e].respawnTimer = config.respawnTime;
                     PlaySoundEffect(SFX_ENEMY_DEATH);
 
-                    SpawnEnemyDrops(config, enemyPos, worldItems, *worldItemCount);
+                    int xpGain;
+                    if (enemies[e].customMonsterIndex >= 0 && enemies[e].customMonsterIndex < customMonsterCount) {
+                        // Custom monster - no respawn, no drops
+                        const CustomMonster& cm = customMonsters[enemies[e].customMonsterIndex];
+                        enemies[e].respawnTimer = 9999.0f;
+                        xpGain = cm.maxHealth * 4;
+                    } else {
+                        // Built-in enemy
+                        const EnemyConfig& config = ENEMY_CONFIGS[enemies[e].type];
+                        enemies[e].respawnTimer = config.respawnTime;
+                        SpawnEnemyDrops(config, enemyPos, worldItems, *worldItemCount);
+                        xpGain = config.maxHealth * 4;
+                    }
 
                     // Award Ranged XP (4 XP per hitpoint, like combat)
-                    int xpGain = config.maxHealth * 4;
                     state->skillXP[SKILL_RANGED] += xpGain;
                     SpawnXPPopup(xpPopups, xpGain, SKILL_RANGED);
 

@@ -14,6 +14,7 @@ struct BloodSplatterSystem;
 // bloodSystem can be null to disable blood effects
 bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                          Enemy* enemies, int enemyCount,
+                         const CustomMonster* customMonsters, int customMonsterCount,
                          Tree* trees, int treeCount,
                          Rock* rocks, int rockCount,
                          WorldItem* worldItems, int* worldItemCount,

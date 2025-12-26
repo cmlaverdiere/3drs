@@ -25,7 +25,12 @@ void DrawCow(const EntityModels* models, Vector3 pos, float facingAngle, bool hi
 void DrawScorpion(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted);
 
 // Draw any enemy by type
-void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted);
+void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted,
+               const CustomMonster* customMonsters = nullptr, int customMonsterCount = 0);
+
+// Draw a custom monster from data
+void DrawCustomMonster(const EntityModels* models, const CustomMonster* monster,
+                       Vector3 pos, float facingAngle, bool highlighted);
 
 // Draw item on ground
 void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos);
