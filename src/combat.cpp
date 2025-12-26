@@ -2,6 +2,7 @@
 #include "math_utils.h"
 #include "xp_system.h"
 #include "game_systems.h"
+#include "game_init.h"
 #include "sound_system.h"
 
 bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
@@ -13,7 +14,8 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                          XPPopup* xpPopups,
                          LevelUpNotification* levelUpNotif,
                          float* swingTimer,
-                         const char** outMessage) {
+                         const char** outMessage,
+                         LeafBurstSystem* leafBurstSystem) {
     if (state->equippedWeapon == ITEM_NONE) return false;
 
     *swingTimer = SWING_DURATION;
@@ -61,6 +63,12 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
             actionTaken = true;
             targetTree->health--;
             PlaySoundEffect(SFX_HIT);
+
+            // Spawn leaf burst in autumn when chopping trees
+            if (leafBurstSystem != nullptr && g_currentSeason == SEASON_AUTUMN) {
+                float treeHeight = (targetTree->type == TREE_OAK) ? 7.0f : 5.0f;
+                SpawnLeafBurst(leafBurstSystem, targetTree->position, treeHeight);
+            }
 
             if (targetTree->health <= 0) {
                 targetTree->alive = false;

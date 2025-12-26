@@ -168,4 +168,54 @@ void UpdateAndDrawLeaves(LeafSystem* leaves, Vector3 centerPos, Vector3 viewPos,
 // Cleanup leaf system
 void CleanupLeafSystem(LeafSystem* leaves);
 
+// ============================================================================
+// Leaf Burst Particle System (for tree chopping in autumn)
+// ============================================================================
+
+static const int LEAF_BURST_PARTICLE_COUNT = 250;  // Particles per burst (many leaves!)
+static const int MAX_LEAF_BURSTS = 8;              // Max simultaneous bursts
+static const float LEAF_BURST_LIFETIME = 4.0f;     // How long burst lasts
+
+struct LeafBurstParticle {
+    Vector3 position;
+    Vector3 velocity;
+    float rotationY;
+    float rotationTumble;
+    float rotationSpeed;
+    float tumbleSpeed;
+    float size;
+    int colorType;  // 0=red, 1=orange, 2=yellow
+    bool active;
+};
+
+struct LeafBurst {
+    LeafBurstParticle particles[LEAF_BURST_PARTICLE_COUNT];
+    float lifetime;
+    bool active;
+};
+
+struct LeafBurstSystem {
+    LeafBurst bursts[MAX_LEAF_BURSTS];
+    Shader leafShader;
+    Mesh leafMesh;
+    Material leafMaterial;
+    int viewPosLoc;
+    int fogColorLoc;
+    int fogDensityLoc;
+    bool initialized;
+};
+
+// Initialize leaf burst system (shares shader with LeafSystem if already loaded)
+void InitLeafBurstSystem(LeafBurstSystem* system);
+
+// Spawn a new leaf burst at position (e.g., tree location)
+void SpawnLeafBurst(LeafBurstSystem* system, Vector3 position, float treeHeight);
+
+// Update and draw all active leaf bursts
+void UpdateAndDrawLeafBursts(LeafBurstSystem* system, Vector3 viewPos,
+                              Vector3 fogColor, float fogDensity, float deltaTime);
+
+// Cleanup
+void CleanupLeafBurstSystem(LeafBurstSystem* system);
+
 #endif

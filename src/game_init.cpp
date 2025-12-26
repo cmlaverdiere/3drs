@@ -688,3 +688,203 @@ void CleanupLeafSystem(LeafSystem* leaves) {
     UnloadMesh(leaves->leafMesh);
     leaves->initialized = false;
 }
+
+// ============================================================================
+// Leaf Burst Particle System (for tree chopping in autumn)
+// ============================================================================
+
+void InitLeafBurstSystem(LeafBurstSystem* system) {
+    // Load leaf shader
+    system->leafShader = LoadShader("shaders/leaf.vs", "shaders/leaf.fs");
+    system->viewPosLoc = GetShaderLocation(system->leafShader, "viewPos");
+    system->fogColorLoc = GetShaderLocation(system->leafShader, "fogColor");
+    system->fogDensityLoc = GetShaderLocation(system->leafShader, "fogDensity");
+
+    // Create a simple quad mesh for leaves
+    system->leafMesh = GenMeshPlane(1.0f, 1.0f, 1, 1);
+
+    // Setup material with shader
+    system->leafMaterial = LoadMaterialDefault();
+    system->leafMaterial.shader = system->leafShader;
+
+    // Initialize all bursts as inactive
+    for (int i = 0; i < MAX_LEAF_BURSTS; i++) {
+        system->bursts[i].active = false;
+    }
+
+    system->initialized = true;
+}
+
+void SpawnLeafBurst(LeafBurstSystem* system, Vector3 position, float treeHeight) {
+    if (!system->initialized) return;
+
+    // Find an inactive burst slot
+    int slot = -1;
+    for (int i = 0; i < MAX_LEAF_BURSTS; i++) {
+        if (!system->bursts[i].active) {
+            slot = i;
+            break;
+        }
+    }
+
+    // If no slot available, use the oldest one (first in array)
+    if (slot < 0) slot = 0;
+
+    LeafBurst* burst = &system->bursts[slot];
+    burst->active = true;
+    burst->lifetime = LEAF_BURST_LIFETIME;
+
+    // Spawn particles from tree canopy area
+    float canopyY = position.y + treeHeight * 0.7f;  // Middle-upper part of tree
+    float canopyRadius = 2.0f;  // Spread within tree canopy
+
+    for (int i = 0; i < LEAF_BURST_PARTICLE_COUNT; i++) {
+        LeafBurstParticle* p = &burst->particles[i];
+        p->active = true;
+
+        // Random position within tree canopy
+        float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
+        float dist = (float)GetRandomValue(0, (int)(canopyRadius * 100)) / 100.0f;
+        float heightOffset = (float)GetRandomValue(-100, 100) / 100.0f * treeHeight * 0.3f;
+
+        p->position.x = position.x + cosf(angle) * dist;
+        p->position.z = position.z + sinf(angle) * dist;
+        p->position.y = canopyY + heightOffset;
+
+        // Initial velocity - burst outward and up, then fall
+        float speed = 2.0f + (float)GetRandomValue(0, 400) / 100.0f;
+        float vertAngle = (float)GetRandomValue(20, 70) * DEG2RAD;  // Launch angle
+        float horizAngle = (float)GetRandomValue(0, 360) * DEG2RAD;
+
+        p->velocity.x = cosf(horizAngle) * cosf(vertAngle) * speed;
+        p->velocity.z = sinf(horizAngle) * cosf(vertAngle) * speed;
+        p->velocity.y = sinf(vertAngle) * speed * 0.8f;  // Upward burst
+
+        // Random rotations
+        p->rotationY = (float)GetRandomValue(0, 360);
+        p->rotationTumble = (float)GetRandomValue(0, 360);
+        p->rotationSpeed = (float)GetRandomValue(-300, 300);
+        p->tumbleSpeed = (float)GetRandomValue(100, 400);
+
+        // Random size (0.12 to 0.22)
+        p->size = 0.12f + (float)GetRandomValue(0, 100) / 1000.0f;
+
+        // Random color type
+        p->colorType = GetRandomValue(0, 2);
+    }
+}
+
+void UpdateAndDrawLeafBursts(LeafBurstSystem* system, Vector3 viewPos,
+                              Vector3 fogColor, float fogDensity, float deltaTime) {
+    if (!system->initialized) return;
+
+    // Check if any burst is active
+    bool anyActive = false;
+    for (int i = 0; i < MAX_LEAF_BURSTS; i++) {
+        if (system->bursts[i].active) {
+            anyActive = true;
+            break;
+        }
+    }
+    if (!anyActive) return;
+
+    // Set shader uniforms
+    float viewPosArr[3] = { viewPos.x, viewPos.y, viewPos.z };
+    float fogColorArr[3] = { fogColor.x, fogColor.y, fogColor.z };
+    SetShaderValue(system->leafShader, system->viewPosLoc, viewPosArr, SHADER_UNIFORM_VEC3);
+    SetShaderValue(system->leafShader, system->fogColorLoc, fogColorArr, SHADER_UNIFORM_VEC3);
+    SetShaderValue(system->leafShader, system->fogDensityLoc, &fogDensity, SHADER_UNIFORM_FLOAT);
+
+    // Leaf colors (RGB normalized)
+    Color leafColors[] = {
+        { 180, 45, 30, 255 },   // Red
+        { 210, 120, 40, 255 },  // Orange
+        { 200, 170, 50, 255 }   // Yellow/gold
+    };
+
+    const float gravity = 3.5f;
+    const float drag = 0.5f;
+
+    // Disable backface culling for double-sided leaves
+    rlDisableBackfaceCulling();
+
+    for (int b = 0; b < MAX_LEAF_BURSTS; b++) {
+        LeafBurst* burst = &system->bursts[b];
+        if (!burst->active) continue;
+
+        burst->lifetime -= deltaTime;
+        if (burst->lifetime <= 0) {
+            burst->active = false;
+            continue;
+        }
+
+        // Fade alpha based on remaining lifetime
+        float alpha = fminf(1.0f, burst->lifetime / 0.5f);  // Fade in last 0.5s
+
+        for (int i = 0; i < LEAF_BURST_PARTICLE_COUNT; i++) {
+            LeafBurstParticle* p = &burst->particles[i];
+            if (!p->active) continue;
+
+            // Apply gravity
+            p->velocity.y -= gravity * deltaTime;
+
+            // Apply drag (air resistance) - more on horizontal
+            p->velocity.x *= (1.0f - drag * deltaTime);
+            p->velocity.z *= (1.0f - drag * deltaTime);
+            p->velocity.y *= (1.0f - drag * 0.3f * deltaTime);
+
+            // Add some flutter
+            float time = (float)GetTime();
+            float flutter = sinf(time * 3.0f + p->rotationY * 0.05f) * 1.5f * deltaTime;
+            p->velocity.x += flutter;
+            p->velocity.z += cosf(time * 2.5f + p->rotationTumble * 0.03f) * 1.0f * deltaTime;
+
+            // Update position
+            p->position.x += p->velocity.x * deltaTime;
+            p->position.y += p->velocity.y * deltaTime;
+            p->position.z += p->velocity.z * deltaTime;
+
+            // Rotate the leaf (faster when moving fast)
+            float speed = sqrtf(p->velocity.x * p->velocity.x + p->velocity.z * p->velocity.z);
+            p->rotationY += p->rotationSpeed * deltaTime;
+            p->rotationTumble += p->tumbleSpeed * (1.0f + speed * 0.5f) * deltaTime;
+
+            // Deactivate if below ground
+            float groundY = GetTerrainHeight(p->position.x, p->position.z);
+            if (p->position.y < groundY) {
+                p->active = false;
+                continue;
+            }
+
+            // Set leaf color with fade
+            Color c = leafColors[p->colorType];
+            c.a = (unsigned char)(255 * alpha);
+            system->leafMaterial.maps[MATERIAL_MAP_DIFFUSE].color = c;
+
+            // Build transform matrix for this leaf
+            Matrix matTranslate = MatrixTranslate(p->position.x, p->position.y, p->position.z);
+            Matrix matRotateY = MatrixRotateY(p->rotationY * DEG2RAD);
+            Matrix matRotateX = MatrixRotateX(p->rotationTumble * DEG2RAD);
+            Matrix matScale = MatrixScale(p->size, p->size, p->size);
+            // Rotate to make plane vertical (plane is horizontal by default)
+            Matrix matRotateToVertical = MatrixRotateX(90.0f * DEG2RAD);
+
+            Matrix transform = MatrixMultiply(matScale, matRotateToVertical);
+            transform = MatrixMultiply(transform, matRotateX);
+            transform = MatrixMultiply(transform, matRotateY);
+            transform = MatrixMultiply(transform, matTranslate);
+
+            // Draw the leaf
+            DrawMesh(system->leafMesh, system->leafMaterial, transform);
+        }
+    }
+
+    rlEnableBackfaceCulling();
+}
+
+void CleanupLeafBurstSystem(LeafBurstSystem* system) {
+    if (!system->initialized) return;
+    UnloadShader(system->leafShader);
+    UnloadMesh(system->leafMesh);
+    system->initialized = false;
+}

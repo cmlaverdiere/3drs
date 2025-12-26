@@ -242,6 +242,12 @@ int main(int argc, char* argv[]) {
         InitLeafSystem(&leafSystem, camera.position);
     }
 
+    // Leaf burst system (for tree chopping in autumn)
+    LeafBurstSystem leafBurstSystem = {};
+    if (g_currentSeason == SEASON_AUTUMN) {
+        InitLeafBurstSystem(&leafBurstSystem);
+    }
+
     // Quest dialogue state
     int activeQuestIndex = -1;              // Which quest is active in current dialogue
     const char** questDialogueLines = nullptr;  // Current quest dialogue lines
@@ -359,7 +365,8 @@ int main(int argc, char* argv[]) {
                                 trees, treeCount, rocks, rockCount,
                                 worldItems, &worldItemCount,
                                 damageIndicators, xpPopups, &levelUpNotif, &swingTimer,
-                                &newAttackMsg);
+                                &newAttackMsg,
+                                (g_currentSeason == SEASON_AUTUMN) ? &leafBurstSystem : nullptr);
             attackCooldown = GetWeaponCooldown(playerState.equippedWeapon);
             if (newAttackMsg) {
                 attackMessage = newAttackMsg;
@@ -1092,6 +1099,9 @@ int main(int argc, char* argv[]) {
                 Vector3 fogCol = { lighting.fogColor.x, lighting.fogColor.y, lighting.fogColor.z };
                 UpdateAndDrawLeaves(&leafSystem, camera.position, camera.position,
                                    fogCol, lighting.fogDensity, GetFrameTime());
+                // Leaf burst particles from tree chopping
+                UpdateAndDrawLeafBursts(&leafBurstSystem, camera.position,
+                                        fogCol, lighting.fogDensity, GetFrameTime());
             }
         EndMode3D();
         EndTextureMode();
@@ -1168,6 +1178,9 @@ int main(int argc, char* argv[]) {
             if (g_currentSeason == SEASON_AUTUMN && !leafSystem.initialized) {
                 InitLeafSystem(&leafSystem, camera.position);
             }
+            if (g_currentSeason == SEASON_AUTUMN && !leafBurstSystem.initialized) {
+                InitLeafBurstSystem(&leafBurstSystem);
+            }
         }
         if (timePreset > 0 || seasonPreset >= 0) {
             timeSelectMenu.active = false;
@@ -1223,6 +1236,8 @@ int main(int argc, char* argv[]) {
                 // Cleanup and exit
                 ShutdownHelpSystem(&helpSystem);
                 UnloadLightingSystem(&lighting);
+                CleanupLeafSystem(&leafSystem);
+                CleanupLeafBurstSystem(&leafBurstSystem);
                 CleanupGameResources(&resources);
                 CloseWindow();
                 return 0;
@@ -1247,6 +1262,8 @@ int main(int argc, char* argv[]) {
     ShutdownHelpSystem(&helpSystem);
     UnloadPostProcessSystem(&postProcess);
     UnloadLightingSystem(&lighting);
+    CleanupLeafSystem(&leafSystem);
+    CleanupLeafBurstSystem(&leafBurstSystem);
     CleanupGameResources(&resources);
     CloseWindow();
     return 0;
