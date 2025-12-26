@@ -39,6 +39,10 @@ constexpr float STEEL_SCIMITAR_DAMAGE_MULTIPLIER = 1.3f;
 constexpr float MITHRIL_SCIMITAR_DAMAGE_MULTIPLIER = 1.6f;
 constexpr float ADAMANT_SCIMITAR_DAMAGE_MULTIPLIER = 2.0f;
 
+// Bow stats (ranged combat)
+constexpr float BOW_ATTACK_COOLDOWN = 0.3f;
+constexpr float BOW_DAMAGE_MULTIPLIER = 1.2f;
+
 // HP regeneration
 constexpr float HP_REGEN_INTERVAL = 5.0f;
 
@@ -89,6 +93,9 @@ enum ItemType {
     ITEM_BRONZE_PICKAXE,
     ITEM_COPPER_ORE,
     ITEM_TIN_ORE,
+    // === Ranged Combat Items ===
+    ITEM_BOW,
+    ITEM_ARROW,
     // === ADD NEW ITEMS HERE ===
     ITEM_COUNT
 };
@@ -471,14 +478,14 @@ struct PlayerState {
 
 // Check if an item type is stackable
 inline bool IsItemStackable(ItemType item) {
-    return item == ITEM_GIL;
+    return item == ITEM_GIL || item == ITEM_ARROW;
 }
 
 // Check if an item is a weapon (or tool that can be equipped)
 inline bool IsWeapon(ItemType item) {
     return item == ITEM_BRONZE_SHORTSWORD || item == ITEM_BRONZE_AXE || item == ITEM_IRON_2H_SWORD ||
            item == ITEM_STEEL_SCIMITAR || item == ITEM_MITHRIL_SCIMITAR || item == ITEM_ADAMANT_SCIMITAR ||
-           item == ITEM_BRONZE_PICKAXE;
+           item == ITEM_BRONZE_PICKAXE || item == ITEM_BOW;
 }
 
 // Get weapon attack cooldown
@@ -486,6 +493,7 @@ inline float GetWeaponCooldown(ItemType item) {
     if (item == ITEM_IRON_2H_SWORD) return IRON_2H_ATTACK_COOLDOWN;
     if (item == ITEM_STEEL_SCIMITAR || item == ITEM_MITHRIL_SCIMITAR || item == ITEM_ADAMANT_SCIMITAR)
         return SCIMITAR_ATTACK_COOLDOWN;
+    if (item == ITEM_BOW) return BOW_ATTACK_COOLDOWN;
     return DEFAULT_ATTACK_COOLDOWN;
 }
 
@@ -495,6 +503,7 @@ inline float GetWeaponDamageMultiplier(ItemType item) {
     if (item == ITEM_STEEL_SCIMITAR) return STEEL_SCIMITAR_DAMAGE_MULTIPLIER;
     if (item == ITEM_MITHRIL_SCIMITAR) return MITHRIL_SCIMITAR_DAMAGE_MULTIPLIER;
     if (item == ITEM_ADAMANT_SCIMITAR) return ADAMANT_SCIMITAR_DAMAGE_MULTIPLIER;
+    if (item == ITEM_BOW) return BOW_DAMAGE_MULTIPLIER;
     return 1.0f;
 }
 

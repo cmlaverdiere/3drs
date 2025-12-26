@@ -21,6 +21,12 @@ void DrawHUD(const Camera3D* camera, const PlayerState* state, const PlayerRunti
 // Draw FPS weapon view
 void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int screenHeight);
 
+// Forward declaration for BowState
+struct BowState;
+
+// Draw bow draw power indicator
+void DrawBowDrawPower(const BowState* bowState, int screenWidth, int screenHeight);
+
 // Draw inventory UI
 void DrawInventoryUI(const PlayerState* state, const InventoryMenu* menu,
                      int screenWidth, int screenHeight);

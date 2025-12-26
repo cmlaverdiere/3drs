@@ -8,6 +8,10 @@ player_spawn 0.0 1.8 0.0
 # Starting items near spawn
 item bronze_shortsword 2.0 0.0 1.0
 item bronze_axe -2.0 0.0 1.0
+item bow 0.0 0.0 3.0
+item arrow 1.0 0.0 3.5
+item arrow 1.5 0.0 3.0
+item arrow -0.5 0.0 3.5
 
 # === LUMBRIDGE CASTLE (center-north) ===
 # Main castle back wall (north)

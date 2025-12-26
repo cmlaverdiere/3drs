@@ -656,6 +656,33 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
             DrawModelSphere(models, (Vector3){pos.x - 0.04f, pos.y + 0.1f, pos.z - 0.03f}, 0.06f, tinColor);
             break;
         }
+        case ITEM_BOW: {
+            Color woodColor = { 139, 90, 43, 255 };     // Brown wood
+            Color stringColor = { 200, 200, 180, 255 }; // Off-white string
+            // Bow stave (curved shape using angled pieces)
+            // Lower limb
+            DrawModelCube(models, (Vector3){pos.x - 0.08f, pos.y + 0.15f, pos.z}, 0.06f, 0.25f, 0.05f, woodColor);
+            // Upper limb
+            DrawModelCube(models, (Vector3){pos.x + 0.08f, pos.y + 0.45f, pos.z}, 0.06f, 0.25f, 0.05f, woodColor);
+            // Center grip
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.3f, pos.z}, 0.08f, 0.12f, 0.06f, woodColor);
+            // Bowstring
+            DrawModelCube(models, (Vector3){pos.x - 0.12f, pos.y + 0.3f, pos.z}, 0.02f, 0.5f, 0.02f, stringColor);
+            break;
+        }
+        case ITEM_ARROW: {
+            Color shaftColor = { 160, 140, 100, 255 };  // Light wood
+            Color tipColor = { 100, 100, 110, 255 };    // Iron tip
+            Color fletchColor = { 200, 50, 50, 255 };   // Red feathers
+            // Arrow shaft (lying flat)
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.02f, pos.z}, 0.03f, 0.03f, 0.6f, shaftColor);
+            // Arrowhead
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.02f, pos.z + 0.32f}, 0.06f, 0.02f, 0.08f, tipColor);
+            // Fletching (red feathers)
+            DrawModelCube(models, (Vector3){pos.x + 0.03f, pos.y + 0.03f, pos.z - 0.25f}, 0.04f, 0.02f, 0.1f, fletchColor);
+            DrawModelCube(models, (Vector3){pos.x - 0.03f, pos.y + 0.03f, pos.z - 0.25f}, 0.04f, 0.02f, 0.1f, fletchColor);
+            break;
+        }
         default:
             DrawModelCube(models, pos, 0.2f, 0.2f, 0.2f, RED);
             break;

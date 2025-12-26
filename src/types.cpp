@@ -34,7 +34,10 @@ const char* ITEM_NAMES[ITEM_COUNT] = {
     // Mining Items
     "Bronze Pickaxe",
     "Copper Ore",
-    "Tin Ore"
+    "Tin Ore",
+    // Ranged Combat Items
+    "Bow",
+    "Arrow"
 };
 
 // NPC configurations with dialogue
@@ -199,8 +202,9 @@ const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
         .drops = {
             { ITEM_BONES, 1, 1, 1.0f },      // Always drops bones
             { ITEM_GIL, 5, 25, 1.0f },       // Always drops 5-25 gil
+            { ITEM_ARROW, 3, 8, 0.6f },      // 60% chance to drop 3-8 arrows
         },
-        .dropCount = 2
+        .dropCount = 3
     },
     // ENEMY_COW
     {

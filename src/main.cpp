@@ -25,6 +25,7 @@
 #include "help_system.h"
 #include "menu_system.h"
 #include "frustum.h"
+#include "arrow_system.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -258,6 +259,9 @@ int main(int argc, char* argv[]) {
 
     float attackCooldown = 0.0f;
     float swingTimer = 0.0f;
+    BowState bowState = {};
+    ArrowSystem arrowSystem = {};
+    InitArrowSystem(&arrowSystem);
     float screenshotMsgTimer = 0.0f;
     char screenshotMsg[128] = "";
     const char* statusMessage = nullptr;
@@ -366,21 +370,34 @@ int main(int argc, char* argv[]) {
 
         // Player attack (don't attack while in any menu)
         if (!playerRuntime.isDead && CanProcessGameInput(&menuSystem) &&
-            IsMouseButtonPressed(MOUSE_BUTTON_LEFT) &&
-            attackCooldown <= 0 && playerState.equippedWeapon != ITEM_NONE) {
-            const char* newAttackMsg = nullptr;
-            ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
-                                trees, treeCount, rocks, rockCount,
-                                worldItems, &worldItemCount,
-                                damageIndicators, xpPopups, &levelUpNotif, &swingTimer,
-                                &newAttackMsg,
-                                (g_currentSeason == SEASON_AUTUMN) ? &leafBurstSystem : nullptr);
-            attackCooldown = GetWeaponCooldown(playerState.equippedWeapon);
-            if (newAttackMsg) {
-                attackMessage = newAttackMsg;
-                attackMessageTimer = 2.0f;  // Show for 2 seconds
+            playerState.equippedWeapon != ITEM_NONE) {
+            if (playerState.equippedWeapon == ITEM_BOW) {
+                // Bow combat: click-hold-release
+                HandleBowInput(&camera, &playerState, &bowState, &arrowSystem,
+                               damageIndicators, xpPopups, &levelUpNotif,
+                               enemies, enemyCount, worldItems, &worldItemCount, dt);
+            } else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && attackCooldown <= 0) {
+                // Melee combat: instant attack on click
+                const char* newAttackMsg = nullptr;
+                ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
+                                    trees, treeCount, rocks, rockCount,
+                                    worldItems, &worldItemCount,
+                                    damageIndicators, xpPopups, &levelUpNotif, &swingTimer,
+                                    &newAttackMsg,
+                                    (g_currentSeason == SEASON_AUTUMN) ? &leafBurstSystem : nullptr);
+                attackCooldown = GetWeaponCooldown(playerState.equippedWeapon);
+                if (newAttackMsg) {
+                    attackMessage = newAttackMsg;
+                    attackMessageTimer = 2.0f;  // Show for 2 seconds
+                }
             }
         }
+
+        // Update arrow projectiles
+        UpdateArrows(&arrowSystem, enemies, enemyCount,
+                     worldItems, &worldItemCount,
+                     damageIndicators, xpPopups, &levelUpNotif,
+                     &playerState, dt);
 
         // Update attack message timer
         if (attackMessageTimer > 0) {
@@ -1067,6 +1084,9 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+            // Arrows in flight
+            DrawArrows(&resources.entityModels, &arrowSystem);
+
             // NPCs
             for (int i = 0; i < npcCount; i++) {
                 if (npcs[i].active) {
@@ -1189,6 +1209,11 @@ int main(int argc, char* argv[]) {
                 attackCooldown, swingTimer,
                 mouseMode, statusMessage,
                 screenWidth, screenHeight);
+
+        // Draw bow draw power indicator (when drawing bow)
+        if (playerState.equippedWeapon == ITEM_BOW) {
+            DrawBowDrawPower(&bowState, screenWidth, screenHeight);
+        }
 
         // Draw NPC prompt (when near an NPC but not in dialogue/shop/bank)
         if (nearestNPCIndex >= 0 && !dialogueState.active && !shopState.active &&

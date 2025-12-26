@@ -91,6 +91,10 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         map.itemTypes[map.itemCount] = ITEM_COPPER_ORE;
                     } else if (strcmp(itemName, "tin_ore") == 0) {
                         map.itemTypes[map.itemCount] = ITEM_TIN_ORE;
+                    } else if (strcmp(itemName, "bow") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_BOW;
+                    } else if (strcmp(itemName, "arrow") == 0) {
+                        map.itemTypes[map.itemCount] = ITEM_ARROW;
                     } else {
                         map.itemTypes[map.itemCount] = ITEM_NONE;
                     }

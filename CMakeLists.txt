@@ -43,6 +43,7 @@ add_executable(game
     src/help_system.cpp
     src/menu_system.cpp
     src/frustum.cpp
+    src/arrow_system.cpp
 )
 
 target_include_directories(game PRIVATE ${PIPER_INCLUDE_DIR})

@@ -2,6 +2,7 @@
 #include "math_utils.h"
 #include "xp_system.h"
 #include "inventory.h"
+#include "arrow_system.h"
 #include <cstdio>
 
 // Colors
@@ -450,7 +451,76 @@ void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int scre
         // Right point (tapered)
         Vector2 rightTip = { headRight.x + (15.0f * cosA), headRight.y + (-15.0f * sinA) };
         DrawLineEx(headRight, rightTip, 8.0f, bronzeDark);
+    } else if (weapon == ITEM_BOW) {
+        Color woodColor = { 139, 90, 43, 255 };
+        Color woodDark = { 100, 65, 30, 255 };
+        Color stringColor = { 220, 220, 200, 255 };
+
+        // Bow - static view (no swing animation for ranged)
+        float bowCenterX = screenWidth - 120.0f;
+        float bowCenterY = screenHeight - 160.0f;
+
+        // Upper limb
+        DrawLineEx((Vector2){bowCenterX + 15.0f, bowCenterY},
+                   (Vector2){bowCenterX + 25.0f, bowCenterY - 70.0f}, 8.0f, woodColor);
+        DrawLineEx((Vector2){bowCenterX + 25.0f, bowCenterY - 70.0f},
+                   (Vector2){bowCenterX + 15.0f, bowCenterY - 100.0f}, 6.0f, woodColor);
+
+        // Lower limb
+        DrawLineEx((Vector2){bowCenterX + 15.0f, bowCenterY},
+                   (Vector2){bowCenterX + 25.0f, bowCenterY + 70.0f}, 8.0f, woodColor);
+        DrawLineEx((Vector2){bowCenterX + 25.0f, bowCenterY + 70.0f},
+                   (Vector2){bowCenterX + 15.0f, bowCenterY + 100.0f}, 6.0f, woodColor);
+
+        // Grip
+        DrawLineEx((Vector2){bowCenterX + 12.0f, bowCenterY - 15.0f},
+                   (Vector2){bowCenterX + 18.0f, bowCenterY + 15.0f}, 12.0f, woodDark);
+
+        // Bowstring (straight when not drawing)
+        DrawLineEx((Vector2){bowCenterX + 15.0f, bowCenterY - 100.0f},
+                   (Vector2){bowCenterX + 15.0f, bowCenterY + 100.0f}, 2.0f, stringColor);
     }
+}
+
+// Draw bow draw power indicator when drawing the bow
+void DrawBowDrawPower(const BowState* bowState, int screenWidth, int screenHeight) {
+    if (!bowState || !bowState->isDrawing) return;
+
+    float drawRatio = bowState->drawTime / BOW_MAX_DRAW_TIME;
+    if (drawRatio > 1.0f) drawRatio = 1.0f;
+
+    int barWidth = 120;
+    int barHeight = 10;
+    int barX = screenWidth / 2 - barWidth / 2;
+    int barY = screenHeight / 2 + 40;
+
+    // Background
+    DrawRectangle(barX - 2, barY - 2, barWidth + 4, barHeight + 4, (Color){0, 0, 0, 180});
+
+    // Power fill (green to yellow to red as it fills)
+    Color powerColor;
+    if (drawRatio < 0.5f) {
+        unsigned char g = (unsigned char)(150 + 100 * drawRatio * 2);
+        powerColor = (Color){(unsigned char)(255 * drawRatio * 2), g, 50, 255};
+    } else {
+        unsigned char r = 255;
+        unsigned char g = (unsigned char)(250 - 200 * (drawRatio - 0.5f) * 2);
+        powerColor = (Color){r, g, 50, 255};
+    }
+    DrawRectangle(barX, barY, (int)(barWidth * drawRatio), barHeight, powerColor);
+
+    // Border
+    DrawRectangleLines(barX, barY, barWidth, barHeight, WHITE);
+
+    // Min power indicator line
+    float minRatio = BOW_MIN_DRAW_TIME / BOW_MAX_DRAW_TIME;
+    int minX = barX + (int)(barWidth * minRatio);
+    DrawLine(minX, barY - 3, minX, barY + barHeight + 3, (Color){100, 255, 100, 255});
+
+    // "DRAW" text
+    const char* drawText = (drawRatio >= minRatio) ? "RELEASE" : "DRAW...";
+    int textWidth = MeasureText(drawText, 14);
+    DrawText(drawText, screenWidth / 2 - textWidth / 2, barY - 18, 14, WHITE);
 }
 
 // Helper to draw an item icon at a given center position
@@ -588,6 +658,30 @@ void DrawItemIcon(ItemType item, int cx, int cy) {
         DrawRectangle(cx - 8, cy - 8, 6, 4, stoneColor);
         DrawCircle(cx + 2, cy - 2, 4, tinColor);
         DrawCircle(cx - 4, cy + 2, 3, tinColor);
+    } else if (item == ITEM_BOW) {
+        Color woodColor = { 139, 90, 43, 255 };
+        Color stringColor = { 200, 200, 180, 255 };
+        // Curved bow shape
+        DrawRectangle(cx - 2, cy - 14, 4, 10, woodColor);  // Upper limb
+        DrawRectangle(cx - 4, cy - 6, 4, 4, woodColor);    // Upper curve
+        DrawRectangle(cx - 2, cy - 2, 4, 4, woodColor);    // Grip
+        DrawRectangle(cx - 4, cy + 2, 4, 4, woodColor);    // Lower curve
+        DrawRectangle(cx - 2, cy + 4, 4, 10, woodColor);   // Lower limb
+        // String
+        DrawLine(cx - 6, cy - 14, cx - 6, cy + 14, stringColor);
+    } else if (item == ITEM_ARROW) {
+        Color shaftColor = { 160, 140, 100, 255 };
+        Color tipColor = { 100, 100, 110, 255 };
+        Color fletchColor = { 200, 50, 50, 255 };
+        // Arrow shaft (vertical)
+        DrawRectangle(cx - 1, cy - 10, 2, 20, shaftColor);
+        // Arrowhead
+        DrawTriangle((Vector2){(float)cx, (float)(cy - 14)},
+                     (Vector2){(float)(cx - 4), (float)(cy - 10)},
+                     (Vector2){(float)(cx + 4), (float)(cy - 10)}, tipColor);
+        // Fletching (feathers)
+        DrawRectangle(cx - 4, cy + 6, 3, 6, fletchColor);
+        DrawRectangle(cx + 1, cy + 6, 3, 6, fletchColor);
     }
 }
 
