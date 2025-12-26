@@ -278,7 +278,7 @@ void PlaySoundEffect(SoundEffect sfx) {
 
 // Procedural ambient music generation
 static Sound ambientMusic = {};
-static float musicVolume = 0.4f;
+static float musicVolume = 1.0f;
 
 // Pentatonic scale notes (C minor pentatonic) for ambient feel
 static const int AMBIENT_SCALE[] = { 48, 51, 53, 55, 58, 60, 63, 65, 67, 70 };  // C3 to Bb4
