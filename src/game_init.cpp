@@ -902,6 +902,18 @@ void CleanupLeafBurstSystem(LeafBurstSystem* system) {
 // ============================================================================
 
 void InitBloodSplatterSystem(BloodSplatterSystem* system) {
+    // Load blood shader
+    system->bloodShader = LoadShader("shaders/blood.vs", "shaders/blood.fs");
+    system->viewPosLoc = GetShaderLocation(system->bloodShader, "viewPos");
+    system->stretchLoc = GetShaderLocation(system->bloodShader, "stretch");
+
+    // Create a simple quad mesh for blood droplets
+    system->bloodMesh = GenMeshPlane(1.0f, 1.0f, 1, 1);
+
+    // Setup material with shader
+    system->bloodMaterial = LoadMaterialDefault();
+    system->bloodMaterial.shader = system->bloodShader;
+
     for (int i = 0; i < MAX_BLOOD_SPLATTERS; i++) {
         system->splatters[i].active = false;
     }
@@ -958,13 +970,33 @@ void SpawnBloodSplatter(BloodSplatterSystem* system, Vector3 position, Vector3 h
         p->velocity.z = cosf(baseAngle + spreadAngle) * cosf(vertAngle) * speed;
         p->velocity.y = sinf(vertAngle) * speed + 2.0f;  // Slight upward bias
 
-        // Random particle size
-        p->size = 0.03f + (float)GetRandomValue(0, 40) / 1000.0f;
+        // Random particle size (small droplets)
+        p->size = 0.04f + (float)GetRandomValue(0, 30) / 1000.0f;
+
+        // Initial rotation based on velocity direction
+        p->rotation = atan2f(p->velocity.x, p->velocity.z) * RAD2DEG;
+
+        // Initial stretch based on speed
+        p->stretchFactor = speed / 5.0f;
     }
 }
 
-void UpdateAndDrawBloodSplatters(BloodSplatterSystem* system, const EntityModels* models, float deltaTime) {
+void UpdateAndDrawBloodSplatters(BloodSplatterSystem* system, Vector3 viewPos, float deltaTime) {
     if (!system->initialized) return;
+
+    // Check if any splatter is active
+    bool anyActive = false;
+    for (int b = 0; b < MAX_BLOOD_SPLATTERS; b++) {
+        if (system->splatters[b].active) {
+            anyActive = true;
+            break;
+        }
+    }
+    if (!anyActive) return;
+
+    // Set shader uniforms
+    float viewPosArr[3] = { viewPos.x, viewPos.y, viewPos.z };
+    SetShaderValue(system->bloodShader, system->viewPosLoc, viewPosArr, SHADER_UNIFORM_VEC3);
 
     // Blood colors (dark red to bright red)
     Color bloodColors[] = {
@@ -974,6 +1006,9 @@ void UpdateAndDrawBloodSplatters(BloodSplatterSystem* system, const EntityModels
     };
 
     const float BLOOD_GRAVITY = 12.0f;
+
+    // Disable backface culling for double-sided droplets
+    rlDisableBackfaceCulling();
 
     for (int b = 0; b < MAX_BLOOD_SPLATTERS; b++) {
         BloodSplatter* splatter = &system->splatters[b];
@@ -1007,10 +1042,57 @@ void UpdateAndDrawBloodSplatters(BloodSplatterSystem* system, const EntityModels
                 continue;
             }
 
-            // Draw particle as small cube
+            // Update rotation to face velocity direction
+            float horizSpeed = sqrtf(p->velocity.x * p->velocity.x + p->velocity.z * p->velocity.z);
+            if (horizSpeed > 0.1f) {
+                p->rotation = atan2f(p->velocity.x, p->velocity.z) * RAD2DEG;
+            }
+
+            // Update stretch based on current speed (subtle effect)
+            float totalSpeed = sqrtf(p->velocity.x * p->velocity.x +
+                                     p->velocity.y * p->velocity.y +
+                                     p->velocity.z * p->velocity.z);
+            p->stretchFactor = fminf(totalSpeed / 10.0f, 0.5f);
+
+            // Set stretch uniform
+            SetShaderValue(system->bloodShader, system->stretchLoc, &p->stretchFactor, SHADER_UNIFORM_FLOAT);
+
+            // Set color with alpha
             Color color = bloodColors[i % 3];
             color.a = (unsigned char)(255 * alpha);
-            DrawCube(p->position, p->size, p->size, p->size, color);
+            system->bloodMaterial.maps[MATERIAL_MAP_DIFFUSE].color = color;
+
+            // Simple billboard: rotate to face camera using yaw only (Y-axis rotation)
+            // This keeps droplets upright which looks natural for falling blood
+            float dx = viewPos.x - p->position.x;
+            float dz = viewPos.z - p->position.z;
+            float yaw = atan2f(dx, dz);
+
+            // Scale with stretch in Y direction (droplet elongation)
+            float scaleX = p->size;
+            float scaleY = p->size * (1.0f + p->stretchFactor * 0.5f);
+
+            // Build transform: scale, rotate to vertical, rotate to face camera, translate
+            Matrix matScale = MatrixScale(scaleX, scaleY, scaleX);
+            Matrix matRotateVertical = MatrixRotateX(-90.0f * DEG2RAD);  // Plane horizontal -> vertical
+            Matrix matRotateY = MatrixRotateY(yaw);
+            Matrix matTranslate = MatrixTranslate(p->position.x, p->position.y, p->position.z);
+
+            Matrix transform = MatrixMultiply(matScale, matRotateVertical);
+            transform = MatrixMultiply(transform, matRotateY);
+            transform = MatrixMultiply(transform, matTranslate);
+
+            // Draw the blood droplet
+            DrawMesh(system->bloodMesh, system->bloodMaterial, transform);
         }
     }
+
+    rlEnableBackfaceCulling();
+}
+
+void CleanupBloodSplatterSystem(BloodSplatterSystem* system) {
+    if (!system->initialized) return;
+    UnloadShader(system->bloodShader);
+    UnloadMesh(system->bloodMesh);
+    system->initialized = false;
 }

@@ -230,6 +230,8 @@ struct BloodParticle {
     Vector3 position;
     Vector3 velocity;
     float size;
+    float rotation;      // Y-axis rotation to face velocity direction
+    float stretchFactor; // How much to stretch based on speed
     bool active;
 };
 
@@ -241,6 +243,11 @@ struct BloodSplatter {
 
 struct BloodSplatterSystem {
     BloodSplatter splatters[MAX_BLOOD_SPLATTERS];
+    Shader bloodShader;
+    Mesh bloodMesh;
+    Material bloodMaterial;
+    int viewPosLoc;
+    int stretchLoc;
     bool initialized;
 };
 
@@ -251,6 +258,9 @@ void InitBloodSplatterSystem(BloodSplatterSystem* system);
 void SpawnBloodSplatter(BloodSplatterSystem* system, Vector3 position, Vector3 hitDirection);
 
 // Update and draw all active blood splatters
-void UpdateAndDrawBloodSplatters(BloodSplatterSystem* system, const EntityModels* models, float deltaTime);
+void UpdateAndDrawBloodSplatters(BloodSplatterSystem* system, Vector3 viewPos, float deltaTime);
+
+// Cleanup blood splatter system
+void CleanupBloodSplatterSystem(BloodSplatterSystem* system);
 
 #endif

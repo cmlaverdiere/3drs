@@ -1294,7 +1294,7 @@ int main(int argc, char* argv[]) {
             }
 
             // Blood splatter particles (combat hits)
-            UpdateAndDrawBloodSplatters(&bloodSystem, &resources.entityModels, GetFrameTime());
+            UpdateAndDrawBloodSplatters(&bloodSystem, camera.position, GetFrameTime());
         EndMode3D();
         EndTextureMode();
 
@@ -1446,6 +1446,7 @@ int main(int argc, char* argv[]) {
                 UnloadBackgroundMusic();
                 CleanupLeafSystem(&leafSystem);
                 CleanupLeafBurstSystem(&leafBurstSystem);
+                CleanupBloodSplatterSystem(&bloodSystem);
                 CleanupGameResources(&resources);
                 CloseWindow();
                 return 0;
@@ -1473,6 +1474,7 @@ int main(int argc, char* argv[]) {
     UnloadBackgroundMusic();
     CleanupLeafSystem(&leafSystem);
     CleanupLeafBurstSystem(&leafBurstSystem);
+    CleanupBloodSplatterSystem(&bloodSystem);
     CleanupGameResources(&resources);
     CloseWindow();
     return 0;
