@@ -563,11 +563,7 @@ void DrawEvergreenTree(const EntityModels* models, Vector3 pos, TreeType type, b
     // Snow accumulation at base
     DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.05f, pos.z}, 0.8f * scale, 0.8f * scale, 0.1f, pineSnow);
 
-    if (highlighted) {
-        Color outlineColor = { 255, 255, 0, 255 };
-        float outlineY = baseY + 1.5f * scale;
-        DrawCylinderWires((Vector3){pos.x, outlineY, pos.z}, 1.5f * scale, 0.0f, 3.0f * scale, 8, outlineColor);
-    }
+    (void)highlighted;  // Unused - wireframe removed
 }
 
 void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highlighted) {
@@ -633,12 +629,6 @@ void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highl
         DrawModelSphere(models, (Vector3){pos.x + 0.5f, pos.y + 4.5f, pos.z + 1.0f}, 1.3f, oakLeaves);
         DrawModelSphere(models, (Vector3){pos.x - 0.5f, pos.y + 4.5f, pos.z - 1.0f}, 1.3f, oakLeaves);
         DrawModelSphere(models, (Vector3){pos.x, pos.y + 6.0f, pos.z}, 1.2f, oakLeaves);
-
-        if (highlighted) {
-            Color outlineColor = { 255, 255, 0, 255 };
-            DrawCylinderWires((Vector3){pos.x, pos.y, pos.z}, 0.55f, 0.65f, 3.5f, 8, outlineColor);
-            DrawSphereWires((Vector3){pos.x, pos.y + 5.0f, pos.z}, 2.25f, 8, 8, outlineColor);
-        }
     } else {
         // Normal tree
         Color trunkColor = { 101, 67, 33, 255 };
@@ -651,13 +641,9 @@ void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highl
         DrawModelSphere(models, (Vector3){pos.x - 0.5f, pos.y + 3.0f, pos.z + 0.5f}, 1.0f, leavesDark);
         DrawModelSphere(models, (Vector3){pos.x + 0.5f, pos.y + 3.0f, pos.z - 0.5f}, 1.0f, leavesDark);
         DrawModelSphere(models, (Vector3){pos.x, pos.y + 4.2f, pos.z}, 0.8f, leavesColor);
-
-        if (highlighted) {
-            Color outlineColor = { 255, 255, 0, 255 };
-            DrawCylinderWires((Vector3){pos.x, pos.y, pos.z}, 0.35f, 0.45f, 2.5f, 8, outlineColor);
-            DrawSphereWires((Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.55f, 8, 8, outlineColor);
-        }
     }
+
+    (void)highlighted;  // Unused - wireframe removed
 }
 
 void DrawRock(const EntityModels* models, Vector3 pos, RockType type, bool highlighted) {
