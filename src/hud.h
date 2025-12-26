@@ -65,8 +65,10 @@ void DrawMinimap(Vector3 playerPos, float playerYaw,
 // Get minimap dimensions (for inventory positioning)
 int GetMinimapHeight();
 
-// Draw time selection menu and handle clicks
-// Returns: 0 = no change, 1-4 = preset selected (dawn/noon/dusk/midnight)
-int DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, int screenWidth, int screenHeight);
+// Draw time and season selection menu and handle clicks
+// timeResult: 0 = no change, 1-4 = preset selected (dawn/noon/dusk/midnight)
+// seasonResult: -1 = no change, 0-3 = season selected (spring/summer/autumn/winter)
+void DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, Season currentSeason,
+                        int screenWidth, int screenHeight, int* timeResult, int* seasonResult);
 
 #endif

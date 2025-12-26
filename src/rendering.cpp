@@ -572,16 +572,56 @@ void DrawEvergreenTree(const EntityModels* models, Vector3 pos, TreeType type, b
 
 void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highlighted) {
     // Winter mode - draw evergreen trees instead
-    if (g_winterMode) {
+    if (IsWinterMode()) {
         DrawEvergreenTree(models, pos, type, highlighted);
         return;
     }
 
+    // Determine leaf colors based on season
+    Color leavesColor, leavesDark;
+    Color oakLeaves, oakLeavesDark;
+
+    // Use position-based variation for autumn colors
+    float treeHash = fmodf(fabsf(pos.x * 12.9898f + pos.z * 78.233f), 1.0f);
+
+    if (g_currentSeason == SEASON_SPRING) {
+        // Spring - fresh bright green with some yellow-green
+        leavesColor = { 60, 180, 60, 255 };
+        leavesDark = { 45, 150, 45, 255 };
+        oakLeaves = { 50, 160, 50, 255 };
+        oakLeavesDark = { 35, 130, 35, 255 };
+    } else if (g_currentSeason == SEASON_AUTUMN) {
+        // Autumn - varied fall colors based on tree position
+        if (treeHash > 0.7f) {
+            // Red/crimson tree
+            leavesColor = { 180, 45, 30, 255 };
+            leavesDark = { 140, 30, 20, 255 };
+            oakLeaves = { 160, 40, 25, 255 };
+            oakLeavesDark = { 120, 25, 15, 255 };
+        } else if (treeHash > 0.4f) {
+            // Orange tree
+            leavesColor = { 210, 120, 40, 255 };
+            leavesDark = { 180, 90, 30, 255 };
+            oakLeaves = { 200, 110, 35, 255 };
+            oakLeavesDark = { 170, 80, 25, 255 };
+        } else {
+            // Golden/yellow tree
+            leavesColor = { 200, 170, 50, 255 };
+            leavesDark = { 170, 140, 40, 255 };
+            oakLeaves = { 190, 160, 45, 255 };
+            oakLeavesDark = { 160, 130, 35, 255 };
+        }
+    } else {
+        // Summer - deep vibrant green (default)
+        leavesColor = { 34, 139, 34, 255 };
+        leavesDark = { 20, 100, 20, 255 };
+        oakLeaves = { 25, 100, 25, 255 };
+        oakLeavesDark = { 15, 75, 15, 255 };
+    }
+
     if (type == TREE_OAK) {
-        // Oak tree - larger and darker green
+        // Oak tree - larger and darker
         Color oakTrunk = { 70, 45, 20, 255 };
-        Color oakLeaves = { 25, 100, 25, 255 };      // Darker green
-        Color oakLeavesDark = { 15, 75, 15, 255 };   // Even darker
 
         // Thicker trunk
         DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.5f, 0.6f, 3.5f, oakTrunk);
@@ -602,8 +642,6 @@ void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highl
     } else {
         // Normal tree
         Color trunkColor = { 101, 67, 33, 255 };
-        Color leavesColor = { 34, 139, 34, 255 };
-        Color leavesDark = { 20, 100, 20, 255 };
 
         // Trunk
         DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.3f, 0.4f, 2.5f, trunkColor);

@@ -71,10 +71,10 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     res.groundModel = LoadModelFromMesh(groundMesh);
     res.groundModel.materials[0].shader = res.grassShader;
 
-    // Pass winter mode to ground shader
-    int winterModeLoc = GetShaderLocation(res.grassShader, "winterMode");
-    int winterModeVal = g_winterMode ? 1 : 0;
-    SetShaderValue(res.grassShader, winterModeLoc, &winterModeVal, SHADER_UNIFORM_INT);
+    // Pass season to ground shader (0=Spring, 1=Summer, 2=Autumn, 3=Winter)
+    int seasonLoc = GetShaderLocation(res.grassShader, "season");
+    int seasonVal = (int)g_currentSeason;
+    SetShaderValue(res.grassShader, seasonLoc, &seasonVal, SHADER_UNIFORM_INT);
 
     // Pass sand zone data to ground shader
     int sandZoneCountLoc = GetShaderLocation(res.grassShader, "sandZoneCount");
@@ -430,10 +430,10 @@ void InitGrassSystem(GrassSystem* grass) {
     grass->bladeShader = LoadShader("shaders/grass_blade.vs", "shaders/grass_blade.fs");
     grass->timeLoc = GetShaderLocation(grass->bladeShader, "time");
 
-    // Pass winter mode to blade shader
-    int winterModeLoc = GetShaderLocation(grass->bladeShader, "winterMode");
-    int winterModeVal = g_winterMode ? 1 : 0;
-    SetShaderValue(grass->bladeShader, winterModeLoc, &winterModeVal, SHADER_UNIFORM_INT);
+    // Pass season to blade shader (0=Spring, 1=Summer, 2=Autumn, 3=Winter)
+    int seasonLoc = GetShaderLocation(grass->bladeShader, "season");
+    int seasonVal = (int)g_currentSeason;
+    SetShaderValue(grass->bladeShader, seasonLoc, &seasonVal, SHADER_UNIFORM_INT);
 
     // Generate combined mesh with all blades baked in (single draw call!)
     grass->bladeMesh = GenCombinedGrassMesh(0.12f, 0.22f, GRASS_BLADE_COUNT, GRASS_SPAWN_RADIUS);
@@ -563,5 +563,82 @@ void UpdateAndDrawSnow(SnowSystem* snow, Vector3 centerPos, float deltaTime) {
         Color snowColor = { 255, 255, 255, 200 };
         float size = 0.05f + (float)((i % 3)) * 0.02f;  // Vary size slightly
         DrawCube(p->position, size, size, size, snowColor);
+    }
+}
+
+// Falling leaves particle system implementation
+void InitLeafSystem(LeafSystem* leaves, Vector3 centerPos) {
+    for (int i = 0; i < LEAF_PARTICLE_COUNT; i++) {
+        // Random position within spawn radius around center
+        float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
+        float dist = (float)GetRandomValue(0, (int)(LEAF_SPAWN_RADIUS * 100)) / 100.0f;
+        leaves->particles[i].position.x = centerPos.x + cosf(angle) * dist;
+        leaves->particles[i].position.z = centerPos.z + sinf(angle) * dist;
+        leaves->particles[i].position.y = centerPos.y + (float)GetRandomValue(0, (int)(LEAF_HEIGHT * 100)) / 100.0f;
+
+        // Random fall speed (slower than snow, leaves flutter)
+        leaves->particles[i].fallSpeed = 0.8f + (float)GetRandomValue(0, 150) / 100.0f;
+        // Random horizontal drift speed
+        leaves->particles[i].driftSpeed = 1.0f + (float)GetRandomValue(0, 200) / 100.0f;
+        // Random rotation
+        leaves->particles[i].rotation = (float)GetRandomValue(0, 360);
+        leaves->particles[i].rotationSpeed = (float)GetRandomValue(-200, 200);
+        // Random color type
+        leaves->particles[i].colorType = GetRandomValue(0, 2);
+    }
+    leaves->initialized = true;
+}
+
+void UpdateAndDrawLeaves(LeafSystem* leaves, Vector3 centerPos, float deltaTime) {
+    if (!leaves->initialized) return;
+
+    float time = (float)GetTime();
+
+    // Leaf colors
+    Color leafColors[] = {
+        { 180, 45, 30, 220 },   // Red
+        { 210, 120, 40, 220 },  // Orange
+        { 200, 170, 50, 220 }   // Yellow/gold
+    };
+
+    for (int i = 0; i < LEAF_PARTICLE_COUNT; i++) {
+        LeafParticle* p = &leaves->particles[i];
+
+        // Fall down with slight oscillation
+        p->position.y -= p->fallSpeed * deltaTime;
+
+        // Flutter side-to-side (more than snow)
+        float flutter = sinf(time * 3.0f + p->rotation * 0.01f) * p->driftSpeed * deltaTime;
+        p->position.x += flutter;
+        p->position.z += cosf(time * 2.5f + p->rotation * 0.02f) * p->driftSpeed * 0.7f * deltaTime;
+
+        // Rotate the leaf
+        p->rotation += p->rotationSpeed * deltaTime;
+
+        // Respawn at top if below ground or too far from player
+        float dx = p->position.x - centerPos.x;
+        float dz = p->position.z - centerPos.z;
+        float distSq = dx * dx + dz * dz;
+
+        if (p->position.y < centerPos.y - 5.0f || distSq > LEAF_SPAWN_RADIUS * LEAF_SPAWN_RADIUS * 1.5f) {
+            // Respawn at random position above player
+            float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
+            float dist = (float)GetRandomValue(0, (int)(LEAF_SPAWN_RADIUS * 100)) / 100.0f;
+            p->position.x = centerPos.x + cosf(angle) * dist;
+            p->position.z = centerPos.z + sinf(angle) * dist;
+            p->position.y = centerPos.y + LEAF_HEIGHT;
+            p->colorType = GetRandomValue(0, 2);
+        }
+
+        // Draw leaf as a small rotated rectangle
+        Color leafColor = leafColors[p->colorType];
+
+        // Use DrawCube with slight rotation for a leaf-like appearance
+        rlPushMatrix();
+        rlTranslatef(p->position.x, p->position.y, p->position.z);
+        rlRotatef(p->rotation, 0, 1, 0);
+        rlRotatef(p->rotation * 0.5f, 1, 0, 0);
+        DrawCube((Vector3){0, 0, 0}, 0.12f, 0.02f, 0.08f, leafColor);
+        rlPopMatrix();
     }
 }

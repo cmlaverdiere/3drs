@@ -1243,26 +1243,36 @@ void DrawMinimap(Vector3 playerPos, float playerYaw,
     DrawText("S", centerX - 4, mapY + MINIMAP_SIZE - 14, 12, (Color){180, 160, 140, 180});
 }
 
-int DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, int screenWidth, int screenHeight) {
-    if (!menu->active) return 0;
+void DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, Season currentSeason,
+                        int screenWidth, int screenHeight, int* timeResult, int* seasonResult) {
+    *timeResult = 0;
+    *seasonResult = -1;
+    if (!menu->active) return;
 
-    // Menu dimensions
-    const int MENU_WIDTH = 200;
-    const int MENU_HEIGHT = 210;
+    // Menu dimensions - wider for two columns
+    const int COLUMN_WIDTH = 140;
+    const int MENU_WIDTH = COLUMN_WIDTH * 2 + 30;  // Two columns + gap
+    const int MENU_HEIGHT = 240;
     const int MENU_X = (screenWidth - MENU_WIDTH) / 2;
     const int MENU_Y = (screenHeight - MENU_HEIGHT) / 2;
     const int PADDING = 12;
     const int BUTTON_HEIGHT = 28;
     const int BUTTON_SPACING = 6;
+    const int COLUMN_GAP = 10;
 
     // Background with border
     DrawRectangle(MENU_X - 3, MENU_Y - 3, MENU_WIDTH + 6, MENU_HEIGHT + 6, (Color){60, 50, 40, 255});
     DrawRectangle(MENU_X, MENU_Y, MENU_WIDTH, MENU_HEIGHT, (Color){40, 35, 30, 240});
 
-    // Title
-    const char* title = "Set Time";
-    int titleWidth = MeasureText(title, 20);
-    DrawText(title, MENU_X + (MENU_WIDTH - titleWidth) / 2, MENU_Y + PADDING, 20, (Color){220, 200, 160, 255});
+    Vector2 mouse = GetMousePosition();
+
+    // ========== LEFT COLUMN: TIME ==========
+    int leftColX = MENU_X + PADDING;
+
+    // Time title
+    const char* timeTitle = "Time";
+    int timeTitleWidth = MeasureText(timeTitle, 18);
+    DrawText(timeTitle, leftColX + (COLUMN_WIDTH - timeTitleWidth) / 2, MENU_Y + PADDING, 18, (Color){220, 200, 160, 255});
 
     // Current time display
     const char* timePhase;
@@ -1271,54 +1281,109 @@ int DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, int screenWidth,
     else if (currentTime < 0.8f) timePhase = "Dusk";
     else timePhase = "Night";
 
-    char timeStr[32];
-    snprintf(timeStr, sizeof(timeStr), "Current: %s", timePhase);
-    int timeWidth = MeasureText(timeStr, 14);
-    DrawText(timeStr, MENU_X + (MENU_WIDTH - timeWidth) / 2, MENU_Y + PADDING + 24, 14, (Color){160, 150, 130, 255});
+    int phaseWidth = MeasureText(timePhase, 12);
+    DrawText(timePhase, leftColX + (COLUMN_WIDTH - phaseWidth) / 2, MENU_Y + PADDING + 22, 12, (Color){160, 150, 130, 255});
 
-    // Preset buttons
+    // Time preset buttons
     struct TimeButton {
         const char* label;
-        float time;
         Color color;
     };
 
-    TimeButton buttons[] = {
-        {"Dawn", TIME_PRESET_DAWN, (Color){255, 180, 120, 255}},
-        {"Noon", TIME_PRESET_NOON, (Color){255, 255, 180, 255}},
-        {"Dusk", TIME_PRESET_DUSK, (Color){255, 140, 100, 255}},
-        {"Midnight", TIME_PRESET_MIDNIGHT, (Color){100, 120, 180, 255}}
+    TimeButton timeButtons[] = {
+        {"Dawn", (Color){255, 180, 120, 255}},
+        {"Noon", (Color){255, 255, 180, 255}},
+        {"Dusk", (Color){255, 140, 100, 255}},
+        {"Midnight", (Color){100, 120, 180, 255}}
     };
 
-    int buttonY = MENU_Y + 52;
-    Vector2 mouse = GetMousePosition();
-    int result = 0;
-
+    int buttonY = MENU_Y + 48;
     for (int i = 0; i < 4; i++) {
         Rectangle btnRect = {
-            (float)(MENU_X + PADDING),
+            (float)leftColX,
             (float)buttonY,
-            (float)(MENU_WIDTH - PADDING * 2),
+            (float)COLUMN_WIDTH,
             (float)BUTTON_HEIGHT
         };
 
         bool hovered = CheckCollisionPointRec(mouse, btnRect);
         bool clicked = hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 
-        // Button background
         Color bgColor = hovered ? (Color){80, 70, 60, 255} : (Color){60, 55, 50, 255};
         DrawRectangleRec(btnRect, bgColor);
         DrawRectangleLinesEx(btnRect, 1, (Color){100, 90, 80, 255});
 
-        // Button text
-        int textWidth = MeasureText(buttons[i].label, 18);
-        DrawText(buttons[i].label,
+        int textWidth = MeasureText(timeButtons[i].label, 16);
+        DrawText(timeButtons[i].label,
                  (int)(btnRect.x + (btnRect.width - textWidth) / 2),
-                 (int)(btnRect.y + (btnRect.height - 18) / 2),
-                 18, buttons[i].color);
+                 (int)(btnRect.y + (btnRect.height - 16) / 2),
+                 16, timeButtons[i].color);
 
         if (clicked) {
-            result = i + 1;  // 1=Dawn, 2=Noon, 3=Dusk, 4=Midnight
+            *timeResult = i + 1;
+        }
+
+        buttonY += BUTTON_HEIGHT + BUTTON_SPACING;
+    }
+
+    // ========== RIGHT COLUMN: SEASON ==========
+    int rightColX = MENU_X + PADDING + COLUMN_WIDTH + COLUMN_GAP;
+
+    // Season title
+    const char* seasonTitle = "Season";
+    int seasonTitleWidth = MeasureText(seasonTitle, 18);
+    DrawText(seasonTitle, rightColX + (COLUMN_WIDTH - seasonTitleWidth) / 2, MENU_Y + PADDING, 18, (Color){220, 200, 160, 255});
+
+    // Current season display
+    const char* seasonNames[] = {"Spring", "Summer", "Autumn", "Winter"};
+    int seasonNameWidth = MeasureText(seasonNames[currentSeason], 12);
+    DrawText(seasonNames[currentSeason], rightColX + (COLUMN_WIDTH - seasonNameWidth) / 2, MENU_Y + PADDING + 22, 12, (Color){160, 150, 130, 255});
+
+    // Season buttons
+    struct SeasonButton {
+        const char* label;
+        Color color;
+    };
+
+    SeasonButton seasonButtons[] = {
+        {"Spring", (Color){150, 220, 150, 255}},   // Green
+        {"Summer", (Color){255, 220, 100, 255}},   // Yellow
+        {"Autumn", (Color){220, 140, 80, 255}},    // Orange
+        {"Winter", (Color){180, 200, 255, 255}}    // Light blue
+    };
+
+    buttonY = MENU_Y + 48;
+    for (int i = 0; i < 4; i++) {
+        Rectangle btnRect = {
+            (float)rightColX,
+            (float)buttonY,
+            (float)COLUMN_WIDTH,
+            (float)BUTTON_HEIGHT
+        };
+
+        bool hovered = CheckCollisionPointRec(mouse, btnRect);
+        bool clicked = hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+        bool isCurrentSeason = (i == (int)currentSeason);
+
+        Color bgColor;
+        if (isCurrentSeason) {
+            bgColor = (Color){70, 80, 70, 255};  // Highlight current season
+        } else if (hovered) {
+            bgColor = (Color){80, 70, 60, 255};
+        } else {
+            bgColor = (Color){60, 55, 50, 255};
+        }
+        DrawRectangleRec(btnRect, bgColor);
+        DrawRectangleLinesEx(btnRect, 1, isCurrentSeason ? (Color){120, 140, 120, 255} : (Color){100, 90, 80, 255});
+
+        int textWidth = MeasureText(seasonButtons[i].label, 16);
+        DrawText(seasonButtons[i].label,
+                 (int)(btnRect.x + (btnRect.width - textWidth) / 2),
+                 (int)(btnRect.y + (btnRect.height - 16) / 2),
+                 16, seasonButtons[i].color);
+
+        if (clicked && !isCurrentSeason) {
+            *seasonResult = i;
         }
 
         buttonY += BUTTON_HEIGHT + BUTTON_SPACING;
@@ -1328,6 +1393,4 @@ int DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, int screenWidth,
     const char* hint = "[T] to close";
     int hintWidth = MeasureText(hint, 12);
     DrawText(hint, MENU_X + (MENU_WIDTH - hintWidth) / 2, MENU_Y + MENU_HEIGHT - 18, 12, (Color){120, 110, 100, 255});
-
-    return result;
 }

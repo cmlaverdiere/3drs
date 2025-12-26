@@ -526,8 +526,20 @@ const float DAMAGE_INDICATOR_DURATION = 1.5f;
 const float XP_POPUP_DURATION = 2.0f;
 const float LEVEL_UP_DURATION = 5.0f;
 
-// Global winter mode flag (set via --winter command line flag)
-extern bool g_winterMode;
+// Season enum
+enum Season {
+    SEASON_SPRING = 0,
+    SEASON_SUMMER,
+    SEASON_AUTUMN,
+    SEASON_WINTER,
+    SEASON_COUNT
+};
+
+// Global current season (can be changed in-game via T menu)
+extern Season g_currentSeason;
+
+// Helper to check if winter mode is active
+inline bool IsWinterMode() { return g_currentSeason == SEASON_WINTER; }
 
 // Time selection menu state
 struct TimeSelectMenu {

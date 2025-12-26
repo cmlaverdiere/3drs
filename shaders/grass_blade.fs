@@ -11,7 +11,7 @@ uniform vec3 ambientColor;
 uniform vec3 fogColor;
 uniform float fogDensity;
 uniform vec3 viewPos;
-uniform int winterMode;
+uniform int season;  // 0=Spring, 1=Summer, 2=Autumn, 3=Winter
 
 out vec4 finalColor;
 
@@ -20,29 +20,51 @@ void main() {
     vec3 baseColor, tipColor;
     float variation = fract(sin(dot(fragWorldPos.xz, vec2(12.9898, 78.233))) * 43758.5453);
 
-    if (winterMode == 1) {
-        // Frost-covered grass blades with more variation
-        // Some blades more blue (frozen), some more white (snow-covered)
-        vec3 frozenBase = vec3(0.70, 0.78, 0.88);   // Icy blue at base
-        vec3 snowyTip = vec3(0.92, 0.94, 0.98);     // Snow white at tip
+    if (season == 3) {
+        // === WINTER - Frost-covered grass blades ===
+        vec3 frozenBase = vec3(0.70, 0.78, 0.88);
+        vec3 snowyTip = vec3(0.92, 0.94, 0.98);
 
-        // Vary between frozen and snowy based on position
         float frostAmount = fract(sin(dot(fragWorldPos.xz, vec2(43.12, 17.89))) * 12345.67);
 
         if (frostAmount > 0.7) {
-            // More frozen/icy blade
             baseColor = vec3(0.65, 0.75, 0.88);
             tipColor = vec3(0.80, 0.88, 0.95);
         } else if (frostAmount > 0.3) {
-            // Normal snow-covered
             baseColor = frozenBase;
             tipColor = snowyTip;
         } else {
-            // Heavily snow-laden (whiter)
             baseColor = vec3(0.82, 0.85, 0.90);
             tipColor = vec3(0.96, 0.97, 1.0);
         }
+    } else if (season == 0) {
+        // === SPRING - Fresh bright green with yellow tints ===
+        baseColor = vec3(0.12, 0.45, 0.08);
+        tipColor = vec3(0.40, 0.72, 0.20);
+        // Add some yellow flower hints
+        if (variation > 0.92) {
+            tipColor = vec3(0.85, 0.80, 0.25);  // Yellow flower
+        } else if (variation > 0.88) {
+            tipColor = vec3(0.90, 0.70, 0.80);  // Pink flower
+        }
+    } else if (season == 2) {
+        // === AUTUMN - Golden/orange/brown dying grass ===
+        float autumnVariation = fract(sin(dot(fragWorldPos.xz, vec2(23.45, 67.89))) * 98765.43);
+        if (autumnVariation > 0.7) {
+            // Orange/red blade
+            baseColor = vec3(0.45, 0.25, 0.08);
+            tipColor = vec3(0.75, 0.40, 0.12);
+        } else if (autumnVariation > 0.4) {
+            // Golden/yellow blade
+            baseColor = vec3(0.40, 0.32, 0.10);
+            tipColor = vec3(0.70, 0.55, 0.18);
+        } else {
+            // Brown/dying blade
+            baseColor = vec3(0.30, 0.22, 0.10);
+            tipColor = vec3(0.50, 0.38, 0.15);
+        }
     } else {
+        // === SUMMER - Deep vibrant green (default) ===
         baseColor = vec3(0.08, 0.35, 0.06);
         tipColor = vec3(0.25, 0.65, 0.12);
     }

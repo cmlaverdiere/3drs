@@ -130,4 +130,29 @@ void InitSnowSystem(SnowSystem* snow, Vector3 centerPos);
 // Update and draw snow particles
 void UpdateAndDrawSnow(SnowSystem* snow, Vector3 centerPos, float deltaTime);
 
+// Falling leaves particle system (for autumn mode)
+static const int LEAF_PARTICLE_COUNT = 800;
+static const float LEAF_SPAWN_RADIUS = 50.0f;
+static const float LEAF_HEIGHT = 25.0f;
+
+struct LeafParticle {
+    Vector3 position;
+    float fallSpeed;
+    float driftSpeed;
+    float rotation;
+    float rotationSpeed;
+    int colorType;  // 0=red, 1=orange, 2=yellow
+};
+
+struct LeafSystem {
+    LeafParticle particles[LEAF_PARTICLE_COUNT];
+    bool initialized;
+};
+
+// Initialize leaf system
+void InitLeafSystem(LeafSystem* leaves, Vector3 centerPos);
+
+// Update and draw falling leaves
+void UpdateAndDrawLeaves(LeafSystem* leaves, Vector3 centerPos, float deltaTime);
+
 #endif

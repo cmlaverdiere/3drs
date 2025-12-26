@@ -13,8 +13,8 @@ uniform vec4 colDiffuse;
 uniform int sandZoneCount;
 uniform vec4 sandZones[16];
 
-// Winter mode
-uniform int winterMode;
+// Season: 0=Spring, 1=Summer, 2=Autumn, 3=Winter
+uniform int season;
 
 out vec4 finalColor;
 
@@ -42,26 +42,22 @@ void main() {
 
     float combined = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
 
-    // Grass/Snow color palette (switches based on winter mode)
+    // Grass/Snow color palette (switches based on season)
     vec3 darkGrass, midGrass, lightGrass;
     vec3 groundColor;
 
-    if (winterMode == 1) {
-        // === REALISTIC SNOW ===
-        // Snow has blue-ish shadows and warm sunlit areas
-        vec3 snowShadow = vec3(0.65, 0.72, 0.82);    // Cool blue shadows
-        vec3 snowMid = vec3(0.85, 0.87, 0.90);       // Neutral mid-tone
-        vec3 snowBright = vec3(0.95, 0.94, 0.92);    // Slightly warm highlights
+    if (season == 3) {
+        // === WINTER - SNOW ===
+        vec3 snowShadow = vec3(0.65, 0.72, 0.82);
+        vec3 snowMid = vec3(0.85, 0.87, 0.90);
+        vec3 snowBright = vec3(0.95, 0.94, 0.92);
 
-        // Extra noise for snow drifts and texture
-        float drift = fbm(worldXZ * 0.15, 3);        // Large scale drifts
-        float detail = noise(worldXZ * 4.0);          // Medium detail
-        float fine = noise(worldXZ * 20.0);           // Fine grain texture
+        float drift = fbm(worldXZ * 0.15, 3);
+        float detail = noise(worldXZ * 4.0);
+        float fine = noise(worldXZ * 20.0);
 
-        // Combine for varied snow coverage
         float snowVariation = drift * 0.5 + combined * 0.3 + detail * 0.15 + fine * 0.05;
 
-        // Create snow color with more contrast
         if (snowVariation < 0.35) {
             groundColor = mix(snowShadow, snowMid, snowVariation / 0.35);
         } else if (snowVariation < 0.65) {
@@ -70,34 +66,43 @@ void main() {
             groundColor = snowBright;
         }
 
-        // Add subtle color variation - some areas slightly bluer, some warmer
         groundColor.r += (detail - 0.5) * 0.06;
         groundColor.b += (fine - 0.5) * 0.08;
 
-        // Sparkle effect - bright spots where snow crystals catch light
         float sparkle = noise(worldXZ * 50.0);
         if (sparkle > 0.92) {
             groundColor = mix(groundColor, vec3(1.0), (sparkle - 0.92) * 8.0);
         }
 
-        // Exposed ground patches in some areas (dark spots showing through)
         float exposure = noise(worldXZ * 1.5 + 50.0);
         if (exposure < 0.08) {
             vec3 dirtColor = vec3(0.3, 0.25, 0.2);
             groundColor = mix(groundColor, dirtColor, (0.08 - exposure) * 5.0);
         }
 
-        // Handle sand zones in winter (frozen/snowy sand)
         float sandFactor = getSandFactor(worldXZ);
         if (sandFactor > 0.0) {
             vec3 frostySand = vec3(0.78, 0.75, 0.70);
             groundColor = mix(groundColor, frostySand, sandFactor * 0.6);
         }
     } else {
-        // Normal grass colors
-        darkGrass = vec3(0.1, 0.35, 0.1);
-        midGrass = vec3(0.2, 0.5, 0.15);
-        lightGrass = vec3(0.3, 0.6, 0.2);
+        // === SPRING, SUMMER, AUTUMN ===
+        if (season == 0) {
+            // Spring - fresh light green with yellow hints
+            darkGrass = vec3(0.15, 0.42, 0.12);
+            midGrass = vec3(0.30, 0.58, 0.18);
+            lightGrass = vec3(0.45, 0.70, 0.25);
+        } else if (season == 2) {
+            // Autumn - golden/brown tones
+            darkGrass = vec3(0.35, 0.28, 0.10);
+            midGrass = vec3(0.50, 0.40, 0.15);
+            lightGrass = vec3(0.65, 0.50, 0.20);
+        } else {
+            // Summer - deep vibrant green (default)
+            darkGrass = vec3(0.1, 0.35, 0.1);
+            midGrass = vec3(0.2, 0.5, 0.15);
+            lightGrass = vec3(0.3, 0.6, 0.2);
+        }
 
         // Sand color palette
         vec3 darkSand = vec3(0.6, 0.5, 0.3);

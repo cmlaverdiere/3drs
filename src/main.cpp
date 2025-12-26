@@ -31,8 +31,8 @@ bool g_heightmapInitialized = false;
 // Global spatial hash for O(1) proximity queries
 WorldSpatialData g_spatial;
 
-// Global winter mode flag
-bool g_winterMode = false;
+// Global current season
+Season g_currentSeason = SEASON_SUMMER;
 
 int main(int argc, char* argv[]) {
     // Check for command-line flags
@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
         } else if (strcmp(argv[i], "--screenshot") == 0) {
             screenshotMode = true;
         } else if (strcmp(argv[i], "--winter") == 0) {
-            g_winterMode = true;
+            g_currentSeason = SEASON_WINTER;
         }
     }
 
@@ -225,8 +225,14 @@ int main(int argc, char* argv[]) {
 
     // Snow system (only initialized in winter mode)
     SnowSystem snowSystem = {};
-    if (g_winterMode) {
+    if (IsWinterMode()) {
         InitSnowSystem(&snowSystem, camera.position);
+    }
+
+    // Leaf system (only initialized in autumn mode)
+    LeafSystem leafSystem = {};
+    if (g_currentSeason == SEASON_AUTUMN) {
+        InitLeafSystem(&leafSystem, camera.position);
     }
 
     // Quest dialogue state
@@ -1060,8 +1066,13 @@ int main(int argc, char* argv[]) {
             }
 
             // Snow particles (winter mode only)
-            if (g_winterMode) {
+            if (IsWinterMode()) {
                 UpdateAndDrawSnow(&snowSystem, camera.position, GetFrameTime());
+            }
+
+            // Falling leaves (autumn mode only)
+            if (g_currentSeason == SEASON_AUTUMN) {
+                UpdateAndDrawLeaves(&leafSystem, camera.position, GetFrameTime());
             }
         EndMode3D();
         EndTextureMode();
@@ -1115,11 +1126,31 @@ int main(int argc, char* argv[]) {
         // Draw bank UI (when bank is open)
         DrawBankUI(&menuSystem, &playerState, screenWidth, screenHeight);
 
-        // Draw time selection menu and handle clicks
-        int timePreset = DrawTimeSelectMenu(&timeSelectMenu, lighting.timeOfDay, screenWidth, screenHeight);
+        // Draw time/season selection menu and handle clicks
+        int timePreset = 0, seasonPreset = -1;
+        DrawTimeSelectMenu(&timeSelectMenu, lighting.timeOfDay, g_currentSeason,
+                          screenWidth, screenHeight, &timePreset, &seasonPreset);
         if (timePreset > 0) {
             float presets[] = { TIME_PRESET_DAWN, TIME_PRESET_NOON, TIME_PRESET_DUSK, TIME_PRESET_MIDNIGHT };
             lighting.timeOfDay = presets[timePreset - 1];
+        }
+        if (seasonPreset >= 0) {
+            g_currentSeason = (Season)seasonPreset;
+            // Update shader uniforms for season change
+            int seasonVal = (int)g_currentSeason;
+            int grassSeasonLoc = GetShaderLocation(resources.grassShader, "season");
+            SetShaderValue(resources.grassShader, grassSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
+            int bladeSeasonLoc = GetShaderLocation(resources.grass.bladeShader, "season");
+            SetShaderValue(resources.grass.bladeShader, bladeSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
+            // Initialize particle systems for new season
+            if (g_currentSeason == SEASON_WINTER && !snowSystem.initialized) {
+                InitSnowSystem(&snowSystem, camera.position);
+            }
+            if (g_currentSeason == SEASON_AUTUMN && !leafSystem.initialized) {
+                InitLeafSystem(&leafSystem, camera.position);
+            }
+        }
+        if (timePreset > 0 || seasonPreset >= 0) {
             timeSelectMenu.active = false;
             DisableCursor();
         }
