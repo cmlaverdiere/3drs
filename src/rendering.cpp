@@ -488,12 +488,16 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
         }
         case ITEM_BRONZE_PICKAXE: {
             Color bronzeHead = { 205, 127, 50, 255 };
+            Color bronzeTip = { 180, 110, 45, 255 };
             Color woodHandle = { 101, 67, 33, 255 };
-            // Handle
-            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.04f, pos.z}, 0.5f, 0.06f, 0.06f, woodHandle);
-            // Pickaxe head (two sides)
-            DrawModelCube(models, (Vector3){pos.x + 0.2f, pos.y + 0.1f, pos.z}, 0.2f, 0.06f, 0.15f, bronzeHead);
-            DrawModelCube(models, (Vector3){pos.x + 0.3f, pos.y + 0.1f, pos.z}, 0.08f, 0.04f, 0.08f, bronzeHead);
+            // Diagonal handle (from ground up to head)
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.15f, pos.z}, 0.08f, 0.35f, 0.08f, woodHandle);
+            // Pickaxe head - horizontal bar
+            DrawModelCube(models, (Vector3){pos.x, pos.y + 0.35f, pos.z}, 0.45f, 0.08f, 0.06f, bronzeHead);
+            // Left point (tapered)
+            DrawModelCube(models, (Vector3){pos.x - 0.25f, pos.y + 0.33f, pos.z}, 0.1f, 0.06f, 0.05f, bronzeTip);
+            // Right point (tapered)
+            DrawModelCube(models, (Vector3){pos.x + 0.25f, pos.y + 0.33f, pos.z}, 0.1f, 0.06f, 0.05f, bronzeTip);
             break;
         }
         case ITEM_COPPER_ORE: {
@@ -645,10 +649,7 @@ void DrawRock(const EntityModels* models, Vector3 pos, RockType type, bool highl
     DrawModelSphere(models, (Vector3){pos.x + 0.1f, pos.y + 0.9f, pos.z + 0.2f}, 0.12f, oreColor);
     DrawModelCube(models, (Vector3){pos.x - 0.35f, pos.y + 0.7f, pos.z + 0.1f}, 0.15f, 0.2f, 0.1f, oreColor);
 
-    if (highlighted) {
-        Color outlineColor = { 255, 255, 0, 255 };
-        DrawSphereWires((Vector3){pos.x, pos.y + 0.7f, pos.z}, 0.9f, 8, 8, outlineColor);
-    }
+    (void)highlighted;  // Unused - no wireframe highlight for rocks
 }
 
 void DrawHumanoid(const EntityModels* models, Vector3 pos, float facingAngle,

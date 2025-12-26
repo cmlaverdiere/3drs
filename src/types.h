@@ -470,10 +470,11 @@ inline bool IsItemStackable(ItemType item) {
     return item == ITEM_GIL;
 }
 
-// Check if an item is a weapon
+// Check if an item is a weapon (or tool that can be equipped)
 inline bool IsWeapon(ItemType item) {
     return item == ITEM_BRONZE_SHORTSWORD || item == ITEM_BRONZE_AXE || item == ITEM_IRON_2H_SWORD ||
-           item == ITEM_STEEL_SCIMITAR || item == ITEM_MITHRIL_SCIMITAR || item == ITEM_ADAMANT_SCIMITAR;
+           item == ITEM_STEEL_SCIMITAR || item == ITEM_MITHRIL_SCIMITAR || item == ITEM_ADAMANT_SCIMITAR ||
+           item == ITEM_BRONZE_PICKAXE;
 }
 
 // Get weapon attack cooldown

@@ -425,6 +425,31 @@ void DrawWeaponView(ItemType weapon, float swingTimer, int screenWidth, int scre
         Vector2 pommelPos = { wpnX + (45.0f * sinA), wpnY + (45.0f * cosA) };
         DrawCircleV(pommelPos, 6.0f, darkColor);
         DrawCircleV(pommelPos, 3.0f, goldAccent);
+    } else if (weapon == ITEM_BRONZE_PICKAXE) {
+        Color bronzeHead = { 205, 127, 50, 255 };
+        Color bronzeDark = { 160, 100, 40, 255 };
+        float handleLen = 110.0f, handleWidth = 8.0f;
+
+        // Wooden handle
+        Vector2 handleEnd = { wpnX + (-handleLen * sinA), wpnY + (-handleLen * cosA) };
+        Vector2 handleBase = { wpnX + (30.0f * sinA), wpnY + (30.0f * cosA) };
+        DrawLineEx(handleBase, handleEnd, handleWidth, WOOD_HANDLE);
+
+        // Pickaxe head center (at end of handle)
+        Vector2 headCenter = { wpnX + (-handleLen * 0.9f * sinA), wpnY + (-handleLen * 0.9f * cosA) };
+
+        // Head bar (horizontal relative to swing angle)
+        Vector2 headLeft = { headCenter.x + (-45.0f * cosA), headCenter.y + (45.0f * sinA) };
+        Vector2 headRight = { headCenter.x + (45.0f * cosA), headCenter.y + (-45.0f * sinA) };
+        DrawLineEx(headLeft, headRight, 12.0f, bronzeHead);
+
+        // Left point (tapered)
+        Vector2 leftTip = { headLeft.x + (-15.0f * cosA), headLeft.y + (15.0f * sinA) };
+        DrawLineEx(headLeft, leftTip, 8.0f, bronzeDark);
+
+        // Right point (tapered)
+        Vector2 rightTip = { headRight.x + (15.0f * cosA), headRight.y + (-15.0f * sinA) };
+        DrawLineEx(headRight, rightTip, 8.0f, bronzeDark);
     }
 }
 
@@ -532,14 +557,21 @@ static void DrawItemIcon(ItemType item, int cx, int cy) {
         DrawRectangle(cx - 6, cy + 2, 12, 3, adamantHandle);
     } else if (item == ITEM_BRONZE_PICKAXE) {
         Color bronzeHead = { 205, 127, 50, 255 };
+        Color bronzeDark = { 160, 100, 40, 255 };
         Color woodHandle = { 101, 67, 33, 255 };
-        // Handle (diagonal)
-        DrawRectangle(cx - 12, cy - 2, 20, 4, woodHandle);
-        // Pickaxe head
-        DrawRectangle(cx + 4, cy - 10, 4, 8, bronzeHead);
-        DrawRectangle(cx + 4, cy + 2, 4, 8, bronzeHead);
-        DrawRectangle(cx + 8, cy - 8, 6, 4, bronzeHead);
-        DrawRectangle(cx + 8, cy + 4, 6, 4, bronzeHead);
+        // Handle (diagonal from bottom-left to top-right)
+        DrawRectangle(cx - 10, cy + 6, 5, 8, woodHandle);
+        DrawRectangle(cx - 7, cy + 2, 5, 8, woodHandle);
+        DrawRectangle(cx - 4, cy - 2, 5, 8, woodHandle);
+        DrawRectangle(cx - 1, cy - 6, 5, 8, woodHandle);
+        // Pickaxe head - horizontal bar with pointed ends
+        DrawRectangle(cx - 12, cy - 8, 26, 5, bronzeHead);
+        // Left point (tapers down)
+        DrawRectangle(cx - 14, cy - 7, 3, 3, bronzeHead);
+        DrawRectangle(cx - 16, cy - 6, 2, 2, bronzeDark);
+        // Right point (tapers down)
+        DrawRectangle(cx + 13, cy - 7, 3, 3, bronzeHead);
+        DrawRectangle(cx + 16, cy - 6, 2, 2, bronzeDark);
     } else if (item == ITEM_COPPER_ORE) {
         Color copperColor = { 180, 100, 50, 255 };
         Color stoneColor = { 100, 90, 80, 255 };

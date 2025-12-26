@@ -31,3 +31,7 @@ musket / glock (fuck up trolls)
 
 - Add some lamps / campfires around the city. for now, campfires are cosmetic
   only.
+
+## Seasons
+
+Add seasons picker next to time picker
