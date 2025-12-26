@@ -10,7 +10,7 @@ const int SHADOW_MAP_RESOLUTION = 2048;
 const float SHADOW_ORTHO_SIZE = 200.0f;  // Coverage area for orthographic projection
 
 // Day/night cycle configuration
-const float DAY_CYCLE_DURATION = 600.0f;  // 10 minutes for full cycle
+const float DAY_CYCLE_DURATION = 1200.0f;  // 20 minutes for full cycle
 
 // Point lights (lamps)
 const int MAX_POINT_LIGHTS = 16;  // Shader limit

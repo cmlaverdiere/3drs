@@ -132,6 +132,7 @@ void SaveGame(const PlayerState& state, const Quest* quests, int questCount) {
     fprintf(f, "  \"currentHP\": %d,\n", state.currentHP);
     fprintf(f, "  \"maxHP\": %d,\n", state.maxHP);
     fprintf(f, "  \"timeOfDay\": %.6f,\n", state.timeOfDay);
+    fprintf(f, "  \"season\": %d,\n", state.season);
     fprintf(f, "  \"questPoints\": %d,\n", state.questPoints);
 
     // Save quest progress by ID (not by index) for future-proofing
@@ -304,6 +305,7 @@ bool LoadGame(PlayerState& state, const Quest* quests, int questCount) {
     state.currentHP = ParseIntAfter(json, "\"currentHP\"", 10);
     state.maxHP = ParseIntAfter(json, "\"maxHP\"", 10);
     state.timeOfDay = ParseFloatAfter(json, "\"timeOfDay\"", 0.5f);  // Default to midday
+    state.season = ParseIntAfter(json, "\"season\"", 1);  // Default to Summer
     state.questPoints = ParseIntAfter(json, "\"questPoints\"", 0);
 
     // Initialize all quest progress to not started

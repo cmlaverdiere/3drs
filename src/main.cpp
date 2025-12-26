@@ -199,6 +199,13 @@ int main(int argc, char* argv[]) {
         camera.position = (Vector3){ playerState.posX, playerState.posY, playerState.posZ };
         camera.target = (Vector3){ playerState.targetX, playerState.targetY, playerState.targetZ };
         lighting.timeOfDay = playerState.timeOfDay;
+        g_currentSeason = (Season)playerState.season;
+        // Update shader uniforms for loaded season
+        int seasonVal = (int)g_currentSeason;
+        int grassSeasonLoc = GetShaderLocation(resources.grassShader, "season");
+        SetShaderValue(resources.grassShader, grassSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
+        int bladeSeasonLoc = GetShaderLocation(resources.grass.bladeShader, "season");
+        SetShaderValue(resources.grass.bladeShader, bladeSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
     }
 
     // Populate spatial hash
@@ -329,6 +336,7 @@ int main(int argc, char* argv[]) {
                 playerState.targetY = camera.target.y;
                 playerState.targetZ = camera.target.z;
                 playerState.timeOfDay = lighting.timeOfDay;
+                playerState.season = (int)g_currentSeason;
                 SaveGame(playerState, quests, questCount);
             }
         }
@@ -804,6 +812,7 @@ int main(int argc, char* argv[]) {
             playerState.targetY = camera.target.y;
             playerState.targetZ = camera.target.z;
             playerState.timeOfDay = lighting.timeOfDay;
+            playerState.season = (int)g_currentSeason;
             SaveGame(playerState, quests, questCount);
         }
 
@@ -817,6 +826,7 @@ int main(int argc, char* argv[]) {
             playerState.targetY = camera.target.y;
             playerState.targetZ = camera.target.z;
             playerState.timeOfDay = lighting.timeOfDay;
+            playerState.season = (int)g_currentSeason;
             SaveGame(playerState, quests, questCount);
 
             // Reload map
@@ -868,6 +878,13 @@ int main(int argc, char* argv[]) {
                 camera.position = (Vector3){ playerState.posX, playerState.posY, playerState.posZ };
                 camera.target = (Vector3){ playerState.targetX, playerState.targetY, playerState.targetZ };
                 lighting.timeOfDay = playerState.timeOfDay;
+                g_currentSeason = (Season)playerState.season;
+                // Update shader uniforms for loaded season
+                int seasonVal = (int)g_currentSeason;
+                int grassSeasonLoc = GetShaderLocation(resources.grassShader, "season");
+                SetShaderValue(resources.grassShader, grassSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
+                int bladeSeasonLoc = GetShaderLocation(resources.grass.bladeShader, "season");
+                SetShaderValue(resources.grass.bladeShader, bladeSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
 
                 // Repopulate spatial hash
                 PopulateSpatialHash(&g_spatial, walls, resources.wallCount, enemies, enemyCount, trees, treeCount);
@@ -1072,7 +1089,9 @@ int main(int argc, char* argv[]) {
 
             // Falling leaves (autumn mode only)
             if (g_currentSeason == SEASON_AUTUMN) {
-                UpdateAndDrawLeaves(&leafSystem, camera.position, GetFrameTime());
+                Vector3 fogCol = { lighting.fogColor.x, lighting.fogColor.y, lighting.fogColor.z };
+                UpdateAndDrawLeaves(&leafSystem, camera.position, camera.position,
+                                   fogCol, lighting.fogDensity, GetFrameTime());
             }
         EndMode3D();
         EndTextureMode();
@@ -1220,6 +1239,7 @@ int main(int argc, char* argv[]) {
     playerState.targetZ = camera.target.z;
     playerState.swordPickedUp = (worldItemCount > 0) ? worldItems[0].pickedUp : false;
     playerState.timeOfDay = lighting.timeOfDay;
+    playerState.season = (int)g_currentSeason;
     SaveGame(playerState, quests, questCount);
     TraceLog(LOG_INFO, "Game saved to %s", SAVE_FILE);
 

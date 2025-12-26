@@ -568,6 +568,20 @@ void UpdateAndDrawSnow(SnowSystem* snow, Vector3 centerPos, float deltaTime) {
 
 // Falling leaves particle system implementation
 void InitLeafSystem(LeafSystem* leaves, Vector3 centerPos) {
+    // Load leaf shader
+    leaves->leafShader = LoadShader("shaders/leaf.vs", "shaders/leaf.fs");
+    leaves->viewPosLoc = GetShaderLocation(leaves->leafShader, "viewPos");
+    leaves->fogColorLoc = GetShaderLocation(leaves->leafShader, "fogColor");
+    leaves->fogDensityLoc = GetShaderLocation(leaves->leafShader, "fogDensity");
+
+    // Create a simple quad mesh for leaves
+    leaves->leafMesh = GenMeshPlane(1.0f, 1.0f, 1, 1);
+
+    // Setup material with shader
+    leaves->leafMaterial = LoadMaterialDefault();
+    leaves->leafMaterial.shader = leaves->leafShader;
+
+    // Initialize particles
     for (int i = 0; i < LEAF_PARTICLE_COUNT; i++) {
         // Random position within spawn radius around center
         float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
@@ -577,43 +591,59 @@ void InitLeafSystem(LeafSystem* leaves, Vector3 centerPos) {
         leaves->particles[i].position.y = centerPos.y + (float)GetRandomValue(0, (int)(LEAF_HEIGHT * 100)) / 100.0f;
 
         // Random fall speed (slower than snow, leaves flutter)
-        leaves->particles[i].fallSpeed = 0.8f + (float)GetRandomValue(0, 150) / 100.0f;
+        leaves->particles[i].fallSpeed = 0.6f + (float)GetRandomValue(0, 120) / 100.0f;
         // Random horizontal drift speed
-        leaves->particles[i].driftSpeed = 1.0f + (float)GetRandomValue(0, 200) / 100.0f;
-        // Random rotation
-        leaves->particles[i].rotation = (float)GetRandomValue(0, 360);
-        leaves->particles[i].rotationSpeed = (float)GetRandomValue(-200, 200);
+        leaves->particles[i].driftSpeed = 0.8f + (float)GetRandomValue(0, 180) / 100.0f;
+        // Random rotations
+        leaves->particles[i].rotationY = (float)GetRandomValue(0, 360);
+        leaves->particles[i].rotationTumble = (float)GetRandomValue(0, 360);
+        leaves->particles[i].rotationSpeed = (float)GetRandomValue(-150, 150);
+        leaves->particles[i].tumbleSpeed = (float)GetRandomValue(50, 200);
+        // Random size (0.15 to 0.25)
+        leaves->particles[i].size = 0.15f + (float)GetRandomValue(0, 100) / 1000.0f;
         // Random color type
         leaves->particles[i].colorType = GetRandomValue(0, 2);
     }
     leaves->initialized = true;
 }
 
-void UpdateAndDrawLeaves(LeafSystem* leaves, Vector3 centerPos, float deltaTime) {
+void UpdateAndDrawLeaves(LeafSystem* leaves, Vector3 centerPos, Vector3 viewPos,
+                         Vector3 fogColor, float fogDensity, float deltaTime) {
     if (!leaves->initialized) return;
 
     float time = (float)GetTime();
 
-    // Leaf colors
+    // Set shader uniforms
+    float viewPosArr[3] = { viewPos.x, viewPos.y, viewPos.z };
+    float fogColorArr[3] = { fogColor.x, fogColor.y, fogColor.z };
+    SetShaderValue(leaves->leafShader, leaves->viewPosLoc, viewPosArr, SHADER_UNIFORM_VEC3);
+    SetShaderValue(leaves->leafShader, leaves->fogColorLoc, fogColorArr, SHADER_UNIFORM_VEC3);
+    SetShaderValue(leaves->leafShader, leaves->fogDensityLoc, &fogDensity, SHADER_UNIFORM_FLOAT);
+
+    // Leaf colors (RGB normalized)
     Color leafColors[] = {
-        { 180, 45, 30, 220 },   // Red
-        { 210, 120, 40, 220 },  // Orange
-        { 200, 170, 50, 220 }   // Yellow/gold
+        { 180, 45, 30, 255 },   // Red
+        { 210, 120, 40, 255 },  // Orange
+        { 200, 170, 50, 255 }   // Yellow/gold
     };
+
+    // Disable backface culling for double-sided leaves
+    rlDisableBackfaceCulling();
 
     for (int i = 0; i < LEAF_PARTICLE_COUNT; i++) {
         LeafParticle* p = &leaves->particles[i];
 
-        // Fall down with slight oscillation
+        // Fall down with gentle oscillation
         p->position.y -= p->fallSpeed * deltaTime;
 
-        // Flutter side-to-side (more than snow)
-        float flutter = sinf(time * 3.0f + p->rotation * 0.01f) * p->driftSpeed * deltaTime;
+        // Flutter side-to-side
+        float flutter = sinf(time * 2.5f + p->rotationY * 0.01f) * p->driftSpeed * deltaTime;
         p->position.x += flutter;
-        p->position.z += cosf(time * 2.5f + p->rotation * 0.02f) * p->driftSpeed * 0.7f * deltaTime;
+        p->position.z += cosf(time * 2.0f + p->rotationY * 0.02f) * p->driftSpeed * 0.6f * deltaTime;
 
         // Rotate the leaf
-        p->rotation += p->rotationSpeed * deltaTime;
+        p->rotationY += p->rotationSpeed * deltaTime;
+        p->rotationTumble += p->tumbleSpeed * deltaTime;
 
         // Respawn at top if below ground or too far from player
         float dx = p->position.x - centerPos.x;
@@ -621,7 +651,6 @@ void UpdateAndDrawLeaves(LeafSystem* leaves, Vector3 centerPos, float deltaTime)
         float distSq = dx * dx + dz * dz;
 
         if (p->position.y < centerPos.y - 5.0f || distSq > LEAF_SPAWN_RADIUS * LEAF_SPAWN_RADIUS * 1.5f) {
-            // Respawn at random position above player
             float angle = (float)GetRandomValue(0, 360) * DEG2RAD;
             float dist = (float)GetRandomValue(0, (int)(LEAF_SPAWN_RADIUS * 100)) / 100.0f;
             p->position.x = centerPos.x + cosf(angle) * dist;
@@ -630,15 +659,32 @@ void UpdateAndDrawLeaves(LeafSystem* leaves, Vector3 centerPos, float deltaTime)
             p->colorType = GetRandomValue(0, 2);
         }
 
-        // Draw leaf as a small rotated rectangle
-        Color leafColor = leafColors[p->colorType];
+        // Set leaf color
+        leaves->leafMaterial.maps[MATERIAL_MAP_DIFFUSE].color = leafColors[p->colorType];
 
-        // Use DrawCube with slight rotation for a leaf-like appearance
-        rlPushMatrix();
-        rlTranslatef(p->position.x, p->position.y, p->position.z);
-        rlRotatef(p->rotation, 0, 1, 0);
-        rlRotatef(p->rotation * 0.5f, 1, 0, 0);
-        DrawCube((Vector3){0, 0, 0}, 0.12f, 0.02f, 0.08f, leafColor);
-        rlPopMatrix();
+        // Build transform matrix for this leaf
+        Matrix matTranslate = MatrixTranslate(p->position.x, p->position.y, p->position.z);
+        Matrix matRotateY = MatrixRotateY(p->rotationY * DEG2RAD);
+        Matrix matRotateX = MatrixRotateX(p->rotationTumble * DEG2RAD);
+        Matrix matScale = MatrixScale(p->size, p->size, p->size);
+        // Rotate to make plane vertical (plane is horizontal by default)
+        Matrix matRotateToVertical = MatrixRotateX(90.0f * DEG2RAD);
+
+        Matrix transform = MatrixMultiply(matScale, matRotateToVertical);
+        transform = MatrixMultiply(transform, matRotateX);
+        transform = MatrixMultiply(transform, matRotateY);
+        transform = MatrixMultiply(transform, matTranslate);
+
+        // Draw the leaf
+        DrawMesh(leaves->leafMesh, leaves->leafMaterial, transform);
     }
+
+    rlEnableBackfaceCulling();
+}
+
+void CleanupLeafSystem(LeafSystem* leaves) {
+    if (!leaves->initialized) return;
+    UnloadShader(leaves->leafShader);
+    UnloadMesh(leaves->leafMesh);
+    leaves->initialized = false;
 }

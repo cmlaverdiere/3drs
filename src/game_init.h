@@ -139,20 +139,33 @@ struct LeafParticle {
     Vector3 position;
     float fallSpeed;
     float driftSpeed;
-    float rotation;
+    float rotationY;      // Rotation around vertical axis
+    float rotationTumble; // Tumbling rotation
     float rotationSpeed;
-    int colorType;  // 0=red, 1=orange, 2=yellow
+    float tumbleSpeed;
+    float size;           // Leaf size variation
+    int colorType;        // 0=red, 1=orange, 2=yellow
 };
 
 struct LeafSystem {
     LeafParticle particles[LEAF_PARTICLE_COUNT];
+    Shader leafShader;
+    Mesh leafMesh;
+    Material leafMaterial;
+    int viewPosLoc;
+    int fogColorLoc;
+    int fogDensityLoc;
     bool initialized;
 };
 
 // Initialize leaf system
 void InitLeafSystem(LeafSystem* leaves, Vector3 centerPos);
 
-// Update and draw falling leaves
-void UpdateAndDrawLeaves(LeafSystem* leaves, Vector3 centerPos, float deltaTime);
+// Update and draw falling leaves (needs lighting info for fog)
+void UpdateAndDrawLeaves(LeafSystem* leaves, Vector3 centerPos, Vector3 viewPos,
+                         Vector3 fogColor, float fogDensity, float deltaTime);
+
+// Cleanup leaf system
+void CleanupLeafSystem(LeafSystem* leaves);
 
 #endif
