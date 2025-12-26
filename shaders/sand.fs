@@ -66,19 +66,19 @@ float CalculateShadow(vec3 fragPos, vec3 normal) {
 
     float currentDepth = projCoords.z;
 
-    // Bias based on surface angle to sun
-    float bias = max(0.005 * (1.0 - dot(normal, -sunDirection)), 0.001);
+    // Bias based on surface angle to sun (reduced to prevent shadow holes)
+    float bias = max(0.002 * (1.0 - dot(normal, -sunDirection)), 0.0005);
 
-    // PCF (3x3 kernel) for soft shadows
+    // PCF (5x5 kernel) for soft shadows
     float shadow = 0.0;
     vec2 texelSize = vec2(1.0 / float(shadowMapResolution));
-    for (int x = -1; x <= 1; x++) {
-        for (int y = -1; y <= 1; y++) {
+    for (int x = -2; x <= 2; x++) {
+        for (int y = -2; y <= 2; y++) {
             float sampleDepth = texture(shadowMap, projCoords.xy + texelSize * vec2(x, y)).r;
             shadow += (currentDepth - bias > sampleDepth) ? 1.0 : 0.0;
         }
     }
-    shadow /= 9.0;
+    shadow /= 25.0;
 
     // Fade shadows at edge of shadow map
     float fadeStart = 0.85;

@@ -100,11 +100,12 @@ float calcShadow(vec3 fragPos, vec3 normal) {
     }
 
     float currentDepth = projCoords.z;
-    float bias = max(0.005 * (1.0 - dot(normal, -sunDirection)), 0.001);
+    // Reduced bias to prevent holes in shadows (was 0.005/0.001)
+    float bias = max(0.002 * (1.0 - dot(normal, -sunDirection)), 0.0005);
 
     // PCF with Poisson disk sampling for softer shadows
     float shadow = 0.0;
-    float spread = 2.5 / float(shadowMapResolution);
+    float spread = 4.0 / float(shadowMapResolution);  // Larger spread for softer edges
 
     // Rotate samples based on world position for less banding
     float angle = hash(fragPos.xz) * 6.28318;

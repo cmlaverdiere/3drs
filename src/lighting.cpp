@@ -258,21 +258,55 @@ void SetShaderLightingUniforms(LightingSystem* lighting, Shader shader, Vector3 
 void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos, Shader depthShader) {
     // Update light camera
     float shadowDistance = SHADOW_ORTHO_SIZE * 0.5f;
+    float halfSize = SHADOW_ORTHO_SIZE * 0.5f;
+
+    // === Shadow Map Stabilization ===
+    // Snap the light camera to texel boundaries to prevent shadow shimmer when moving.
+    // Without this, sub-texel camera movements cause shadows to flicker/shift.
+
+    // Build initial light view matrix to transform centerPos into light space
+    Vector3 lightPos = Vector3Add(centerPos, Vector3Scale(lighting->sunDirection, -shadowDistance));
+    Matrix lightView = MatrixLookAt(lightPos, centerPos, lighting->lightCamera.up);
+
+    // Transform center position to light space
+    Vector4 centerInLightSpace = {
+        lightView.m0 * centerPos.x + lightView.m4 * centerPos.y + lightView.m8 * centerPos.z + lightView.m12,
+        lightView.m1 * centerPos.x + lightView.m5 * centerPos.y + lightView.m9 * centerPos.z + lightView.m13,
+        lightView.m2 * centerPos.x + lightView.m6 * centerPos.y + lightView.m10 * centerPos.z + lightView.m14,
+        1.0f
+    };
+
+    // Calculate texel size in world units
+    float texelSize = SHADOW_ORTHO_SIZE / (float)SHADOW_MAP_RESOLUTION;
+
+    // Snap to texel boundaries in light space (X and Y only, not depth)
+    centerInLightSpace.x = floorf(centerInLightSpace.x / texelSize) * texelSize;
+    centerInLightSpace.y = floorf(centerInLightSpace.y / texelSize) * texelSize;
+
+    // Transform back to world space using inverse of lightView
+    // For orthogonal matrices, inverse = transpose, but we'll use the proper inverse
+    Matrix invLightView = MatrixInvert(lightView);
+    Vector3 snappedCenter = {
+        invLightView.m0 * centerInLightSpace.x + invLightView.m4 * centerInLightSpace.y + invLightView.m8 * centerInLightSpace.z + invLightView.m12,
+        invLightView.m1 * centerInLightSpace.x + invLightView.m5 * centerInLightSpace.y + invLightView.m9 * centerInLightSpace.z + invLightView.m13,
+        invLightView.m2 * centerInLightSpace.x + invLightView.m6 * centerInLightSpace.y + invLightView.m10 * centerInLightSpace.z + invLightView.m14
+    };
+
+    // Rebuild light camera with snapped position
     lighting->lightCamera.position = Vector3Add(
-        centerPos,
+        snappedCenter,
         Vector3Scale(lighting->sunDirection, -shadowDistance)
     );
-    lighting->lightCamera.target = centerPos;
+    lighting->lightCamera.target = snappedCenter;
 
-    // Compute light view matrix
-    Matrix lightView = MatrixLookAt(
+    // Compute final light view matrix with stabilized position
+    lightView = MatrixLookAt(
         lighting->lightCamera.position,
         lighting->lightCamera.target,
         lighting->lightCamera.up
     );
 
     // Compute orthographic projection for directional light
-    float halfSize = SHADOW_ORTHO_SIZE * 0.5f;
     Matrix lightProj = MatrixOrtho(-halfSize, halfSize, -halfSize, halfSize, 0.1f, shadowDistance * 2.0f);
 
     // Store combined matrix for shader use

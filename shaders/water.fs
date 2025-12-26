@@ -51,17 +51,18 @@ float CalculateShadow(vec3 fragPos, vec3 normal) {
     }
 
     float currentDepth = projCoords.z;
-    float bias = max(0.005 * (1.0 - dot(normal, -sunDirection)), 0.001);
+    float bias = max(0.002 * (1.0 - dot(normal, -sunDirection)), 0.0005);
 
     float shadow = 0.0;
     vec2 texelSize = vec2(1.0 / float(shadowMapResolution));
-    for (int x = -1; x <= 1; x++) {
-        for (int y = -1; y <= 1; y++) {
+    // Use larger 5x5 kernel for softer water shadows
+    for (int x = -2; x <= 2; x++) {
+        for (int y = -2; y <= 2; y++) {
             float sampleDepth = texture(shadowMap, projCoords.xy + texelSize * vec2(x, y)).r;
             shadow += (currentDepth - bias > sampleDepth) ? 1.0 : 0.0;
         }
     }
-    shadow /= 9.0;
+    shadow /= 25.0;
 
     // Reduce shadow intensity for water (it's reflective)
     shadow *= 0.5;

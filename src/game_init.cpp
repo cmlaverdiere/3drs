@@ -66,8 +66,14 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     GameResources res = {};
 
     // Grass/ground shader and ground model (uses #include for common lighting)
+    // Ground must be large enough to cover all regions:
+    // - Wilderness: X -650 to -50, Z -300 to +300
+    // - Varrock: Z offset -200
+    // - Al Kharid: X offset +100, Z offset +50
+    // Total span: ~1600x1600 units centered at origin
+    // NOTE: Resolution capped at 255x255 because Mesh.indices uses unsigned short (max 65535)
     res.grassShader = LoadShaderWithIncludes("shaders/grass.vs", "shaders/grass.fs");
-    Mesh groundMesh = GenHeightmapMesh(512.0f, 512.0f, 256, 256);
+    Mesh groundMesh = GenHeightmapMesh(1600.0f, 1600.0f, 255, 255);
     res.groundModel = LoadModelFromMesh(groundMesh);
     res.groundModel.materials[0].shader = res.grassShader;
 
@@ -109,7 +115,7 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
 
     // Sky shader and model
     res.skyShader = LoadShader("shaders/sky.vs", "shaders/sky.fs");
-    Mesh skyMesh = GenMeshSphere(500.0f, 32, 32);  // Large sphere around scene
+    Mesh skyMesh = GenMeshSphere(1000.0f, 32, 32);  // Large sphere around scene (covers 1600x1600 ground)
     res.skyModel = LoadModelFromMesh(skyMesh);
     res.skyModel.materials[0].shader = res.skyShader;
 
