@@ -30,6 +30,11 @@ void main() {
     float edgeDark = smoothstep(0.15, 0.4, dist);
     color *= (1.0 - edgeDark * 0.4);
 
+    // Shine highlight (small, off-center)
+    vec2 highlightPos = fragTexCoord - vec2(0.35, 0.35);
+    float highlight = 1.0 - smoothstep(0.0, 0.15, length(highlightPos));
+    color = mix(color, vec3(1.0, 0.85, 0.85), highlight * 0.55);
+
     // Soft alpha falloff at edges
     float alpha = colDiffuse.a * smoothstep(0.4, 0.25, dist);
 
