@@ -3,6 +3,8 @@
 #include <cstdlib>
 
 static Sound sounds[SFX_COUNT];
+static Music backgroundMusic = {};
+static bool musicLoaded = false;
 
 const int SAMPLE_RATE = 44100;
 const int SAMPLE_SIZE = 16;  // 16-bit audio
@@ -272,4 +274,178 @@ void PlaySoundEffect(SoundEffect sfx) {
     if (sfx >= 0 && sfx < SFX_COUNT) {
         PlaySound(sounds[sfx]);
     }
+}
+
+// Procedural ambient music generation
+static Sound ambientMusic = {};
+static float musicVolume = 0.4f;
+
+// Pentatonic scale notes (C minor pentatonic) for ambient feel
+static const int AMBIENT_SCALE[] = { 48, 51, 53, 55, 58, 60, 63, 65, 67, 70 };  // C3 to Bb4
+static const int AMBIENT_SCALE_SIZE = 10;
+
+// Generate a soft pad tone (sine with slow attack/release)
+static void AddPadTone(short* data, int sampleCount, float freq, float startTime, float duration, float amplitude) {
+    int startSample = (int)(startTime * SAMPLE_RATE);
+    int durationSamples = (int)(duration * SAMPLE_RATE);
+    int endSample = startSample + durationSamples;
+    if (endSample > sampleCount) endSample = sampleCount;
+
+    float attackTime = 0.3f;
+    float releaseTime = 0.5f;
+
+    for (int i = startSample; i < endSample; i++) {
+        float t = (float)(i - startSample) / SAMPLE_RATE;
+        float progress = t / duration;
+
+        // Soft envelope
+        float envelope = 1.0f;
+        if (t < attackTime) {
+            envelope = t / attackTime;
+        } else if (progress > (1.0f - releaseTime / duration)) {
+            envelope = (duration - t) / releaseTime;
+        }
+        envelope = envelope * envelope;  // Smoother curve
+
+        // Layered sines for pad sound
+        float sample = sinf(2.0f * PI * freq * t) * 0.6f;
+        sample += sinf(2.0f * PI * freq * 2.0f * t) * 0.2f;  // Octave
+        sample += sinf(2.0f * PI * freq * 0.5f * t) * 0.2f;  // Sub-octave
+        sample *= envelope * amplitude;
+
+        // Mix into buffer
+        int current = data[i];
+        data[i] = (short)(current + sample * 8000);
+    }
+}
+
+// Generate an arpeggio note
+static void AddArpNote(short* data, int sampleCount, float freq, float startTime, float duration, float amplitude) {
+    int startSample = (int)(startTime * SAMPLE_RATE);
+    int durationSamples = (int)(duration * SAMPLE_RATE);
+    int endSample = startSample + durationSamples;
+    if (endSample > sampleCount) endSample = sampleCount;
+
+    for (int i = startSample; i < endSample; i++) {
+        float t = (float)(i - startSample) / SAMPLE_RATE;
+        float progress = t / duration;
+
+        // Quick attack, slow decay
+        float envelope = expf(-3.0f * t);
+        if (t < 0.01f) envelope = t / 0.01f;
+
+        // Clean sine with slight detuned layer
+        float sample = sinf(2.0f * PI * freq * t) * 0.7f;
+        sample += sinf(2.0f * PI * freq * 1.003f * t) * 0.3f;  // Slight chorus
+        sample *= envelope * amplitude;
+
+        int current = data[i];
+        data[i] = (short)(current + sample * 6000);
+    }
+}
+
+// Generate the procedural ambient music
+static Wave GenerateAmbientMusic() {
+    // 30 seconds of music that loops seamlessly
+    float musicDuration = 30.0f;
+    int sampleCount = (int)(SAMPLE_RATE * musicDuration);
+    Wave wave = CreateWave(sampleCount);
+    short* data = (short*)wave.data;
+
+    // Clear buffer
+    for (int i = 0; i < sampleCount; i++) {
+        data[i] = 0;
+    }
+
+    // Layer 1: Slow drone pad (root note)
+    float droneFreq = NoteToFreq(36);  // C2 - low drone
+    for (float t = 0.0f; t < musicDuration; t += 8.0f) {
+        AddPadTone(data, sampleCount, droneFreq, t, 10.0f, 0.3f);
+    }
+
+    // Layer 2: Mid-range pad chords (change every 4 bars)
+    int chordProgression[] = { 0, 3, 5, 3 };  // i - iv - v - iv in scale degrees
+    for (int bar = 0; bar < 8; bar++) {
+        float barStart = bar * 4.0f;
+        int chordRoot = AMBIENT_SCALE[chordProgression[bar % 4]];
+
+        // Play chord (root + fifth)
+        AddPadTone(data, sampleCount, NoteToFreq(chordRoot), barStart, 5.0f, 0.25f);
+        AddPadTone(data, sampleCount, NoteToFreq(chordRoot + 7), barStart + 0.5f, 4.5f, 0.15f);
+    }
+
+    // Layer 3: Gentle arpeggio pattern
+    float noteTime = 0.5f;  // Half-second per note
+    int arpPattern[] = { 0, 2, 4, 5, 4, 2 };  // Up and down pattern
+    int arpLength = 6;
+
+    for (float t = 2.0f; t < musicDuration - 2.0f; t += noteTime) {
+        // Vary which notes play (some silence for space)
+        if ((int)(t * 2) % 5 == 0) continue;  // Skip some beats
+
+        int patternIndex = ((int)(t / noteTime)) % arpLength;
+        int noteIndex = arpPattern[patternIndex];
+        float freq = NoteToFreq(AMBIENT_SCALE[noteIndex + 2]);  // Start from higher octave
+
+        // Vary amplitude slightly
+        float amp = 0.2f + 0.1f * sinf(t * 0.3f);
+        AddArpNote(data, sampleCount, freq, t, 0.8f, amp);
+    }
+
+    // Fade out last second for seamless loop
+    int fadeStart = sampleCount - SAMPLE_RATE;
+    for (int i = fadeStart; i < sampleCount; i++) {
+        float fadeProgress = (float)(i - fadeStart) / SAMPLE_RATE;
+        data[i] = (short)(data[i] * (1.0f - fadeProgress));
+    }
+
+    // Fade in first second
+    for (int i = 0; i < SAMPLE_RATE; i++) {
+        float fadeProgress = (float)i / SAMPLE_RATE;
+        data[i] = (short)(data[i] * fadeProgress);
+    }
+
+    return wave;
+}
+
+void InitBackgroundMusic() {
+    if (musicLoaded) {
+        UnloadBackgroundMusic();
+    }
+
+    Wave musicWave = GenerateAmbientMusic();
+    ambientMusic = LoadSoundFromWave(musicWave);
+    UnloadWave(musicWave);
+
+    SetSoundVolume(ambientMusic, musicVolume);
+    PlaySound(ambientMusic);
+    musicLoaded = true;
+
+    TraceLog(LOG_INFO, "Procedural ambient music initialized");
+}
+
+void UpdateBackgroundMusic() {
+    if (musicLoaded && !IsSoundPlaying(ambientMusic)) {
+        // Loop the music
+        PlaySound(ambientMusic);
+    }
+}
+
+void SetMusicVolume(float volume) {
+    musicVolume = volume;
+    if (musicLoaded) {
+        SetSoundVolume(ambientMusic, musicVolume);
+    }
+}
+
+void UnloadBackgroundMusic() {
+    if (musicLoaded) {
+        StopSound(ambientMusic);
+        UnloadSound(ambientMusic);
+        musicLoaded = false;
+    }
+}
+
+bool IsMusicLoaded() {
+    return musicLoaded;
 }

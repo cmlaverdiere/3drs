@@ -26,6 +26,7 @@ void InitGameWindow(int* screenWidth, int* screenHeight) {
     InitAudioDevice();
     InitSoundSystem();
     InitVoiceSystem();
+    InitBackgroundMusic();
 }
 
 void InitPlayerState(PlayerState* state) {

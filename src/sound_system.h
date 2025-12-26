@@ -26,4 +26,11 @@ void UnloadSoundSystem();
 // Play a sound effect
 void PlaySoundEffect(SoundEffect sfx);
 
+// Music functions (procedurally generated)
+void InitBackgroundMusic();
+void UpdateBackgroundMusic();
+void SetMusicVolume(float volume);  // 0.0 to 1.0
+void UnloadBackgroundMusic();
+bool IsMusicLoaded();
+
 #endif

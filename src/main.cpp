@@ -21,6 +21,7 @@
 #include "lighting.h"
 #include "quest_system.h"
 #include "voice_system.h"
+#include "sound_system.h"
 #include "help_system.h"
 #include "menu_system.h"
 #include "frustum.h"
@@ -283,6 +284,9 @@ int main(int argc, char* argv[]) {
         float dt = GetFrameTime();
         screenWidth = GetScreenWidth();
         screenHeight = GetScreenHeight();
+
+        // Update background music (handles looping)
+        UpdateBackgroundMusic();
 
         // Update lighting system (day/night cycle, sun position)
         UpdateLightingSystem(&lighting, dt, camera.position);
@@ -1281,6 +1285,7 @@ int main(int argc, char* argv[]) {
                 // Cleanup and exit
                 ShutdownHelpSystem(&helpSystem);
                 UnloadLightingSystem(&lighting);
+                UnloadBackgroundMusic();
                 CleanupLeafSystem(&leafSystem);
                 CleanupLeafBurstSystem(&leafBurstSystem);
                 CleanupGameResources(&resources);
@@ -1307,6 +1312,7 @@ int main(int argc, char* argv[]) {
     ShutdownHelpSystem(&helpSystem);
     UnloadPostProcessSystem(&postProcess);
     UnloadLightingSystem(&lighting);
+    UnloadBackgroundMusic();
     CleanupLeafSystem(&leafSystem);
     CleanupLeafBurstSystem(&leafBurstSystem);
     CleanupGameResources(&resources);
