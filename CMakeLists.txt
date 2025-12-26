@@ -42,6 +42,7 @@ add_executable(game
     src/voice_system.cpp
     src/help_system.cpp
     src/menu_system.cpp
+    src/frustum.cpp
 )
 
 target_include_directories(game PRIVATE ${PIPER_INCLUDE_DIR})

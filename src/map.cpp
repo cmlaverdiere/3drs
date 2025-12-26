@@ -130,6 +130,10 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         enemyType = ENEMY_BANDIT;
                     } else if (strcmp(enemyName, "sand_golem") == 0) {
                         enemyType = ENEMY_SAND_GOLEM;
+                    } else if (strcmp(enemyName, "demon") == 0) {
+                        enemyType = ENEMY_DEMON;
+                    } else if (strcmp(enemyName, "dragon") == 0) {
+                        enemyType = ENEMY_DRAGON;
                     }
                     map.enemySpawns[map.enemyCount] = { x + offsetX, y, z + offsetZ };
                     map.enemyTypes[map.enemyCount] = enemyType;

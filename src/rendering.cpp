@@ -320,6 +320,138 @@ void DrawSandGolem(const EntityModels* models, Vector3 pos, float facingAngle, b
     rlPopMatrix();
 }
 
+void DrawDemon(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted) {
+    // Fire demon - red-skinned humanoid with horns and bat-like wings
+    Color demonSkin = { 140, 40, 40, 255 };      // Dark red skin
+    Color demonDark = { 80, 20, 20, 255 };       // Darker red
+    Color hornColor = { 40, 30, 30, 255 };       // Black horns
+    Color eyeGlow = { 255, 150, 50, 255 };       // Fiery orange eyes
+    Color wingMembrane = { 100, 30, 30, 200 };   // Semi-transparent wings
+
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y, pos.z);
+    rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
+
+    float scale = 1.3f;  // Larger than humanoid
+
+    // Legs
+    DrawModelCube(models, (Vector3){-0.12f * scale, 0.4f * scale, 0}, 0.18f * scale, 0.8f * scale, 0.18f * scale, demonDark);
+    DrawModelCube(models, (Vector3){0.12f * scale, 0.4f * scale, 0}, 0.18f * scale, 0.8f * scale, 0.18f * scale, demonDark);
+
+    // Muscular torso
+    DrawModelCube(models, (Vector3){0, 1.1f * scale, 0}, 0.5f * scale, 0.7f * scale, 0.3f * scale, demonSkin);
+
+    // Arms
+    DrawModelCube(models, (Vector3){-0.35f * scale, 1.0f * scale, 0}, 0.14f * scale, 0.6f * scale, 0.14f * scale, demonSkin);
+    DrawModelCube(models, (Vector3){0.35f * scale, 1.0f * scale, 0}, 0.14f * scale, 0.6f * scale, 0.14f * scale, demonSkin);
+
+    // Head
+    DrawModelSphere(models, (Vector3){0, 1.6f * scale, 0}, 0.22f * scale, demonSkin);
+
+    // Horns (curved)
+    DrawModelCube(models, (Vector3){-0.12f * scale, 1.75f * scale, 0}, 0.05f * scale, 0.2f * scale, 0.05f * scale, hornColor);
+    DrawModelCube(models, (Vector3){-0.15f * scale, 1.9f * scale, -0.05f * scale}, 0.04f * scale, 0.15f * scale, 0.04f * scale, hornColor);
+    DrawModelCube(models, (Vector3){0.12f * scale, 1.75f * scale, 0}, 0.05f * scale, 0.2f * scale, 0.05f * scale, hornColor);
+    DrawModelCube(models, (Vector3){0.15f * scale, 1.9f * scale, -0.05f * scale}, 0.04f * scale, 0.15f * scale, 0.04f * scale, hornColor);
+
+    // Glowing eyes
+    float faceZ = 0.2f * scale;
+    DrawModelSphere(models, (Vector3){-0.06f * scale, 1.62f * scale, faceZ}, 0.04f * scale, eyeGlow);
+    DrawModelSphere(models, (Vector3){0.06f * scale, 1.62f * scale, faceZ}, 0.04f * scale, eyeGlow);
+
+    // Wings (bat-like, behind body)
+    // Wing bones
+    DrawModelCube(models, (Vector3){-0.4f * scale, 1.3f * scale, -0.15f * scale}, 0.5f * scale, 0.05f * scale, 0.05f * scale, hornColor);
+    DrawModelCube(models, (Vector3){-0.7f * scale, 1.1f * scale, -0.2f * scale}, 0.05f * scale, 0.4f * scale, 0.05f * scale, hornColor);
+    DrawModelCube(models, (Vector3){0.4f * scale, 1.3f * scale, -0.15f * scale}, 0.5f * scale, 0.05f * scale, 0.05f * scale, hornColor);
+    DrawModelCube(models, (Vector3){0.7f * scale, 1.1f * scale, -0.2f * scale}, 0.05f * scale, 0.4f * scale, 0.05f * scale, hornColor);
+
+    // Wing membrane
+    DrawModelCube(models, (Vector3){-0.5f * scale, 1.1f * scale, -0.18f * scale}, 0.4f * scale, 0.5f * scale, 0.02f * scale, wingMembrane);
+    DrawModelCube(models, (Vector3){0.5f * scale, 1.1f * scale, -0.18f * scale}, 0.4f * scale, 0.5f * scale, 0.02f * scale, wingMembrane);
+
+    // Tail
+    DrawModelCube(models, (Vector3){0, 0.5f * scale, -0.4f * scale}, 0.06f * scale, 0.06f * scale, 0.4f * scale, demonDark);
+
+    (void)highlighted;
+    rlPopMatrix();
+}
+
+void DrawDragon(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted) {
+    // Large quadruped dragon with wings
+    Color dragonScales = { 40, 80, 40, 255 };    // Dark green scales
+    Color dragonBelly = { 180, 160, 100, 255 };  // Yellowish underbelly
+    Color hornColor = { 60, 50, 40, 255 };       // Bone-colored horns
+    Color eyeColor = { 255, 200, 50, 255 };      // Amber eyes
+    Color wingMembrane = { 60, 100, 60, 180 };   // Greenish wing membrane
+    Color clawColor = { 40, 35, 30, 255 };       // Dark claws
+
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y, pos.z);
+    rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
+
+    float scale = 2.0f;  // Large creature
+
+    // Body (horizontal quadruped)
+    DrawModelCube(models, (Vector3){0, 1.0f * scale, 0}, 0.8f * scale, 0.6f * scale, 1.5f * scale, dragonScales);
+    // Underbelly
+    DrawModelCube(models, (Vector3){0, 0.8f * scale, 0}, 0.6f * scale, 0.2f * scale, 1.3f * scale, dragonBelly);
+
+    // Four legs
+    float legY = 0.4f * scale;
+    float legH = 0.8f * scale;
+    // Front legs
+    DrawModelCube(models, (Vector3){-0.35f * scale, legY, 0.5f * scale}, 0.2f * scale, legH, 0.2f * scale, dragonScales);
+    DrawModelCube(models, (Vector3){0.35f * scale, legY, 0.5f * scale}, 0.2f * scale, legH, 0.2f * scale, dragonScales);
+    // Back legs
+    DrawModelCube(models, (Vector3){-0.35f * scale, legY, -0.5f * scale}, 0.2f * scale, legH, 0.2f * scale, dragonScales);
+    DrawModelCube(models, (Vector3){0.35f * scale, legY, -0.5f * scale}, 0.2f * scale, legH, 0.2f * scale, dragonScales);
+
+    // Claws
+    DrawModelCube(models, (Vector3){-0.35f * scale, 0.05f * scale, 0.6f * scale}, 0.15f * scale, 0.1f * scale, 0.15f * scale, clawColor);
+    DrawModelCube(models, (Vector3){0.35f * scale, 0.05f * scale, 0.6f * scale}, 0.15f * scale, 0.1f * scale, 0.15f * scale, clawColor);
+    DrawModelCube(models, (Vector3){-0.35f * scale, 0.05f * scale, -0.4f * scale}, 0.15f * scale, 0.1f * scale, 0.15f * scale, clawColor);
+    DrawModelCube(models, (Vector3){0.35f * scale, 0.05f * scale, -0.4f * scale}, 0.15f * scale, 0.1f * scale, 0.15f * scale, clawColor);
+
+    // Neck (curved upward)
+    DrawModelCube(models, (Vector3){0, 1.3f * scale, 0.9f * scale}, 0.3f * scale, 0.4f * scale, 0.4f * scale, dragonScales);
+    DrawModelCube(models, (Vector3){0, 1.6f * scale, 1.1f * scale}, 0.25f * scale, 0.35f * scale, 0.35f * scale, dragonScales);
+
+    // Head
+    DrawModelCube(models, (Vector3){0, 1.8f * scale, 1.4f * scale}, 0.4f * scale, 0.35f * scale, 0.5f * scale, dragonScales);
+    // Snout
+    DrawModelCube(models, (Vector3){0, 1.75f * scale, 1.7f * scale}, 0.25f * scale, 0.2f * scale, 0.3f * scale, dragonScales);
+
+    // Eyes
+    DrawModelSphere(models, (Vector3){-0.15f * scale, 1.9f * scale, 1.5f * scale}, 0.08f * scale, eyeColor);
+    DrawModelSphere(models, (Vector3){0.15f * scale, 1.9f * scale, 1.5f * scale}, 0.08f * scale, eyeColor);
+
+    // Horns (back of head)
+    DrawModelCube(models, (Vector3){-0.15f * scale, 2.05f * scale, 1.2f * scale}, 0.05f * scale, 0.25f * scale, 0.08f * scale, hornColor);
+    DrawModelCube(models, (Vector3){0.15f * scale, 2.05f * scale, 1.2f * scale}, 0.05f * scale, 0.25f * scale, 0.08f * scale, hornColor);
+
+    // Wings
+    // Wing bones
+    DrawModelCube(models, (Vector3){-0.6f * scale, 1.3f * scale, 0}, 0.8f * scale, 0.08f * scale, 0.08f * scale, hornColor);
+    DrawModelCube(models, (Vector3){-1.1f * scale, 1.0f * scale, 0}, 0.08f * scale, 0.7f * scale, 0.08f * scale, hornColor);
+    DrawModelCube(models, (Vector3){0.6f * scale, 1.3f * scale, 0}, 0.8f * scale, 0.08f * scale, 0.08f * scale, hornColor);
+    DrawModelCube(models, (Vector3){1.1f * scale, 1.0f * scale, 0}, 0.08f * scale, 0.7f * scale, 0.08f * scale, hornColor);
+
+    // Wing membrane
+    DrawModelCube(models, (Vector3){-0.8f * scale, 1.0f * scale, -0.1f * scale}, 0.7f * scale, 0.8f * scale, 0.03f * scale, wingMembrane);
+    DrawModelCube(models, (Vector3){0.8f * scale, 1.0f * scale, -0.1f * scale}, 0.7f * scale, 0.8f * scale, 0.03f * scale, wingMembrane);
+
+    // Tail (long, segmented)
+    DrawModelCube(models, (Vector3){0, 0.9f * scale, -1.0f * scale}, 0.2f * scale, 0.2f * scale, 0.6f * scale, dragonScales);
+    DrawModelCube(models, (Vector3){0, 0.85f * scale, -1.5f * scale}, 0.15f * scale, 0.15f * scale, 0.5f * scale, dragonScales);
+    DrawModelCube(models, (Vector3){0, 0.8f * scale, -1.9f * scale}, 0.1f * scale, 0.1f * scale, 0.4f * scale, dragonScales);
+    // Tail spike
+    DrawModelCube(models, (Vector3){0, 0.8f * scale, -2.2f * scale}, 0.06f * scale, 0.15f * scale, 0.15f * scale, hornColor);
+
+    (void)highlighted;
+    rlPopMatrix();
+}
+
 void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted) {
     switch (enemy.type) {
         case ENEMY_TROLL:
@@ -336,6 +468,12 @@ void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted)
             break;
         case ENEMY_SAND_GOLEM:
             DrawSandGolem(models, enemy.position, enemy.facingAngle, highlighted);
+            break;
+        case ENEMY_DEMON:
+            DrawDemon(models, enemy.position, enemy.facingAngle, highlighted);
+            break;
+        case ENEMY_DRAGON:
+            DrawDragon(models, enemy.position, enemy.facingAngle, highlighted);
             break;
         default:
             DrawModelCube(models, enemy.position, 0.5f, 1.0f, 0.5f, RED);

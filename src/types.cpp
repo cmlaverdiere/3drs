@@ -273,5 +273,41 @@ const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
             { ITEM_SPICE, 1, 2, 0.6f },              // 60% chance spice
         },
         .dropCount = 4
+    },
+    // ENEMY_DEMON - Wilderness fire demon
+    {
+        .name = "Demon",
+        .combatLevel = 32,
+        .maxHealth = 80,
+        .maxHit = 10,
+        .attackCooldown = 1.3f,
+        .chaseSpeed = 4.5f,
+        .attackRange = 2.5f,
+        .respawnTime = 60.0f,
+        .aggressive = true,  // Demons attack on sight!
+        .drops = {
+            { ITEM_BONES, 1, 1, 1.0f },              // Always drops bones
+            { ITEM_GIL, 100, 300, 1.0f },            // Always drops 100-300 gil
+            { ITEM_IRON_ORE, 1, 3, 0.4f },           // 40% chance fire-forged ore
+        },
+        .dropCount = 3
+    },
+    // ENEMY_DRAGON - Wilderness apex predator
+    {
+        .name = "Dragon",
+        .combatLevel = 48,
+        .maxHealth = 150,
+        .maxHit = 15,
+        .attackCooldown = 2.0f,
+        .chaseSpeed = 3.5f,
+        .attackRange = 4.0f,
+        .respawnTime = 120.0f,
+        .aggressive = true,  // Dragons attack on sight!
+        .drops = {
+            { ITEM_BONES, 1, 1, 1.0f },              // Always drops dragon bones
+            { ITEM_GIL, 300, 800, 1.0f },            // Always drops 300-800 gil
+            { ITEM_IRON_2H_SWORD, 1, 1, 0.1f },      // 10% chance rare sword drop
+        },
+        .dropCount = 3
     }
 };

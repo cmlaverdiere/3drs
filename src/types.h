@@ -103,6 +103,9 @@ enum EnemyType {
     // === Trading Expedition Quest Enemies ===
     ENEMY_BANDIT,
     ENEMY_SAND_GOLEM,
+    // === Wilderness Enemies ===
+    ENEMY_DEMON,       // Level 32, fire-themed winged humanoid
+    ENEMY_DRAGON,      // Level 48, large quadruped with wings
     // === ADD NEW ENEMIES HERE ===
     ENEMY_TYPE_COUNT
 };
@@ -339,8 +342,8 @@ struct LightSource {
 };
 
 const int MAX_LIGHTS = 100;
-const int MAX_TREES = 1000;
-const int MAX_ROCKS = 200;
+const int MAX_TREES = 4000;
+const int MAX_ROCKS = 800;
 const int MAX_WATER = 100;
 const float ITEM_RESPAWN_TIME = 60.0f;  // 60 seconds for respawning items
 const int MAX_SAND = 50;
@@ -510,7 +513,7 @@ inline float SmoothTurn(float current, float target, float maxTurn) {
 }
 
 // Constants
-const int MAX_ENEMIES = 500;
+const int MAX_ENEMIES = 1000;
 const int MAX_WORLD_ITEMS = 500;
 const int MAX_WALLS = 1000;
 const int MAX_NPCS = 32;

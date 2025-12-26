@@ -23,6 +23,7 @@
 #include "voice_system.h"
 #include "help_system.h"
 #include "menu_system.h"
+#include "frustum.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -908,6 +909,15 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // ========== FRUSTUM CULLING SETUP ==========
+        // Extract frustum planes for culling (main pass only - shadow pass needs wider culling)
+        Matrix view = GetCameraMatrix(camera);
+        Matrix proj = MatrixPerspective(camera.fovy * DEG2RAD,
+                                        (float)screenWidth / (float)screenHeight, 0.1f, 1000.0f);
+        Matrix viewProj = MatrixMultiply(view, proj);
+        Frustum frustum;
+        ExtractFrustumPlanes(&frustum, viewProj);
+
         // ========== SHADOW PASS ==========
         BeginShadowPass(&lighting, camera.position, resources.depthShader);
             // Draw shadow-casting geometry
@@ -920,28 +930,38 @@ int main(int argc, char* argv[]) {
                 DrawModel(resources.wallModels[i], pos, 1.0f, WHITE);
             }
 
-            // Trees cast shadows
+            // Trees cast shadows (distance culled - shadows beyond ~100 units aren't visible)
+            const float SHADOW_CULL_DIST_SQ = 100.0f * 100.0f;
             for (int i = 0; i < treeCount; i++) {
                 if (trees[i].alive) {
                     Vector3 treePos = trees[i].position;
+                    float dx = treePos.x - camera.position.x;
+                    float dz = treePos.z - camera.position.z;
+                    if (dx*dx + dz*dz > SHADOW_CULL_DIST_SQ) continue;
                     treePos.y = GetTerrainHeight(treePos.x, treePos.z);
                     DrawTree(&resources.entityModels, treePos, trees[i].type, false);
                 }
             }
 
-            // Rocks cast shadows
+            // Rocks cast shadows (distance culled)
             for (int i = 0; i < rockCount; i++) {
                 if (rocks[i].alive) {
                     Vector3 rockPos = rocks[i].position;
+                    float dx = rockPos.x - camera.position.x;
+                    float dz = rockPos.z - camera.position.z;
+                    if (dx*dx + dz*dz > SHADOW_CULL_DIST_SQ) continue;
                     rockPos.y = GetTerrainHeight(rockPos.x, rockPos.z);
                     DrawRock(&resources.entityModels, rockPos, rocks[i].type, false);
                 }
             }
 
-            // Enemies cast shadows
+            // Enemies cast shadows (distance culled)
             for (int i = 0; i < enemyCount; i++) {
                 if (enemies[i].alive) {
                     Vector3 enemyPos = enemies[i].position;
+                    float dx = enemyPos.x - camera.position.x;
+                    float dz = enemyPos.z - camera.position.z;
+                    if (dx*dx + dz*dz > SHADOW_CULL_DIST_SQ) continue;
                     enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
                     Enemy adjustedEnemy = enemies[i];
                     adjustedEnemy.position = enemyPos;
@@ -1018,12 +1038,21 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            // Enemies
+            // Enemies (with frustum + distance culling)
+            const float ENEMY_DRAW_DIST_SQ = 120.0f * 120.0f;
             for (int i = 0; i < enemyCount; i++) {
                 if (enemies[i].alive) {
                     Vector3 enemyPos = enemies[i].position;
+                    // Distance cull first
+                    float dx = enemyPos.x - camera.position.x;
+                    float dz = enemyPos.z - camera.position.z;
+                    float distSq = dx*dx + dz*dz;
+                    if (distSq > ENEMY_DRAW_DIST_SQ) continue;
                     enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
-                    float dist = Distance3D(camera.position, enemyPos);
+                    // Frustum cull - dragons are larger
+                    float cullRadius = (enemies[i].type == ENEMY_DRAGON) ? 5.0f : 2.5f;
+                    if (!SphereInFrustum(&frustum, enemyPos, cullRadius)) continue;
+                    float dist = sqrtf(distSq);
                     bool inRange = (dist <= PLAYER_ATTACK_RANGE) && IsFacing(camera, enemyPos);
                     Enemy adjustedEnemy = enemies[i];
                     adjustedEnemy.position = enemyPos;
@@ -1042,24 +1071,40 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            // Trees
+            // Trees (with frustum + distance culling)
+            const float TREE_DRAW_DIST_SQ = 150.0f * 150.0f;
             for (int i = 0; i < treeCount; i++) {
                 if (trees[i].alive) {
                     Vector3 treePos = trees[i].position;
+                    // Distance cull first (cheaper than frustum test)
+                    float dx = treePos.x - camera.position.x;
+                    float dz = treePos.z - camera.position.z;
+                    float distSq = dx*dx + dz*dz;
+                    if (distSq > TREE_DRAW_DIST_SQ) continue;
                     treePos.y = GetTerrainHeight(treePos.x, treePos.z);
-                    float dist = Distance3D(camera.position, treePos);
+                    // Frustum cull - trees have ~3.5 unit radius canopy
+                    if (!SphereInFrustum(&frustum, treePos, 3.5f)) continue;
+                    float dist = sqrtf(distSq);
                     bool inRange = (dist <= CHOP_RANGE) && IsFacing(camera, treePos) &&
                                    (playerState.equippedWeapon == ITEM_BRONZE_AXE);
                     DrawTree(&resources.entityModels, treePos, trees[i].type, inRange);
                 }
             }
 
-            // Rocks
+            // Rocks (with frustum + distance culling)
+            const float ROCK_DRAW_DIST_SQ = 120.0f * 120.0f;
             for (int i = 0; i < rockCount; i++) {
                 if (rocks[i].alive) {
                     Vector3 rockPos = rocks[i].position;
+                    // Distance cull first
+                    float dx = rockPos.x - camera.position.x;
+                    float dz = rockPos.z - camera.position.z;
+                    float distSq = dx*dx + dz*dz;
+                    if (distSq > ROCK_DRAW_DIST_SQ) continue;
                     rockPos.y = GetTerrainHeight(rockPos.x, rockPos.z);
-                    float dist = Distance3D(camera.position, rockPos);
+                    // Frustum cull - rocks have ~1.5 unit radius
+                    if (!SphereInFrustum(&frustum, rockPos, 1.5f)) continue;
+                    float dist = sqrtf(distSq);
                     bool inRange = (dist <= MINE_RANGE) && IsFacing(camera, rockPos) &&
                                    (playerState.equippedWeapon == ITEM_BRONZE_PICKAXE);
                     DrawRock(&resources.entityModels, rockPos, rocks[i].type, inRange);

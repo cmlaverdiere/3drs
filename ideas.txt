@@ -34,4 +34,20 @@ musket / glock (fuck up trolls)
 
 ## Seasons
 
-Add seasons picker next to time picker
+- Add seasons picker next to time picker
+
+## Music
+
+- Some simple midi / synth songs
+
+## GPU Instancing for Trees/Rocks
+
+- Current system draws 5-6 primitives per tree, 6-7 per rock (individual draw calls)
+- With 3000+ trees in wilderness, this is ~15,000+ draw calls just for trees
+- Solution: Use `DrawMeshInstanced()` with pre-built meshes
+  - Generate combined tree mesh (trunk + canopy as single mesh)
+  - Store transform matrices for all visible trees
+  - Single draw call per tree type (normal, oak, winter variants)
+  - Same approach for rocks (copper, tin variants)
+- Requires: instance shader, mesh generation, transform array management
+- Frustum culling already filters to visible entities, instancing batches the draws

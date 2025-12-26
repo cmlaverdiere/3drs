@@ -11,5 +11,8 @@ include varrock.map 0 -200
 # Al Kharid - desert region to the east
 include alkharid.map 100 50
 
+# Wilderness - dangerous western region (level 3-48 enemies)
+include wilderness.map -50 0
+
 # Future regions (uncomment when created):
 # include falador.map -200 -100
