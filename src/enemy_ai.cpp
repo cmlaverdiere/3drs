@@ -22,19 +22,24 @@ int UpdateEnemies(Enemy* enemies, int enemyCount,
                 // Chase behavior
                 float dx = playerPos.x - enemies[i].position.x;
                 float dz = playerPos.z - enemies[i].position.z;
-                float dist = sqrtf(dx*dx + dz*dz);
+                float horizDist = sqrtf(dx*dx + dz*dz);
+
+                // Calculate enemy's actual Y position based on terrain
+                float enemyY = GetTerrainHeight(enemies[i].position.x, enemies[i].position.z);
+                float dy = playerPos.y - enemyY;
+                float dist3D = sqrtf(dx*dx + dy*dy + dz*dz);
 
                 // Turn to face player
                 float targetAngle = atan2f(dx, dz);
                 enemies[i].facingAngle = SmoothTurn(enemies[i].facingAngle, targetAngle, TURN_SPEED * dt);
 
-                if (dist > config.attackRange) {
-                    // Move toward player
+                if (horizDist > config.attackRange) {
+                    // Move toward player (use horizontal distance for movement)
                     float speed = config.chaseSpeed * dt;
-                    enemies[i].position.x += (dx / dist) * speed;
-                    enemies[i].position.z += (dz / dist) * speed;
-                } else if (enemies[i].attackCooldown <= 0) {
-                    // Attack player
+                    enemies[i].position.x += (dx / horizDist) * speed;
+                    enemies[i].position.z += (dz / horizDist) * speed;
+                } else if (dist3D <= config.attackRange && enemies[i].attackCooldown <= 0) {
+                    // Attack player (use 3D distance to prevent attacking through floors)
                     int damage = GetRandomValue(0, config.maxHit);
                     totalDamage += damage;
                     SpawnDamageIndicator(damageIndicators, playerPos, damage);
