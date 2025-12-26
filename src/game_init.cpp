@@ -26,7 +26,7 @@ void InitGameWindow(int* screenWidth, int* screenHeight) {
     InitAudioDevice();
     InitSoundSystem();
     InitVoiceSystem();
-    InitBackgroundMusic();
+    // Music is initialized later in main() after season is determined
 }
 
 void InitPlayerState(PlayerState* state) {

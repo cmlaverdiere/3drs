@@ -279,14 +279,17 @@ int main(int argc, char* argv[]) {
     DisableCursor();
     SetTargetFPS(60);
 
+    // Initialize background music for current season
+    InitBackgroundMusic((int)g_currentSeason);
+
     // Main game loop
     while (!shouldQuit) {
         float dt = GetFrameTime();
         screenWidth = GetScreenWidth();
         screenHeight = GetScreenHeight();
 
-        // Update background music (handles looping)
-        UpdateBackgroundMusic();
+        // Update background music (handles looping and season changes)
+        UpdateBackgroundMusic((int)g_currentSeason);
 
         // Update lighting system (day/night cycle, sun position)
         UpdateLightingSystem(&lighting, dt, camera.position);
@@ -1076,7 +1079,7 @@ int main(int argc, char* argv[]) {
             }
 
             // Trees (with frustum + distance culling)
-            const float TREE_DRAW_DIST_SQ = 150.0f * 150.0f;
+            const float TREE_DRAW_DIST_SQ = 250.0f * 250.0f;
             for (int i = 0; i < treeCount; i++) {
                 if (trees[i].alive) {
                     Vector3 treePos = trees[i].position;

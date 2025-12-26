@@ -26,9 +26,9 @@ void UnloadSoundSystem();
 // Play a sound effect
 void PlaySoundEffect(SoundEffect sfx);
 
-// Music functions (procedurally generated)
-void InitBackgroundMusic();
-void UpdateBackgroundMusic();
+// Music functions (procedurally generated, per-season)
+void InitBackgroundMusic(int season);  // 0=Summer, 1=Autumn, 2=Winter, 3=Spring
+void UpdateBackgroundMusic(int currentSeason);  // Switches song if season changed
 void SetMusicVolume(float volume);  // 0.0 to 1.0
 void UnloadBackgroundMusic();
 bool IsMusicLoaded();

@@ -279,48 +279,45 @@ void PlaySoundEffect(SoundEffect sfx) {
 // Procedural ambient music generation
 static Sound ambientMusic = {};
 static float musicVolume = 1.0f;
+static int currentMusicSeason = -1;
 
-// Pentatonic scale notes (C minor pentatonic) for ambient feel
-static const int AMBIENT_SCALE[] = { 48, 51, 53, 55, 58, 60, 63, 65, 67, 70 };  // C3 to Bb4
-static const int AMBIENT_SCALE_SIZE = 10;
+// Scale definitions for different moods
+static const int SCALE_MINOR_PENT[] = { 48, 51, 53, 55, 58, 60, 63, 65, 67, 70 };  // C minor pentatonic
+static const int SCALE_MAJOR[] = { 48, 50, 52, 53, 55, 57, 59, 60, 62, 64 };       // C major
+static const int SCALE_DORIAN[] = { 48, 50, 51, 53, 55, 57, 58, 60, 62, 63 };      // C dorian (minor but brighter)
+static const int SCALE_LYDIAN[] = { 48, 50, 52, 54, 55, 57, 59, 60, 62, 64 };      // C lydian (dreamy major)
 
 // Generate a soft pad tone (sine with slow attack/release)
-static void AddPadTone(short* data, int sampleCount, float freq, float startTime, float duration, float amplitude) {
+static void AddPadTone(short* data, int sampleCount, float freq, float startTime, float duration, float amplitude, float attack = 0.3f, float release = 0.5f) {
     int startSample = (int)(startTime * SAMPLE_RATE);
     int durationSamples = (int)(duration * SAMPLE_RATE);
     int endSample = startSample + durationSamples;
     if (endSample > sampleCount) endSample = sampleCount;
 
-    float attackTime = 0.3f;
-    float releaseTime = 0.5f;
-
     for (int i = startSample; i < endSample; i++) {
         float t = (float)(i - startSample) / SAMPLE_RATE;
         float progress = t / duration;
 
-        // Soft envelope
         float envelope = 1.0f;
-        if (t < attackTime) {
-            envelope = t / attackTime;
-        } else if (progress > (1.0f - releaseTime / duration)) {
-            envelope = (duration - t) / releaseTime;
+        if (t < attack) {
+            envelope = t / attack;
+        } else if (progress > (1.0f - release / duration)) {
+            envelope = (duration - t) / release;
         }
-        envelope = envelope * envelope;  // Smoother curve
+        envelope = envelope * envelope;
 
-        // Layered sines for pad sound
         float sample = sinf(2.0f * PI * freq * t) * 0.6f;
-        sample += sinf(2.0f * PI * freq * 2.0f * t) * 0.2f;  // Octave
-        sample += sinf(2.0f * PI * freq * 0.5f * t) * 0.2f;  // Sub-octave
+        sample += sinf(2.0f * PI * freq * 2.0f * t) * 0.2f;
+        sample += sinf(2.0f * PI * freq * 0.5f * t) * 0.2f;
         sample *= envelope * amplitude;
 
-        // Mix into buffer
         int current = data[i];
         data[i] = (short)(current + sample * 8000);
     }
 }
 
 // Generate an arpeggio note
-static void AddArpNote(short* data, int sampleCount, float freq, float startTime, float duration, float amplitude) {
+static void AddArpNote(short* data, int sampleCount, float freq, float startTime, float duration, float amplitude, float decay = 3.0f) {
     int startSample = (int)(startTime * SAMPLE_RATE);
     int durationSamples = (int)(duration * SAMPLE_RATE);
     int endSample = startSample + durationSamples;
@@ -328,15 +325,12 @@ static void AddArpNote(short* data, int sampleCount, float freq, float startTime
 
     for (int i = startSample; i < endSample; i++) {
         float t = (float)(i - startSample) / SAMPLE_RATE;
-        float progress = t / duration;
 
-        // Quick attack, slow decay
-        float envelope = expf(-3.0f * t);
+        float envelope = expf(-decay * t);
         if (t < 0.01f) envelope = t / 0.01f;
 
-        // Clean sine with slight detuned layer
         float sample = sinf(2.0f * PI * freq * t) * 0.7f;
-        sample += sinf(2.0f * PI * freq * 1.003f * t) * 0.3f;  // Slight chorus
+        sample += sinf(2.0f * PI * freq * 1.003f * t) * 0.3f;
         sample *= envelope * amplitude;
 
         int current = data[i];
@@ -344,89 +338,257 @@ static void AddArpNote(short* data, int sampleCount, float freq, float startTime
     }
 }
 
-// Generate the procedural ambient music
-static Wave GenerateAmbientMusic() {
-    // 30 seconds of music that loops seamlessly
-    float musicDuration = 30.0f;
-    int sampleCount = (int)(SAMPLE_RATE * musicDuration);
+// Add a plucky string sound
+static void AddPluck(short* data, int sampleCount, float freq, float startTime, float duration, float amplitude) {
+    int startSample = (int)(startTime * SAMPLE_RATE);
+    int durationSamples = (int)(duration * SAMPLE_RATE);
+    int endSample = startSample + durationSamples;
+    if (endSample > sampleCount) endSample = sampleCount;
+
+    for (int i = startSample; i < endSample; i++) {
+        float t = (float)(i - startSample) / SAMPLE_RATE;
+        float envelope = expf(-5.0f * t);
+        if (t < 0.005f) envelope = t / 0.005f;
+
+        // Karplus-Strong-ish: fundamental + decaying harmonics
+        float sample = sinf(2.0f * PI * freq * t);
+        sample += 0.5f * sinf(4.0f * PI * freq * t) * expf(-8.0f * t);
+        sample += 0.25f * sinf(6.0f * PI * freq * t) * expf(-12.0f * t);
+        sample *= envelope * amplitude;
+
+        int current = data[i];
+        data[i] = (short)(current + sample * 7000);
+    }
+}
+
+// Add crossfade for seamless looping
+static void ApplyLoopFades(short* data, int sampleCount) {
+    int fadeLen = SAMPLE_RATE;
+    for (int i = 0; i < fadeLen; i++) {
+        float progress = (float)i / fadeLen;
+        data[i] = (short)(data[i] * progress);
+        data[sampleCount - fadeLen + i] = (short)(data[sampleCount - fadeLen + i] * (1.0f - progress));
+    }
+}
+
+// ============ SUMMER: Bright, joyful, major key ============
+static Wave GenerateSummerMusic() {
+    float duration = 32.0f;
+    int sampleCount = (int)(SAMPLE_RATE * duration);
     Wave wave = CreateWave(sampleCount);
     short* data = (short*)wave.data;
+    for (int i = 0; i < sampleCount; i++) data[i] = 0;
 
-    // Clear buffer
-    for (int i = 0; i < sampleCount; i++) {
-        data[i] = 0;
+    // Bright, higher drone on C
+    float droneFreq = NoteToFreq(48);  // C3
+    for (float t = 0.0f; t < duration; t += 8.0f) {
+        AddPadTone(data, sampleCount, droneFreq, t, 10.0f, 0.2f, 0.5f, 0.5f);
+        AddPadTone(data, sampleCount, droneFreq * 1.5f, t + 0.3f, 9.0f, 0.12f, 0.5f, 0.5f);  // Fifth for brightness
     }
 
-    // Layer 1: Slow drone pad (root note)
-    float droneFreq = NoteToFreq(36);  // C2 - low drone
-    for (float t = 0.0f; t < musicDuration; t += 8.0f) {
-        AddPadTone(data, sampleCount, droneFreq, t, 10.0f, 0.3f);
-    }
-
-    // Layer 2: Mid-range pad chords (change every 4 bars)
-    int chordProgression[] = { 0, 3, 5, 3 };  // i - iv - v - iv in scale degrees
+    // Happy major chords with consistent timing
     for (int bar = 0; bar < 8; bar++) {
         float barStart = bar * 4.0f;
-        int chordRoot = AMBIENT_SCALE[chordProgression[bar % 4]];
-
-        // Play chord (root + fifth)
-        AddPadTone(data, sampleCount, NoteToFreq(chordRoot), barStart, 5.0f, 0.25f);
-        AddPadTone(data, sampleCount, NoteToFreq(chordRoot + 7), barStart + 0.5f, 4.5f, 0.15f);
+        // I - V - vi - IV (happy pop progression)
+        int roots[] = { 0, 7, 9, 5 };
+        int root = SCALE_MAJOR[roots[bar % 4] % 10];
+        AddPadTone(data, sampleCount, NoteToFreq(root + 12), barStart, 4.0f, 0.18f, 0.2f, 0.3f);
+        AddPadTone(data, sampleCount, NoteToFreq(root + 16), barStart, 4.0f, 0.12f, 0.2f, 0.3f);  // Major third
+        AddPadTone(data, sampleCount, NoteToFreq(root + 19), barStart, 4.0f, 0.10f, 0.2f, 0.3f);  // Fifth
     }
 
-    // Layer 3: Gentle arpeggio pattern
-    float noteTime = 0.5f;  // Half-second per note
-    int arpPattern[] = { 0, 2, 4, 5, 4, 2 };  // Up and down pattern
-    int arpLength = 6;
-
-    for (float t = 2.0f; t < musicDuration - 2.0f; t += noteTime) {
-        // Vary which notes play (some silence for space)
-        if ((int)(t * 2) % 5 == 0) continue;  // Skip some beats
-
-        int patternIndex = ((int)(t / noteTime)) % arpLength;
-        int noteIndex = arpPattern[patternIndex];
-        float freq = NoteToFreq(AMBIENT_SCALE[noteIndex + 2]);  // Start from higher octave
-
-        // Vary amplitude slightly
-        float amp = 0.2f + 0.1f * sinf(t * 0.3f);
-        AddArpNote(data, sampleCount, freq, t, 0.8f, amp);
+    // Bouncy, rhythmic arpeggio - ascending pattern
+    int arpNotes[] = { 0, 2, 4, 7, 4, 2 };
+    float noteLen = 0.4f;
+    for (int beat = 0; beat < 80; beat++) {
+        float t = 1.0f + beat * noteLen;
+        if (t > duration - 2.0f) break;
+        int noteIdx = arpNotes[beat % 6];
+        float freq = NoteToFreq(SCALE_MAJOR[noteIdx] + 24);  // High octave for brightness
+        AddPluck(data, sampleCount, freq, t, 0.35f, 0.25f);
     }
 
-    // Fade out last second for seamless loop
-    int fadeStart = sampleCount - SAMPLE_RATE;
-    for (int i = fadeStart; i < sampleCount; i++) {
-        float fadeProgress = (float)(i - fadeStart) / SAMPLE_RATE;
-        data[i] = (short)(data[i] * (1.0f - fadeProgress));
+    // Occasional high sparkle notes
+    for (float t = 2.0f; t < duration - 2.0f; t += 3.2f) {
+        int sparkleNote = SCALE_MAJOR[(int)(t * 1.3f) % 5 + 4];
+        AddPluck(data, sampleCount, NoteToFreq(sparkleNote + 24), t, 0.5f, 0.18f);
     }
 
-    // Fade in first second
-    for (int i = 0; i < SAMPLE_RATE; i++) {
-        float fadeProgress = (float)i / SAMPLE_RATE;
-        data[i] = (short)(data[i] * fadeProgress);
-    }
-
+    ApplyLoopFades(data, sampleCount);
     return wave;
 }
 
-void InitBackgroundMusic() {
+// ============ AUTUMN: Melancholic, sparse, dorian mode ============
+static Wave GenerateAutumnMusic() {
+    float duration = 36.0f;
+    int sampleCount = (int)(SAMPLE_RATE * duration);
+    Wave wave = CreateWave(sampleCount);
+    short* data = (short*)wave.data;
+    for (int i = 0; i < sampleCount; i++) data[i] = 0;
+
+    // Low, somber drone
+    float droneFreq = NoteToFreq(41);  // F2
+    for (float t = 0.0f; t < duration; t += 10.0f) {
+        AddPadTone(data, sampleCount, droneFreq, t, 12.0f, 0.3f, 0.5f, 0.8f);
+    }
+
+    // Sparse minor chords with longer sustain
+    int chordRoots[] = { 0, 5, 3, 0 };
+    for (int bar = 0; bar < 6; bar++) {
+        float barStart = bar * 6.0f;
+        int root = SCALE_DORIAN[chordRoots[bar % 4]];
+        AddPadTone(data, sampleCount, NoteToFreq(root), barStart, 7.0f, 0.22f, 0.6f, 1.0f);
+        AddPadTone(data, sampleCount, NoteToFreq(root + 7), barStart + 1.0f, 6.0f, 0.15f, 0.6f, 1.0f);
+    }
+
+    // Falling leaf-like notes - descending patterns with gaps
+    int pattern[] = { 7, 5, 4, 2, 0 };
+    for (int phrase = 0; phrase < 4; phrase++) {
+        float phraseStart = 3.0f + phrase * 8.0f;
+        for (int i = 0; i < 5; i++) {
+            // Add silence gaps
+            if (i == 2) continue;
+            float t = phraseStart + i * 1.0f;
+            if (t > duration - 2.0f) break;
+            int note = SCALE_DORIAN[pattern[i]];
+            AddArpNote(data, sampleCount, NoteToFreq(note + 12), t, 1.5f, 0.25f, 2.0f);
+        }
+    }
+
+    ApplyLoopFades(data, sampleCount);
+    return wave;
+}
+
+// ============ WINTER: Cold, ethereal, rhythmically aligned ============
+static Wave GenerateWinterMusic() {
+    float duration = 32.0f;  // Even duration for clean loop
+    int sampleCount = (int)(SAMPLE_RATE * duration);
+    Wave wave = CreateWave(sampleCount);
+    short* data = (short*)wave.data;
+    for (int i = 0; i < sampleCount; i++) data[i] = 0;
+
+    // Low drone - aligned to 8-bar phrases
+    float droneFreq = NoteToFreq(36);  // C2
+    for (float t = 0.0f; t < duration; t += 8.0f) {
+        AddPadTone(data, sampleCount, droneFreq, t, 9.0f, 0.3f, 0.5f, 0.5f);
+    }
+
+    // Minor pad chords - 4 seconds each, aligned
+    int chordRoots[] = { 0, 3, 5, 3 };  // i - iv - v - iv
+    for (int bar = 0; bar < 8; bar++) {
+        float barStart = bar * 4.0f;
+        int rootIdx = chordRoots[bar % 4];
+        int root = SCALE_MINOR_PENT[rootIdx];
+        AddPadTone(data, sampleCount, NoteToFreq(root), barStart, 4.5f, 0.25f, 0.4f, 0.4f);
+        AddPadTone(data, sampleCount, NoteToFreq(root + 7), barStart, 4.5f, 0.15f, 0.4f, 0.4f);
+    }
+
+    // Gentle arpeggio - strict rhythmic grid (8th notes = 0.5s at 60bpm)
+    int arpPattern[] = { 0, 2, 4, 5, 4, 2 };
+    float noteTime = 0.5f;
+    for (int beat = 0; beat < 56; beat++) {  // 28 seconds of arpeggios
+        float t = 2.0f + beat * noteTime;
+        if (t > duration - 2.0f) break;
+
+        // Skip every 5th note for breathing room
+        if (beat % 5 == 4) continue;
+
+        int patternIndex = beat % 6;
+        int noteIndex = arpPattern[patternIndex];
+        float freq = NoteToFreq(SCALE_MINOR_PENT[noteIndex + 2]);
+        AddArpNote(data, sampleCount, freq, t, 0.8f, 0.22f, 3.0f);
+    }
+
+    ApplyLoopFades(data, sampleCount);
+    return wave;
+}
+
+// ============ SPRING: Fresh, hopeful, lydian mode ============
+static Wave GenerateSpringMusic() {
+    float duration = 28.0f;
+    int sampleCount = (int)(SAMPLE_RATE * duration);
+    Wave wave = CreateWave(sampleCount);
+    short* data = (short*)wave.data;
+    for (int i = 0; i < sampleCount; i++) data[i] = 0;
+
+    // Light, airy drone
+    float droneFreq = NoteToFreq(48);  // C3 - higher than others
+    for (float t = 0.0f; t < duration; t += 7.0f) {
+        AddPadTone(data, sampleCount, droneFreq, t, 9.0f, 0.2f, 0.4f, 0.6f);
+        AddPadTone(data, sampleCount, droneFreq * 1.5f, t + 0.5f, 8.0f, 0.12f, 0.4f, 0.6f);  // Fifth
+    }
+
+    // Lydian chords - dreamy, uplifting
+    int chordRoots[] = { 0, 4, 2, 5 };
+    for (int bar = 0; bar < 7; bar++) {
+        float barStart = bar * 4.0f;
+        int root = SCALE_LYDIAN[chordRoots[bar % 4]];
+        AddPadTone(data, sampleCount, NoteToFreq(root + 12), barStart, 4.5f, 0.2f, 0.3f, 0.5f);
+        AddPadTone(data, sampleCount, NoteToFreq(root + 16), barStart + 0.3f, 4.0f, 0.12f, 0.3f, 0.5f);
+    }
+
+    // Birdsong-like quick arpeggios - ascending patterns
+    int birdPattern[] = { 0, 2, 4, 7, 9 };
+    for (int phrase = 0; phrase < 6; phrase++) {
+        float phraseStart = 1.5f + phrase * 4.5f;
+        for (int i = 0; i < 5; i++) {
+            float t = phraseStart + i * 0.2f;
+            if (t > duration - 2.0f) break;
+            int note = SCALE_LYDIAN[birdPattern[i]];
+            AddPluck(data, sampleCount, NoteToFreq(note + 24), t, 0.4f, 0.22f);  // High register
+        }
+    }
+
+    // Gentle flowing melody
+    int melody[] = { 4, 5, 7, 9, 7, 5 };
+    for (int i = 0; i < 10; i++) {
+        float t = 3.0f + i * 2.0f;
+        if (t > duration - 3.0f) break;
+        int note = SCALE_LYDIAN[melody[i % 6]];
+        AddArpNote(data, sampleCount, NoteToFreq(note + 12), t, 1.5f, 0.25f, 2.5f);
+    }
+
+    ApplyLoopFades(data, sampleCount);
+    return wave;
+}
+
+static Wave GenerateMusicForSeason(int season) {
+    switch (season) {
+        case 0: return GenerateSummerMusic();
+        case 1: return GenerateAutumnMusic();
+        case 2: return GenerateWinterMusic();
+        case 3: return GenerateSpringMusic();
+        default: return GenerateSummerMusic();
+    }
+}
+
+void InitBackgroundMusic(int season) {
     if (musicLoaded) {
         UnloadBackgroundMusic();
     }
 
-    Wave musicWave = GenerateAmbientMusic();
+    Wave musicWave = GenerateMusicForSeason(season);
     ambientMusic = LoadSoundFromWave(musicWave);
     UnloadWave(musicWave);
 
     SetSoundVolume(ambientMusic, musicVolume);
     PlaySound(ambientMusic);
     musicLoaded = true;
+    currentMusicSeason = season;
 
-    TraceLog(LOG_INFO, "Procedural ambient music initialized");
+    const char* seasonNames[] = { "Summer", "Autumn", "Winter", "Spring" };
+    TraceLog(LOG_INFO, "Background music initialized: %s theme", seasonNames[season]);
 }
 
-void UpdateBackgroundMusic() {
+void UpdateBackgroundMusic(int currentSeason) {
+    // Switch music if season changed
+    if (currentSeason != currentMusicSeason) {
+        InitBackgroundMusic(currentSeason);
+        return;
+    }
+
+    // Loop current music
     if (musicLoaded && !IsSoundPlaying(ambientMusic)) {
-        // Loop the music
         PlaySound(ambientMusic);
     }
 }
