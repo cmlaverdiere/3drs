@@ -127,7 +127,7 @@ void UpdateArrows(ArrowSystem* arrows, Enemy* enemies, int enemyCount,
                   WorldItem* worldItems, int* worldItemCount,
                   DamageIndicator* damageIndicators,
                   XPPopup* xpPopups, LevelUpNotification* levelUpNotif,
-                  PlayerState* state, float dt) {
+                  PlayerState* state, BloodSplatterSystem* bloodSystem, float dt) {
     for (int i = 0; i < MAX_ARROWS_IN_FLIGHT; i++) {
         ArrowProjectile* arrow = &arrows->arrows[i];
         if (!arrow->active) continue;
@@ -204,6 +204,11 @@ void UpdateArrows(ArrowSystem* arrows, Enemy* enemies, int enemyCount,
 
                 if (damage > 0) {
                     PlaySoundEffect(SFX_HIT);
+                    // Spawn blood splatter at hit position
+                    if (bloodSystem) {
+                        Vector3 bloodPos = arrow->position;
+                        SpawnBloodSplatter(bloodSystem, bloodPos, arrow->direction);
+                    }
                 }
 
                 // 80% chance arrow drops near enemy, 20% breaks

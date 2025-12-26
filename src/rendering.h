@@ -52,4 +52,8 @@ void DrawCampfire(const EntityModels* models, Vector3 pos);
 void DrawLightSource(const EntityModels* models, const LightSource& light, bool lampsOn);
 void DrawLightSources(const EntityModels* models, const LightSource* lights, int lightCount, bool lampsOn);
 
+// Draw ladders
+void DrawLadder(const EntityModels* models, const Ladder& ladder, bool highlighted);
+void DrawLadders(const EntityModels* models, const Ladder* ladders, int ladderCount, const Ladder* highlightedLadder);
+
 #endif

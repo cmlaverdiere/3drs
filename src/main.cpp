@@ -162,6 +162,22 @@ int main(int argc, char* argv[]) {
         npcCount++;
     }
 
+    // Initialize ladders from map
+    Ladder ladders[MAX_LADDERS] = {};
+    int ladderCount = mapData.ladderCount;
+    for (int i = 0; i < ladderCount; i++) {
+        ladders[i] = mapData.ladders[i];
+    }
+
+    // Ladder climbing state (for fade animation)
+    struct ClimbState {
+        bool active;
+        float fadeTimer;      // Current fade progress
+        float fadeDuration;   // Total fade time (in + out)
+        Vector3 targetPos;    // Where to teleport
+        bool hasTeleported;   // Has the teleport happened mid-fade
+    } climbState = { false, 0.0f, 0.8f, {0,0,0}, false };
+
     // Initialize light sources from map (lamps, campfires)
     LightSource lights[MAX_LIGHTS] = {};
     int lightCount = 0;
@@ -251,6 +267,10 @@ int main(int argc, char* argv[]) {
         InitLeafBurstSystem(&leafBurstSystem);
     }
 
+    // Blood splatter system (for combat hits)
+    BloodSplatterSystem bloodSystem = {};
+    InitBloodSplatterSystem(&bloodSystem);
+
     // Quest dialogue state
     int activeQuestIndex = -1;              // Which quest is active in current dialogue
     const char** questDialogueLines = nullptr;  // Current quest dialogue lines
@@ -322,8 +342,8 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Player movement (when not in any menu and alive)
-        if (!playerRuntime.isDead && CanProcessGameInput(&menuSystem)) {
+        // Player movement (when not in any menu, alive, and not climbing)
+        if (!playerRuntime.isDead && CanProcessGameInput(&menuSystem) && !climbState.active) {
             std::vector<int> nearbyWalls;
             g_spatial.walls.Query(camera.position.x, camera.position.z, PLAYER_RADIUS + 20.0f, nearbyWalls);
             UpdatePlayerMovement(&camera, &playerRuntime, walls, resources.wallCount, nearbyWalls, dt);
@@ -384,7 +404,8 @@ int main(int argc, char* argv[]) {
                                     worldItems, &worldItemCount,
                                     damageIndicators, xpPopups, &levelUpNotif, &swingTimer,
                                     &newAttackMsg,
-                                    (g_currentSeason == SEASON_AUTUMN) ? &leafBurstSystem : nullptr);
+                                    (g_currentSeason == SEASON_AUTUMN) ? &leafBurstSystem : nullptr,
+                                    &bloodSystem);
                 attackCooldown = GetWeaponCooldown(playerState.equippedWeapon);
                 if (newAttackMsg) {
                     attackMessage = newAttackMsg;
@@ -397,7 +418,7 @@ int main(int argc, char* argv[]) {
         UpdateArrows(&arrowSystem, enemies, enemyCount,
                      worldItems, &worldItemCount,
                      damageIndicators, xpPopups, &levelUpNotif,
-                     &playerState, dt);
+                     &playerState, &bloodSystem, dt);
 
         // Update attack message timer
         if (attackMessageTimer > 0) {
@@ -460,6 +481,99 @@ int main(int argc, char* argv[]) {
                     nearestNPCDist = dist;
                     nearestNPCIndex = i;
                 }
+            }
+        }
+
+        // Find nearest ladder for climbing
+        const float LADDER_INTERACT_RANGE = 2.5f;
+        const Ladder* nearestLadder = nullptr;
+        float nearestLadderDist = LADDER_INTERACT_RANGE;
+        for (int i = 0; i < ladderCount; i++) {
+            float groundY = GetTerrainHeight(ladders[i].position.x, ladders[i].position.z);
+            Vector3 ladderBase = { ladders[i].position.x, groundY, ladders[i].position.z };
+            Vector3 ladderTop = { ladders[i].position.x, groundY + ladders[i].height, ladders[i].position.z };
+
+            // Check distance to base or top
+            float distBase = Distance3D(camera.position, ladderBase);
+            float distTop = Distance3D(camera.position, ladderTop);
+            float dist = (distBase < distTop) ? distBase : distTop;
+
+            if (dist < nearestLadderDist) {
+                nearestLadderDist = dist;
+                nearestLadder = &ladders[i];
+            }
+        }
+
+        // Ladder climbing interaction (E key or LMB)
+        if (nearestLadder && !climbState.active && !playerRuntime.isDead) {
+            if (IsKeyPressed(KEY_E) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                // Determine if player is at top or bottom
+                float groundY = GetTerrainHeight(nearestLadder->position.x, nearestLadder->position.z);
+
+                // Calculate step-off offset based on ladder facing direction
+                // (player steps off in the direction the ladder faces)
+                float angleRad = nearestLadder->facingAngle * DEG2RAD;
+                float stepOffDist = 1.0f;
+                float offsetX = sinf(angleRad) * stepOffDist;
+                float offsetZ = -cosf(angleRad) * stepOffDist;
+
+                Vector3 ladderBase = { nearestLadder->position.x, groundY + 1.8f, nearestLadder->position.z };
+                Vector3 ladderTop = {
+                    nearestLadder->position.x + offsetX,
+                    groundY + nearestLadder->height + 2.5f,  // Extra height to land on platform
+                    nearestLadder->position.z + offsetZ
+                };
+
+                float distBase = Distance3D(camera.position, ladderBase);
+                float distTop = Distance3D(camera.position, ladderTop);
+
+                // Start climb animation
+                climbState.active = true;
+                climbState.fadeTimer = 0.0f;
+                climbState.hasTeleported = false;
+
+                // Teleport to opposite end
+                if (distBase < distTop) {
+                    climbState.targetPos = ladderTop;
+                } else {
+                    climbState.targetPos = ladderBase;
+                }
+
+                PlaySoundEffect(SFX_PICKUP);  // Climbing sound (reuse pickup for now)
+            }
+        }
+
+        // Update climb state (fade animation)
+        if (climbState.active) {
+            climbState.fadeTimer += dt;
+
+            // Teleport at midpoint of fade
+            if (!climbState.hasTeleported && climbState.fadeTimer >= climbState.fadeDuration / 2.0f) {
+                // Preserve current facing direction
+                Vector3 lookDir = {
+                    camera.target.x - camera.position.x,
+                    camera.target.y - camera.position.y,
+                    camera.target.z - camera.position.z
+                };
+                camera.position = climbState.targetPos;
+                camera.target = {
+                    camera.position.x + lookDir.x,
+                    camera.position.y + lookDir.y,
+                    camera.position.z + lookDir.z
+                };
+
+                // Set player into falling state so they land properly on surfaces
+                float terrainY = GetTerrainHeight(camera.position.x, camera.position.z);
+                playerRuntime.jumpHeight = (camera.position.y - PLAYER_EYE_HEIGHT) - terrainY;
+                playerRuntime.jumpVelocity = -0.1f;  // Small downward velocity to trigger landing logic
+                playerRuntime.isJumping = true;
+
+                climbState.hasTeleported = true;
+            }
+
+            // End climb when fade completes
+            if (climbState.fadeTimer >= climbState.fadeDuration) {
+                climbState.active = false;
             }
         }
 
@@ -1147,6 +1261,9 @@ int main(int argc, char* argv[]) {
                 DrawLightSource(&resources.entityModels, adjustedLight, lighting.lampsOn);
             }
 
+            // Ladders
+            DrawLadders(&resources.entityModels, ladders, ladderCount, nearestLadder);
+
             // Walls (have their own shaders)
             for (int i = 0; i < resources.wallCount; i++) {
                 Vector3 pos = walls[i].position;
@@ -1175,6 +1292,9 @@ int main(int argc, char* argv[]) {
                 UpdateAndDrawLeafBursts(&leafBurstSystem, camera.position,
                                         fogCol, lighting.fogDensity, GetFrameTime());
             }
+
+            // Blood splatter particles (combat hits)
+            UpdateAndDrawBloodSplatters(&bloodSystem, &resources.entityModels, GetFrameTime());
         EndMode3D();
         EndTextureMode();
 
@@ -1289,6 +1409,20 @@ int main(int argc, char* argv[]) {
             const char* controls = "Press Y to quit, N to cancel";
             int controlsW = MeasureText(controls, 16);
             DrawText(controls, BOX_X + (BOX_W - controlsW) / 2, BOX_Y + 105, 16, (Color){60, 40, 20, 200});
+        }
+
+        // Ladder climb fade overlay
+        if (climbState.active) {
+            float fadeProgress = climbState.fadeTimer / climbState.fadeDuration;
+            // Fade in for first half, fade out for second half
+            float alpha;
+            if (fadeProgress < 0.5f) {
+                alpha = fadeProgress * 2.0f;  // 0 to 1
+            } else {
+                alpha = (1.0f - fadeProgress) * 2.0f;  // 1 to 0
+            }
+            unsigned char alphaVal = (unsigned char)(alpha * 255);
+            DrawRectangle(0, 0, screenWidth, screenHeight, (Color){0, 0, 0, alphaVal});
         }
 
         EndDrawing();

@@ -15,7 +15,8 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                          LevelUpNotification* levelUpNotif,
                          float* swingTimer,
                          const char** outMessage,
-                         LeafBurstSystem* leafBurstSystem) {
+                         LeafBurstSystem* leafBurstSystem,
+                         BloodSplatterSystem* bloodSystem) {
     if (state->equippedWeapon == ITEM_NONE) return false;
 
     *swingTimer = SWING_DURATION;
@@ -173,6 +174,17 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
 
             if (damage > 0) {
                 PlaySoundEffect(SFX_HIT);
+                // Spawn blood splatter at enemy position
+                if (bloodSystem) {
+                    Vector3 bloodPos = target->position;
+                    bloodPos.y = GetTerrainHeight(bloodPos.x, bloodPos.z) + 1.0f;  // Hit height
+                    Vector3 hitDir = {
+                        target->position.x - camera->position.x,
+                        0.0f,
+                        target->position.z - camera->position.z
+                    };
+                    SpawnBloodSplatter(bloodSystem, bloodPos, hitDir);
+                }
             } else {
                 PlaySoundEffect(SFX_MISS);
             }

@@ -1,5 +1,6 @@
 #include "rendering.h"
 #include "game_init.h"
+#include "math_utils.h"
 #include "rlgl.h"
 #include <cmath>
 
@@ -1056,5 +1057,63 @@ void DrawLightSource(const EntityModels* models, const LightSource& light, bool 
 void DrawLightSources(const EntityModels* models, const LightSource* lights, int lightCount, bool lampsOn) {
     for (int i = 0; i < lightCount; i++) {
         DrawLightSource(models, lights[i], lampsOn);
+    }
+}
+
+void DrawLadder(const EntityModels* models, const Ladder& ladder, bool highlighted) {
+    Color woodColor = highlighted ? (Color){180, 140, 90, 255} : (Color){139, 90, 43, 255};
+    Color woodDark = highlighted ? (Color){140, 100, 60, 255} : (Color){100, 65, 30, 255};
+
+    float groundY = GetTerrainHeight(ladder.position.x, ladder.position.z);
+    Vector3 basePos = { ladder.position.x, groundY, ladder.position.z };
+
+    float angle = ladder.facingAngle * DEG2RAD;
+    float cosA = cosf(angle);
+    float sinA = sinf(angle);
+
+    // Ladder dimensions
+    float ladderWidth = 0.6f;   // Width between rails
+    float railThickness = 0.08f;
+    float rungThickness = 0.06f;
+    float rungSpacing = 0.5f;   // Vertical distance between rungs
+
+    // Side rails (two vertical poles)
+    float halfWidth = ladderWidth / 2.0f;
+    float offsetX1 = -halfWidth * cosA;
+    float offsetZ1 = -halfWidth * sinA;
+    float offsetX2 = halfWidth * cosA;
+    float offsetZ2 = halfWidth * sinA;
+
+    // Left rail
+    Vector3 rail1Pos = { basePos.x + offsetX1, basePos.y + ladder.height / 2.0f, basePos.z + offsetZ1 };
+    DrawModelCube(models, rail1Pos, railThickness, ladder.height, railThickness, woodColor);
+
+    // Right rail
+    Vector3 rail2Pos = { basePos.x + offsetX2, basePos.y + ladder.height / 2.0f, basePos.z + offsetZ2 };
+    DrawModelCube(models, rail2Pos, railThickness, ladder.height, railThickness, woodColor);
+
+    // Rungs (horizontal bars)
+    int numRungs = (int)(ladder.height / rungSpacing);
+    for (int i = 1; i <= numRungs; i++) {
+        float rungY = basePos.y + i * rungSpacing - rungSpacing / 2.0f;
+        Vector3 rungPos = { basePos.x, rungY, basePos.z };
+
+        // Rung rotated to connect the rails
+        float rungWidth = ladderWidth;
+        float rungDepth = rungThickness;
+
+        // Draw rung as rotated cube
+        rlPushMatrix();
+        rlTranslatef(rungPos.x, rungPos.y, rungPos.z);
+        rlRotatef(ladder.facingAngle, 0, 1, 0);
+        DrawCube((Vector3){0, 0, 0}, rungWidth, rungThickness, rungDepth, woodDark);
+        rlPopMatrix();
+    }
+}
+
+void DrawLadders(const EntityModels* models, const Ladder* ladders, int ladderCount, const Ladder* highlightedLadder) {
+    for (int i = 0; i < ladderCount; i++) {
+        bool highlighted = (highlightedLadder == &ladders[i]);
+        DrawLadder(models, ladders[i], highlighted);
     }
 }

@@ -42,6 +42,7 @@ struct BowState {
 
 // Forward declarations
 struct EntityModels;
+struct BloodSplatterSystem;
 
 // Initialize arrow system
 void InitArrowSystem(ArrowSystem* system);
@@ -63,7 +64,7 @@ void UpdateArrows(ArrowSystem* arrows, Enemy* enemies, int enemyCount,
                   WorldItem* worldItems, int* worldItemCount,
                   DamageIndicator* damageIndicators,
                   XPPopup* xpPopups, LevelUpNotification* levelUpNotif,
-                  PlayerState* state, float dt);
+                  PlayerState* state, BloodSplatterSystem* bloodSystem, float dt);
 
 // Draw all arrows in flight
 void DrawArrows(const EntityModels* models, const ArrowSystem* arrows);

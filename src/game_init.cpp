@@ -895,3 +895,121 @@ void CleanupLeafBurstSystem(LeafBurstSystem* system) {
     UnloadMesh(system->leafMesh);
     system->initialized = false;
 }
+
+// ============================================================================
+// Blood Splatter Particle System
+// ============================================================================
+
+void InitBloodSplatterSystem(BloodSplatterSystem* system) {
+    for (int i = 0; i < MAX_BLOOD_SPLATTERS; i++) {
+        system->splatters[i].active = false;
+    }
+    system->initialized = true;
+}
+
+void SpawnBloodSplatter(BloodSplatterSystem* system, Vector3 position, Vector3 hitDirection) {
+    if (!system->initialized) return;
+
+    // Find an inactive splatter slot
+    int slot = -1;
+    for (int i = 0; i < MAX_BLOOD_SPLATTERS; i++) {
+        if (!system->splatters[i].active) {
+            slot = i;
+            break;
+        }
+    }
+
+    // If no slot available, use the oldest one
+    if (slot < 0) slot = 0;
+
+    BloodSplatter* splatter = &system->splatters[slot];
+    splatter->active = true;
+    splatter->lifetime = BLOOD_SPLATTER_LIFETIME;
+
+    // Normalize hit direction (direction attack came from)
+    float hitLen = sqrtf(hitDirection.x * hitDirection.x +
+                         hitDirection.y * hitDirection.y +
+                         hitDirection.z * hitDirection.z);
+    if (hitLen > 0.01f) {
+        hitDirection.x /= hitLen;
+        hitDirection.y /= hitLen;
+        hitDirection.z /= hitLen;
+    }
+
+    for (int i = 0; i < BLOOD_PARTICLE_COUNT; i++) {
+        BloodParticle* p = &splatter->particles[i];
+        p->active = true;
+
+        // Start at hit position with slight random offset
+        p->position.x = position.x + (float)GetRandomValue(-20, 20) / 100.0f;
+        p->position.y = position.y + (float)GetRandomValue(-20, 20) / 100.0f;
+        p->position.z = position.z + (float)GetRandomValue(-20, 20) / 100.0f;
+
+        // Velocity - spray in direction of hit with spread
+        float speed = 3.0f + (float)GetRandomValue(0, 500) / 100.0f;
+        float spreadAngle = (float)GetRandomValue(-60, 60) * DEG2RAD;
+        float vertAngle = (float)GetRandomValue(-30, 45) * DEG2RAD;
+
+        // Base direction is opposite to hit direction (blood sprays away from attacker)
+        float baseAngle = atan2f(hitDirection.x, hitDirection.z) + PI;
+
+        p->velocity.x = sinf(baseAngle + spreadAngle) * cosf(vertAngle) * speed;
+        p->velocity.z = cosf(baseAngle + spreadAngle) * cosf(vertAngle) * speed;
+        p->velocity.y = sinf(vertAngle) * speed + 2.0f;  // Slight upward bias
+
+        // Random particle size
+        p->size = 0.03f + (float)GetRandomValue(0, 40) / 1000.0f;
+    }
+}
+
+void UpdateAndDrawBloodSplatters(BloodSplatterSystem* system, const EntityModels* models, float deltaTime) {
+    if (!system->initialized) return;
+
+    // Blood colors (dark red to bright red)
+    Color bloodColors[] = {
+        { 139, 0, 0, 255 },    // Dark red
+        { 178, 34, 34, 255 },  // Firebrick
+        { 200, 20, 20, 255 },  // Bright red
+    };
+
+    const float BLOOD_GRAVITY = 12.0f;
+
+    for (int b = 0; b < MAX_BLOOD_SPLATTERS; b++) {
+        BloodSplatter* splatter = &system->splatters[b];
+        if (!splatter->active) continue;
+
+        splatter->lifetime -= deltaTime;
+        if (splatter->lifetime <= 0) {
+            splatter->active = false;
+            continue;
+        }
+
+        // Fade out near end of lifetime
+        float alpha = (splatter->lifetime < 0.5f) ? (splatter->lifetime / 0.5f) : 1.0f;
+
+        for (int i = 0; i < BLOOD_PARTICLE_COUNT; i++) {
+            BloodParticle* p = &splatter->particles[i];
+            if (!p->active) continue;
+
+            // Apply gravity
+            p->velocity.y -= BLOOD_GRAVITY * deltaTime;
+
+            // Update position
+            p->position.x += p->velocity.x * deltaTime;
+            p->position.y += p->velocity.y * deltaTime;
+            p->position.z += p->velocity.z * deltaTime;
+
+            // Deactivate if below ground
+            float groundY = GetTerrainHeight(p->position.x, p->position.z);
+            if (p->position.y < groundY) {
+                p->active = false;
+                continue;
+            }
+
+            // Draw particle as small cube
+            Color color = bloodColors[i % 3];
+            color.a = (unsigned char)(255 * alpha);
+            DrawCube(p->position, p->size, p->size, p->size, color);
+        }
+    }
+}

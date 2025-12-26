@@ -87,6 +87,30 @@ water 14.0 -1.0 35.0 10.0 20.0
 wall 12.0 1.5 0.0 10.0 0.4 5.0 wood
 # Bridge railings
 wall 12.0 1.9 -2.3 10.0 0.8 0.3 wood
+
+# === ARCHERY TOWER (troll side of river) ===
+# 15m tall wooden tower with no roof, for ranged combat practice
+# Tower position: X=26, Z=0 (just east of bridge)
+# Note: wall Y is offset from terrain, rendering adds terrain height + half wall height
+# Corner posts (4 pillars, 15m tall, Y=0 means starts at ground)
+wall 24.5 0.0 -1.5 0.4 15.0 0.4 wood
+wall 27.5 0.0 -1.5 0.4 15.0 0.4 wood
+wall 24.5 0.0 1.5 0.4 15.0 0.4 wood
+wall 27.5 0.0 1.5 0.4 15.0 0.4 wood
+# Wall panels (waist-height walls between posts at ground level)
+wall 26.0 0.0 -1.5 3.0 1.2 0.3 wood
+wall 26.0 0.0 1.5 3.0 1.2 0.3 wood
+wall 24.5 0.0 0.0 0.3 1.2 3.0 wood
+wall 27.5 0.0 0.0 0.3 1.2 3.0 wood
+# Platform floor at top (15m up, so Y offset = 15 - 0.15 = 14.85)
+wall 26.0 14.85 0.0 3.4 0.3 3.4 wood
+# Railing at top (on platform, Y offset ~15)
+wall 26.0 14.9 -1.5 3.0 0.8 0.2 wood
+wall 26.0 14.9 1.5 3.0 0.8 0.2 wood
+wall 24.5 14.9 0.0 0.2 0.8 3.0 wood
+wall 27.5 14.9 0.0 0.2 0.8 3.0 wood
+# Ladder on east side (inside tower, facing west)
+ladder 27.3 0.0 0.0 15.0 270.0
 wall 12.0 1.9 2.3 10.0 0.8 0.3 wood
 
 # === LUMBRIDGE SWAMP ENTRANCE (southeast) ===

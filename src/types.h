@@ -348,6 +348,14 @@ struct LightSource {
     LightType type;
 };
 
+// Ladder (climbable - teleports player to top)
+struct Ladder {
+    Vector3 position;     // Base position
+    float height;         // How tall the ladder is
+    float facingAngle;    // Which direction the ladder faces (for rendering)
+};
+
+const int MAX_LADDERS = 50;
 const int MAX_LIGHTS = 100;
 const int MAX_TREES = 4000;
 const int MAX_ROCKS = 800;
@@ -594,6 +602,8 @@ struct MapData {
     Vector3 lightSpawns[MAX_LIGHTS];
     LightType lightTypes[MAX_LIGHTS];
     int lightCount;
+    Ladder ladders[MAX_LADDERS];
+    int ladderCount;
 };
 
 #endif

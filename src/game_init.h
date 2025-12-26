@@ -218,4 +218,39 @@ void UpdateAndDrawLeafBursts(LeafBurstSystem* system, Vector3 viewPos,
 // Cleanup
 void CleanupLeafBurstSystem(LeafBurstSystem* system);
 
+// ============================================================================
+// Blood Splatter Particle System (for combat hits)
+// ============================================================================
+
+static const int BLOOD_PARTICLE_COUNT = 20;       // Particles per splatter
+static const int MAX_BLOOD_SPLATTERS = 16;        // Max simultaneous splatters
+static const float BLOOD_SPLATTER_LIFETIME = 1.5f; // How long splatter lasts
+
+struct BloodParticle {
+    Vector3 position;
+    Vector3 velocity;
+    float size;
+    bool active;
+};
+
+struct BloodSplatter {
+    BloodParticle particles[BLOOD_PARTICLE_COUNT];
+    float lifetime;
+    bool active;
+};
+
+struct BloodSplatterSystem {
+    BloodSplatter splatters[MAX_BLOOD_SPLATTERS];
+    bool initialized;
+};
+
+// Initialize blood splatter system
+void InitBloodSplatterSystem(BloodSplatterSystem* system);
+
+// Spawn a new blood splatter at position (e.g., enemy hit location)
+void SpawnBloodSplatter(BloodSplatterSystem* system, Vector3 position, Vector3 hitDirection);
+
+// Update and draw all active blood splatters
+void UpdateAndDrawBloodSplatters(BloodSplatterSystem* system, const EntityModels* models, float deltaTime);
+
 #endif

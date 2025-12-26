@@ -336,6 +336,20 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                 TraceLog(LOG_WARNING, "MAX_LIGHTS (%d) exceeded, skipping campfire", MAX_LIGHTS);
             }
         }
+        else if (strcmp(type, "ladder") == 0) {
+            // Format: ladder x y z height facing
+            if (map.ladderCount < MAX_LADDERS) {
+                float x, y, z, height, facing;
+                if (sscanf(line, "%*s %f %f %f %f %f", &x, &y, &z, &height, &facing) == 5) {
+                    map.ladders[map.ladderCount].position = { x + offsetX, y, z + offsetZ };
+                    map.ladders[map.ladderCount].height = height;
+                    map.ladders[map.ladderCount].facingAngle = facing;
+                    map.ladderCount++;
+                }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_LADDERS (%d) exceeded, skipping ladder", MAX_LADDERS);
+            }
+        }
     }
 
     fclose(f);
@@ -355,13 +369,14 @@ bool LoadMap(const char* filename, MapData& map) {
     map.valleyCount = 0;
     map.npcCount = 0;
     map.lightCount = 0;
+    map.ladderCount = 0;
 
     // Load the root map file with no offset
     bool success = LoadMapFile(filename, map, 0.0f, 0.0f, nullptr);
 
     if (success) {
-        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d rocks, %d water, %d sand, %d valleys, %d npcs, %d lights)",
-            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.rockCount, map.waterCount, map.sandCount, map.valleyCount, map.npcCount, map.lightCount);
+        TraceLog(LOG_INFO, "Loaded map: %s (%d items, %d enemies, %d walls, %d trees, %d rocks, %d water, %d sand, %d valleys, %d npcs, %d lights, %d ladders)",
+            filename, map.itemCount, map.enemyCount, map.wallCount, map.treeCount, map.rockCount, map.waterCount, map.sandCount, map.valleyCount, map.npcCount, map.lightCount, map.ladderCount);
     }
 
     return success;
