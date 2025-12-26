@@ -290,6 +290,7 @@ void SpawnArrowItem(WorldItem* worldItems, int* worldItemCount, Vector3 pos) {
     worldItems[*worldItemCount].pickedUp = false;
     worldItems[*worldItemCount].canRespawn = false;
     worldItems[*worldItemCount].respawnTimer = 0.0f;
+    worldItems[*worldItemCount].quantity = 1;
     (*worldItemCount)++;
 }
 

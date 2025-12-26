@@ -203,19 +203,20 @@ void UpdatePlayerDeath(Camera3D* camera, PlayerState* state, PlayerRuntime* runt
     // Drop items on first frame of death
     if (runtime->deathFadeTimer > DEATH_FADE_DURATION - dt - 0.01f) {
         for (int i = 0; i < INV_SLOTS; i++) {
-            if (state->inventory[i] != ITEM_NONE) {
+            if (state->inventory[i] != ITEM_NONE && *worldItemCount < MAX_WORLD_ITEMS) {
                 int dropCount = state->inventoryCount[i];
-                for (int j = 0; j < dropCount && *worldItemCount < MAX_WORLD_ITEMS; j++) {
-                    worldItems[*worldItemCount].type = state->inventory[i];
-                    worldItems[*worldItemCount].position = runtime->deathPosition;
-                    worldItems[*worldItemCount].position.x += RandomFloat(-1.0f, 1.0f);
-                    worldItems[*worldItemCount].position.z += RandomFloat(-1.0f, 1.0f);
-                    worldItems[*worldItemCount].position.y = 0.0f;
-                    worldItems[*worldItemCount].pickedUp = false;
-                    worldItems[*worldItemCount].canRespawn = false;  // Death drops don't respawn
-                    worldItems[*worldItemCount].respawnTimer = 0.0f;
-                    (*worldItemCount)++;
-                }
+                // Drop as a single stacked item
+                worldItems[*worldItemCount].type = state->inventory[i];
+                worldItems[*worldItemCount].position = runtime->deathPosition;
+                worldItems[*worldItemCount].position.x += RandomFloat(-1.0f, 1.0f);
+                worldItems[*worldItemCount].position.z += RandomFloat(-1.0f, 1.0f);
+                worldItems[*worldItemCount].position.y = 0.0f;
+                worldItems[*worldItemCount].pickedUp = false;
+                worldItems[*worldItemCount].canRespawn = false;  // Death drops don't respawn
+                worldItems[*worldItemCount].respawnTimer = 0.0f;
+                worldItems[*worldItemCount].quantity = dropCount;
+                (*worldItemCount)++;
+
                 state->inventory[i] = ITEM_NONE;
                 state->inventoryCount[i] = 0;
             }

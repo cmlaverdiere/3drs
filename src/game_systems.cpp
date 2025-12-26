@@ -38,10 +38,9 @@ void SpawnEnemyDrops(const EnemyConfig& config, Vector3 pos, WorldItem* worldIte
         // Determine amount
         int amount = GetRandomValue(drop.minAmount, drop.maxAmount);
 
-        // Spawn items (for stackable items like gil, spawn one pile)
-        // For non-stackable, spawn multiple items
-        if (drop.item == ITEM_GIL) {
-            // Gil is stackable - spawn one pile (amount stored elsewhere if needed)
+        // Stackable items drop as a single pile with quantity
+        // Non-stackable items drop individually (though typically amount=1)
+        if (IsItemStackable(drop.item)) {
             if (worldItemCount < MAX_WORLD_ITEMS) {
                 worldItems[worldItemCount].type = drop.item;
                 worldItems[worldItemCount].position = pos;
@@ -51,10 +50,11 @@ void SpawnEnemyDrops(const EnemyConfig& config, Vector3 pos, WorldItem* worldIte
                 worldItems[worldItemCount].pickedUp = false;
                 worldItems[worldItemCount].canRespawn = false;  // Drops don't respawn
                 worldItems[worldItemCount].respawnTimer = 0.0f;
+                worldItems[worldItemCount].quantity = amount;
                 worldItemCount++;
             }
         } else {
-            // Non-stackable items
+            // Non-stackable items spawn individually
             for (int j = 0; j < amount && worldItemCount < MAX_WORLD_ITEMS; j++) {
                 worldItems[worldItemCount].type = drop.item;
                 worldItems[worldItemCount].position = pos;
@@ -64,6 +64,7 @@ void SpawnEnemyDrops(const EnemyConfig& config, Vector3 pos, WorldItem* worldIte
                 worldItems[worldItemCount].pickedUp = false;
                 worldItems[worldItemCount].canRespawn = false;  // Drops don't respawn
                 worldItems[worldItemCount].respawnTimer = 0.0f;
+                worldItems[worldItemCount].quantity = 1;
                 worldItemCount++;
             }
         }

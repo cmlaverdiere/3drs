@@ -86,6 +86,7 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                     worldItems[*worldItemCount].pickedUp = false;
                     worldItems[*worldItemCount].canRespawn = false;  // Logs don't respawn
                     worldItems[*worldItemCount].respawnTimer = 0.0f;
+                    worldItems[*worldItemCount].quantity = 1;
                     (*worldItemCount)++;
                 }
 
@@ -133,6 +134,7 @@ bool ProcessPlayerAttack(Camera3D* camera, PlayerState* state,
                     worldItems[*worldItemCount].pickedUp = false;
                     worldItems[*worldItemCount].canRespawn = false;  // Ore doesn't respawn as ground item
                     worldItems[*worldItemCount].respawnTimer = 0.0f;
+                    worldItems[*worldItemCount].quantity = 1;
                     (*worldItemCount)++;
                 }
 

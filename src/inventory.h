@@ -32,9 +32,9 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
 // Returns true if item was picked up
 bool HandleItemPickup(PlayerState* state, WorldItem* targetItem);
 
-// Try to add item to inventory (handles stacking)
+// Try to add item(s) to inventory (handles stacking)
 // Returns true if added successfully
-bool AddToInventory(PlayerState* state, ItemType item);
+bool AddToInventory(PlayerState* state, ItemType item, int quantity = 1);
 
 // Drop item from inventory slot
 void DropFromInventory(PlayerState* state, int slot,

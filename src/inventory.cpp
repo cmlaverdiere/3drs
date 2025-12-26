@@ -106,6 +106,7 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
                         worldItems[*worldItemCount].pickedUp = false;
                         worldItems[*worldItemCount].canRespawn = false;  // Dropped items don't respawn
                         worldItems[*worldItemCount].respawnTimer = 0.0f;
+                        worldItems[*worldItemCount].quantity = 1;  // Context menu drops one at a time
                         (*worldItemCount)++;
 
                         if (IsItemStackable(menuItem) && state->inventoryCount[menu->contextSlot] > 1) {
@@ -198,7 +199,8 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
 }
 
 bool HandleItemPickup(PlayerState* state, WorldItem* targetItem) {
-    if (AddToInventory(state, targetItem->type)) {
+    int quantity = targetItem->quantity > 0 ? targetItem->quantity : 1;
+    if (AddToInventory(state, targetItem->type, quantity)) {
         targetItem->pickedUp = true;
         if (targetItem->canRespawn) {
             targetItem->respawnTimer = ITEM_RESPAWN_TIME;
@@ -209,12 +211,12 @@ bool HandleItemPickup(PlayerState* state, WorldItem* targetItem) {
     return false;
 }
 
-bool AddToInventory(PlayerState* state, ItemType item) {
+bool AddToInventory(PlayerState* state, ItemType item, int quantity) {
     // For stackable items, try to add to existing stack first
     if (IsItemStackable(item)) {
         for (int i = 0; i < INV_SLOTS; i++) {
             if (state->inventory[i] == item) {
-                state->inventoryCount[i]++;
+                state->inventoryCount[i] += quantity;
                 return true;
             }
         }
@@ -224,7 +226,7 @@ bool AddToInventory(PlayerState* state, ItemType item) {
     for (int i = 0; i < INV_SLOTS; i++) {
         if (state->inventory[i] == ITEM_NONE) {
             state->inventory[i] = item;
-            state->inventoryCount[i] = 1;
+            state->inventoryCount[i] = quantity;
             return true;
         }
     }
@@ -244,6 +246,9 @@ void DropFromInventory(PlayerState* state, int slot,
     worldItems[*worldItemCount].position = dropPos;
     worldItems[*worldItemCount].position.y = 0.0f;
     worldItems[*worldItemCount].pickedUp = false;
+    worldItems[*worldItemCount].canRespawn = false;  // Player drops don't respawn
+    worldItems[*worldItemCount].respawnTimer = 0.0f;
+    worldItems[*worldItemCount].quantity = state->inventoryCount[slot];
     (*worldItemCount)++;
 
     if (state->equippedWeapon == item) {

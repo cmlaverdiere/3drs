@@ -200,6 +200,7 @@ struct WorldItem {
     float respawnTimer;      // Time until respawn (0 = no respawn)
     Vector3 spawnPosition;   // Original spawn point for respawning items
     bool canRespawn;         // True for map-spawned items
+    int quantity;            // Stack size (for stackable items like gil, arrows)
 };
 
 // Drop table entry
