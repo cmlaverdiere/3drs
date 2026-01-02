@@ -27,6 +27,7 @@
 #include "frustum.h"
 #include "arrow_system.h"
 #include "monster_system.h"
+#include "script_input.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -42,14 +43,27 @@ int main(int argc, char* argv[]) {
     // Check for command-line flags
     bool testMode = false;
     bool screenshotMode = false;
+    bool scriptMode = false;
+    bool headlessMode = false;
+    const char* scriptFile = nullptr;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--test") == 0) {
             testMode = true;
         } else if (strcmp(argv[i], "--screenshot") == 0) {
             screenshotMode = true;
+        } else if (strcmp(argv[i], "--script") == 0 && i + 1 < argc) {
+            scriptMode = true;
+            scriptFile = argv[++i];
+        } else if (strcmp(argv[i], "--headless") == 0) {
+            headlessMode = true;
         } else if (strcmp(argv[i], "--winter") == 0) {
             g_currentSeason = SEASON_WINTER;
         }
+    }
+
+    // Headless mode: hide window (still creates OpenGL context for rendering)
+    if (headlessMode) {
+        SetConfigFlags(FLAG_WINDOW_HIDDEN);
     }
 
     if (testMode) {
@@ -306,6 +320,19 @@ int main(int argc, char* argv[]) {
     bool showQuitConfirm = false;
     bool shouldQuit = false;
 
+    // Script mode initialization
+    ScriptState scriptState = {};
+    if (scriptMode && scriptFile) {
+        if (LoadScript(&scriptState, scriptFile)) {
+            g_activeScript = &scriptState;
+            printf("=== SCRIPT MODE: %s ===\n", scriptFile);
+        } else {
+            printf("ERROR: Failed to load script: %s\n", scriptFile);
+            CloseWindow();
+            return 1;
+        }
+    }
+
     // Initialize menu system (after mouseMode is declared)
     InitMenuSystem(&menuSystem, &mouseMode, &dialogueState, &shopState, &timeSelectMenu, &helpSystem, &monsterGenerator);
 
@@ -327,9 +354,19 @@ int main(int argc, char* argv[]) {
         // Update lighting system (day/night cycle, sun position)
         UpdateLightingSystem(&lighting, dt, camera.position);
 
+        // Script mode: update script state and check for completion
+        if (g_activeScript) {
+            if (!UpdateScript(g_activeScript, &camera, &playerState, &lighting, screenWidth, screenHeight)) {
+                // Script finished - exit
+                printf("=== SCRIPT COMPLETE ===\n");
+                shouldQuit = true;
+                continue;
+            }
+        }
+
         // Mouse mode toggle (hold shift for inventory)
         bool wasMouseMode = mouseMode;
-        mouseMode = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+        mouseMode = Game_IsKeyDown(KEY_LEFT_SHIFT) || Game_IsKeyDown(KEY_RIGHT_SHIFT);
         if (mouseMode && !wasMouseMode) {
             EnableCursor();
             invMenu.showContextMenu = false;
@@ -407,7 +444,7 @@ int main(int argc, char* argv[]) {
                 HandleBowInput(&camera, &playerState, &bowState, &arrowSystem,
                                damageIndicators, xpPopups, &levelUpNotif,
                                enemies, enemyCount, worldItems, &worldItemCount, dt);
-            } else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && attackCooldown <= 0) {
+            } else if (Game_IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && attackCooldown <= 0) {
                 // Melee combat: instant attack on click
                 const char* newAttackMsg = nullptr;
                 ProcessPlayerAttack(&camera, &playerState, enemies, enemyCount,
@@ -469,15 +506,15 @@ int main(int argc, char* argv[]) {
 
         // Action menu input
         if (showActionMenu && targetItem != nullptr) {
-            if (IsKeyPressed(KEY_ONE)) {
+            if (Game_IsKeyPressed(KEY_ONE)) {
                 if (HandleItemPickup(&playerState, targetItem)) {
                     showActionMenu = false;
                     targetItem = nullptr;
                 }
-            } else if (IsKeyPressed(KEY_TWO)) {
+            } else if (Game_IsKeyPressed(KEY_TWO)) {
                 snprintf(screenshotMsg, sizeof(screenshotMsg), "It's a %s.", ITEM_NAMES[targetItem->type]);
                 screenshotMsgTimer = 3.0f;
-            } else if (IsKeyPressed(KEY_THREE)) {
+            } else if (Game_IsKeyPressed(KEY_THREE)) {
                 showActionMenu = false;
             }
         }
@@ -519,7 +556,7 @@ int main(int argc, char* argv[]) {
 
         // Ladder climbing interaction (E key or LMB)
         if (nearestLadder && !climbState.active && !playerRuntime.isDead) {
-            if (IsKeyPressed(KEY_E) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            if (Game_IsKeyPressed(KEY_E) || Game_IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 // Determine if player is at top or bottom
                 float groundY = GetTerrainHeight(nearestLadder->position.x, nearestLadder->position.z);
 
@@ -596,7 +633,7 @@ int main(int argc, char* argv[]) {
             UpdateHelpSystem(&helpSystem, quests, questCount, &playerState);
         } else if (!dialogueState.active && !mouseMode && !playerRuntime.isDead) {
             // 'H' key opens help
-            if (IsKeyPressed(KEY_H)) {
+            if (Game_IsKeyPressed(KEY_H)) {
                 OpenHelpUI(&helpSystem, quests, questCount, &playerState);
                 EnableCursor();
             }
@@ -617,7 +654,7 @@ int main(int argc, char* argv[]) {
                                         enemies, &enemyCount, MAX_ENEMIES, &camera, screenWidth, screenHeight);
         } else if (CanProcessHotkeys(&menuSystem) && !playerRuntime.isDead) {
             // 'G' key opens monster generator
-            if (IsKeyPressed(KEY_G)) {
+            if (Game_IsKeyPressed(KEY_G)) {
                 OpenMonsterGenerator(&monsterGenerator);
                 EnableCursor();
             }
@@ -632,15 +669,15 @@ int main(int argc, char* argv[]) {
         // Quit confirmation handling
         // Skip if help UI just closed (it consumed the ESC)
         if (showQuitConfirm) {
-            if (IsKeyPressed(KEY_Y)) {
+            if (Game_IsKeyPressed(KEY_Y)) {
                 shouldQuit = true;
-            } else if (IsKeyPressed(KEY_N) || IsKeyPressed(KEY_ESCAPE)) {
+            } else if (Game_IsKeyPressed(KEY_N) || Game_IsKeyPressed(KEY_ESCAPE)) {
                 showQuitConfirm = false;
                 if (!mouseMode && !dialogueState.active) {
                     DisableCursor();
                 }
             }
-        } else if (IsKeyPressed(KEY_ESCAPE) && !helpJustClosed) {
+        } else if (Game_IsKeyPressed(KEY_ESCAPE) && !helpJustClosed) {
             // ESC priority: help UI > generator > bank > dialogue > shop > time menu > show quit prompt
             if (helpSystem.state != HelpState::CLOSED) {
                 // Help system handles its own ESC
@@ -669,14 +706,14 @@ int main(int argc, char* argv[]) {
         // Shop input handling
         if (shopState.active) {
             // ESC to close shop
-            if (IsKeyPressed(KEY_ESCAPE)) {
+            if (Game_IsKeyPressed(KEY_ESCAPE)) {
                 shopState.active = false;
                 shopState.selectedIndex = -1;
                 if (!mouseMode) DisableCursor();
             }
             // Mouse click handling
-            else if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                Vector2 mouse = GetMousePosition();
+            else if (Game_IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                Vector2 mouse = Game_GetMousePosition();
                 const int BOX_WIDTH = 400;
                 const int BOX_HEIGHT = 350;
                 const int BOX_X = (screenWidth - BOX_WIDTH) / 2;
@@ -739,7 +776,7 @@ int main(int argc, char* argv[]) {
             if (!dialogueState.active) {
                 // Start dialogue when pressing E near an NPC
                 if (nearestNPCIndex >= 0 && !mouseMode && !playerRuntime.isDead) {
-                    if (IsKeyPressed(KEY_E)) {
+                    if (Game_IsKeyPressed(KEY_E)) {
                         NPCType npcType = npcs[nearestNPCIndex].type;
 
                         // Check if this is a shop NPC
@@ -807,7 +844,7 @@ int main(int argc, char* argv[]) {
             bool declineClicked = false;
 
             if (showQuestAcceptPrompt && onLastLine) {
-                Vector2 mouse = GetMousePosition();
+                Vector2 mouse = Game_GetMousePosition();
 
                 // Accept button bounds (approximate - will match HUD rendering)
                 int dialogueBoxY = screenHeight - 180 - 40;
@@ -817,7 +854,7 @@ int main(int argc, char* argv[]) {
                 int buttonW = 100;
                 int buttonH = 30;
 
-                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                if (Game_IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                     if (mouse.x >= acceptX && mouse.x <= acceptX + buttonW &&
                         mouse.y >= buttonY && mouse.y <= buttonY + buttonH) {
                         acceptClicked = true;
@@ -865,9 +902,9 @@ int main(int argc, char* argv[]) {
                 }
             } else if (!showQuestAcceptPrompt || !onLastLine) {
                 // Normal dialogue advancement (click/space/E)
-                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
-                    IsKeyPressed(KEY_SPACE) ||
-                    IsKeyPressed(KEY_E)) {
+                if (Game_IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
+                    Game_IsKeyPressed(KEY_SPACE) ||
+                    Game_IsKeyPressed(KEY_E)) {
 
                     if (dialogueState.currentLine < totalLines - 1) {
                         // Advance to next line
@@ -921,7 +958,7 @@ int main(int argc, char* argv[]) {
             }
 
             // Escape to exit dialogue early
-            if (IsKeyPressed(KEY_ESCAPE)) {
+            if (Game_IsKeyPressed(KEY_ESCAPE)) {
                 StopSpeaking();
                 dialogueState.active = false;
                 dialogueState.npcIndex = -1;
@@ -954,7 +991,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Screenshot (not while typing in help UI)
-        if (IsKeyPressed(KEY_P) && CanProcessScreenshotKey(&menuSystem)) {
+        if (Game_IsKeyPressed(KEY_P) && CanProcessScreenshotKey(&menuSystem)) {
             time_t now = time(nullptr);
             char filename[64];
             strftime(filename, sizeof(filename), "screenshots/%Y%m%d_%H%M%S.png", localtime(&now));
@@ -966,7 +1003,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Time selection menu toggle (T key)
-        if (IsKeyPressed(KEY_T) && CanProcessHotkeys(&menuSystem)) {
+        if (Game_IsKeyPressed(KEY_T) && CanProcessHotkeys(&menuSystem)) {
             timeSelectMenu.active = !timeSelectMenu.active;
             if (timeSelectMenu.active) {
                 EnableCursor();
@@ -1001,7 +1038,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Reload game (0 key) - useful for development (not while in menus)
-        if (IsKeyPressed(KEY_ZERO) && CanProcessHotkeys(&menuSystem)) {
+        if (Game_IsKeyPressed(KEY_ZERO) && CanProcessHotkeys(&menuSystem)) {
             // Save current state first
             playerState.posX = camera.position.x;
             playerState.posY = camera.position.y;

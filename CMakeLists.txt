@@ -46,6 +46,7 @@ add_executable(game
     src/arrow_system.cpp
     src/monster_system.cpp
     src/monster_generator.cpp
+    src/script_input.cpp
 )
 
 target_include_directories(game PRIVATE ${PIPER_INCLUDE_DIR})

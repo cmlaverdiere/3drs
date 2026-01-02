@@ -2,12 +2,13 @@
 #include "math_utils.h"
 #include "collision.h"
 #include "xp_system.h"
+#include "script_input.h"
 
 void UpdatePlayerMovement(Camera3D* camera, PlayerRuntime* runtime,
                           const Wall* walls, int wallCount,
                           const std::vector<int>& nearbyWalls, float dt) {
     // Toggle run mode with R key
-    if (IsKeyPressed(KEY_R)) {
+    if (Game_IsKeyPressed(KEY_R)) {
         ToggleRun(runtime);
     }
 
@@ -30,10 +31,10 @@ void UpdatePlayerMovement(Camera3D* camera, PlayerRuntime* runtime,
     Vector3 movement = { 0, 0, 0 };
     bool isMoving = false;
 
-    if (IsKeyDown(KEY_W)) { movement.x += forward.x; movement.z += forward.z; isMoving = true; }
-    if (IsKeyDown(KEY_S)) { movement.x -= forward.x; movement.z -= forward.z; isMoving = true; }
-    if (IsKeyDown(KEY_D)) { movement.x += right.x; movement.z += right.z; isMoving = true; }
-    if (IsKeyDown(KEY_A)) { movement.x -= right.x; movement.z -= right.z; isMoving = true; }
+    if (Game_IsKeyDown(KEY_W)) { movement.x += forward.x; movement.z += forward.z; isMoving = true; }
+    if (Game_IsKeyDown(KEY_S)) { movement.x -= forward.x; movement.z -= forward.z; isMoving = true; }
+    if (Game_IsKeyDown(KEY_D)) { movement.x += right.x; movement.z += right.z; isMoving = true; }
+    if (Game_IsKeyDown(KEY_A)) { movement.x -= right.x; movement.z -= right.z; isMoving = true; }
 
     // Normalize diagonal movement and apply speed
     if (isMoving) {
@@ -48,7 +49,7 @@ void UpdatePlayerMovement(Camera3D* camera, PlayerRuntime* runtime,
     UpdateRunEnergy(runtime, isMoving, dt);
 
     // Mouse look (pitch and yaw)
-    Vector2 mouseDelta = GetMouseDelta();
+    Vector2 mouseDelta = Game_GetMouseDelta();
 
     // Yaw (rotate around Y axis)
     float yaw = -mouseDelta.x * MOUSE_SENSITIVITY;
@@ -104,7 +105,7 @@ void UpdatePlayerMovement(Camera3D* camera, PlayerRuntime* runtime,
     }
 
     // Jump input
-    if (IsKeyPressed(KEY_SPACE) && !runtime->isJumping) {
+    if (Game_IsKeyPressed(KEY_SPACE) && !runtime->isJumping) {
         runtime->jumpVelocity = JUMP_FORCE;
         runtime->isJumping = true;
     }

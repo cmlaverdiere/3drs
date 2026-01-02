@@ -2,6 +2,7 @@
 #include "combat.h"
 #include "sound_system.h"
 #include "hud.h"
+#include "script_input.h"
 #include <cmath>
 
 void GetInventoryPosition(int screenWidth, int* outX, int* outY) {
@@ -54,12 +55,12 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
     static char messageBuffer[128];
     const char* message = nullptr;
 
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = Game_GetMousePosition();
     int invX, invY;
     GetInventoryPosition(screenWidth, &invX, &invY);
 
     // Handle context menu clicks
-    if (menu->showContextMenu && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (menu->showContextMenu && Game_IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         const int menuWidth = 80;
         const int menuItemHeight = 20;
         ItemType menuItem = state->inventory[menu->contextSlot];
@@ -128,7 +129,7 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
     }
 
     // Right-click to open context menu (cancel any drag)
-    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+    if (Game_IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
         menu->isDragging = false;
         menu->dragSlot = -1;
 
@@ -149,7 +150,7 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
     }
 
     // Left-click press: start dragging if slot has an item
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !menu->showContextMenu && !runtime->isDucking) {
+    if (Game_IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !menu->showContextMenu && !runtime->isDucking) {
         int slotIdx = GetSlotAtPosition(mouse, invX, invY);
         if (slotIdx >= 0 && state->inventory[slotIdx] != ITEM_NONE) {
             menu->isDragging = true;
@@ -160,7 +161,7 @@ const char* HandleInventoryInput(PlayerState* state, PlayerRuntime* runtime,
     }
 
     // Left-click release: handle drag end or click action
-    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && menu->isDragging) {
+    if (Game_IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && menu->isDragging) {
         int dx = (int)mouse.x - menu->dragStartX;
         int dy = (int)mouse.y - menu->dragStartY;
         int dragDistance = (int)sqrtf((float)(dx*dx + dy*dy));
