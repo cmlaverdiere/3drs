@@ -286,27 +286,44 @@ static void GenerationWorker(MonsterGenerator* gen) {
         "- sphere x y z radius [r g b a]\\n"
         "- cylinder x y z radius height [r g b a]\\n\\n"
         "Y is up. Origin at monster's feet. Human height ~1.7 units.\\n"
-        "Optional [r g b a] overrides body_color.\\n\\n"
-        "EXAMPLE - Goblin (humanoid, level 3):\\n"
-        "name Goblin\\n"
-        "level 3\\n"
-        "health 15\\n"
-        "damage 3\\n"
-        "attack_cooldown 1.0\\n"
+        "Optional [r g b a] overrides body_color for that primitive.\\n\\n"
+        "IMPORTANT: Use 15-100 primitives for detailed creatures! More is better. Include:\\n"
+        "- Body segments (torso, abdomen, chest)\\n"
+        "- Head with eyes (small spheres with dark pupils)\\n"
+        "- Limbs (arms, legs, tentacles, wings)\\n"
+        "- Details (horns, claws, tail, ears, spikes, teeth)\\n\\n"
+        "EXAMPLE - Demon (detailed humanoid, level 15):\\n"
+        "name Fire Demon\\n"
+        "level 15\\n"
+        "health 80\\n"
+        "damage 10\\n"
+        "attack_cooldown 1.2\\n"
         "chase_speed 3.5\\n"
-        "attack_range 2.0\\n"
-        "aggressive false\\n"
-        "body_color 100 140 100 255\\n"
-        "limb_color 70 100 70 255\\n"
+        "attack_range 2.5\\n"
+        "aggressive true\\n"
+        "body_color 140 30 30 255\\n"
+        "limb_color 100 20 20 255\\n"
         "visual\\n"
-        "cube 0 0.8 0 0.5 0.7 0.35\\n"
-        "sphere 0 1.45 0 0.3\\n"
-        "cube -0.4 0.8 0 0.15 0.5 0.15\\n"
-        "cube 0.4 0.8 0 0.15 0.5 0.15\\n"
-        "cube -0.12 0.25 0 0.15 0.5 0.15\\n"
-        "cube 0.12 0.25 0 0.15 0.5 0.15\\n"
+        "cube 0 1.0 0 0.5 0.8 0.3\\n"
+        "sphere 0 1.7 0 0.28\\n"
+        "sphere -0.12 1.75 0.2 0.06 255 200 0 255\\n"
+        "sphere 0.12 1.75 0.2 0.06 255 200 0 255\\n"
+        "sphere -0.12 1.75 0.22 0.03 20 20 20 255\\n"
+        "sphere 0.12 1.75 0.22 0.03 20 20 20 255\\n"
+        "cylinder -0.15 1.9 0 0.04 0.2\\n"
+        "cylinder 0.15 1.9 0 0.04 0.2\\n"
+        "cube -0.45 1.0 0 0.12 0.5 0.1\\n"
+        "cube 0.45 1.0 0 0.12 0.5 0.1\\n"
+        "cube -0.55 0.7 0 0.1 0.4 0.08\\n"
+        "cube 0.55 0.7 0 0.1 0.4 0.08\\n"
+        "cube -0.15 0.4 0 0.12 0.5 0.1\\n"
+        "cube 0.15 0.4 0 0.12 0.5 0.1\\n"
+        "cube -0.15 0.05 0 0.14 0.1 0.2\\n"
+        "cube 0.15 0.05 0 0.14 0.1 0.2\\n"
+        "cylinder 0 0.7 -0.2 0.08 0.6\\n"
+        "sphere 0 0.4 -0.5 0.12 200 50 20 255\\n"
         ".\\n\\n"
-        "Match stats to description (weak=low level, fierce=aggressive/high damage). Be creative with shapes.";
+        "Match stats to description (weak=low level, fierce=aggressive/high damage). Be creative and detailed!";
 
     // Escape user input for JSON
     char escapedInput[1024];
@@ -549,7 +566,8 @@ bool UpdateMonsterGenerator(MonsterGenerator* gen, CustomMonster* customMonsters
             // Save monster (only once)
             gen->generationReady = false;  // Clear flag immediately to prevent re-processing
 
-            GenerateMonsterID(gen->generatedMonster.id, sizeof(gen->generatedMonster.id));
+            GenerateMonsterID(gen->generatedMonster.id, sizeof(gen->generatedMonster.id),
+                             gen->generatedMonster.name);
             strncpy(gen->generatedMonster.description, gen->inputBuffer,
                    sizeof(gen->generatedMonster.description) - 1);
             int newIdx = AddCustomMonster(customMonsters, customMonsterCount, maxMonsters,
@@ -643,7 +661,9 @@ static Vector3 GetSpawnPositionInFrontOfPlayer(const Camera3D* camera) {
         0,
         camera->target.z - camera->position.z
     });
-    return Vector3Add(camera->position, Vector3Scale(forward, 5.0f));
+    Vector3 pos = Vector3Add(camera->position, Vector3Scale(forward, 5.0f));
+    pos.y = GetTerrainHeight(pos.x, pos.z);  // Place on ground
+    return pos;
 }
 
 bool HandleMonsterGeneratorInput(MonsterGenerator* gen,

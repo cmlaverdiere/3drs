@@ -173,7 +173,7 @@ enum PrimitiveType {
 };
 
 // Custom monster limits
-constexpr int MAX_MONSTER_PRIMITIVES = 24;
+constexpr int MAX_MONSTER_PRIMITIVES = 100;
 constexpr int MAX_CUSTOM_MONSTERS = 64;
 
 // Woodcutting level requirements

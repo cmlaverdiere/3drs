@@ -322,15 +322,32 @@ bool RemoveCustomMonster(CustomMonster* monsters, int* monsterCount, int index) 
     return true;
 }
 
-void GenerateMonsterID(char* buffer, int bufferSize) {
-    static bool seeded = false;
-    if (!seeded) {
-        srand((unsigned int)time(nullptr));
-        seeded = true;
+void GenerateMonsterID(char* buffer, int bufferSize, const char* monsterName) {
+    // Convert name to lowercase slug: "Forest Fox" -> "forest_fox"
+    int j = 0;
+    for (int i = 0; monsterName[i] && j < bufferSize - 1; i++) {
+        char c = monsterName[i];
+        if (c >= 'A' && c <= 'Z') {
+            buffer[j++] = c + ('a' - 'A');  // lowercase
+        } else if (c >= 'a' && c <= 'z') {
+            buffer[j++] = c;
+        } else if (c >= '0' && c <= '9') {
+            buffer[j++] = c;
+        } else if (c == ' ' || c == '-') {
+            if (j > 0 && buffer[j-1] != '_') {
+                buffer[j++] = '_';  // replace spaces/dashes with underscore
+            }
+        }
+        // Skip other characters
     }
+    // Remove trailing underscore if any
+    if (j > 0 && buffer[j-1] == '_') j--;
+    buffer[j] = '\0';
 
-    int id = rand() % 100000;
-    snprintf(buffer, bufferSize, "custom_%05d", id);
+    // If empty, use fallback
+    if (j == 0) {
+        snprintf(buffer, bufferSize, "monster");
+    }
 }
 
 int FindCustomMonsterByID(const CustomMonster* monsters, int monsterCount, const char* id) {
