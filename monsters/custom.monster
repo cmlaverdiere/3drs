@@ -181,3 +181,1432 @@ sphere -0.50 0.46 0.30 0.06 160 120 80 255
 .
 end
 
+# ============================================
+# OSRS-Inspired Monsters
+# ============================================
+
+monster goblin
+name Goblin
+description A small green-skinned creature with pointed ears and a bad attitude
+level 2
+health 10
+damage 1
+attack_cooldown 1.8
+chase_speed 2.5
+attack_range 1.5
+aggressive true
+body_color 90 140 60 255
+limb_color 70 110 45 255
+visual
+cube 0.00 0.65 0.00 0.25 0.35 0.18
+sphere 0.00 1.05 0.00 0.22
+sphere -0.08 1.10 0.18 0.05 255 220 50 255
+sphere 0.08 1.10 0.18 0.05 255 220 50 255
+sphere -0.08 1.10 0.20 0.02 20 20 20 255
+sphere 0.08 1.10 0.20 0.02 20 20 20 255
+sphere 0.00 1.00 0.20 0.06 100 70 50 255
+sphere -0.22 1.12 -0.05 0.10 90 140 60 255
+sphere 0.22 1.12 -0.05 0.10 90 140 60 255
+cube -0.30 0.70 0.00 0.10 0.30 0.10
+cube 0.30 0.70 0.00 0.10 0.30 0.10
+cube -0.10 0.25 0.00 0.10 0.35 0.10
+cube 0.10 0.25 0.00 0.10 0.35 0.10
+.
+end
+
+monster hill_giant
+name Hill Giant
+description A massive humanoid that roams the hills looking for prey
+level 28
+health 85
+damage 8
+attack_cooldown 2.0
+chase_speed 2.8
+attack_range 2.5
+aggressive true
+body_color 160 140 110 255
+limb_color 140 120 90 255
+visual
+cube 0.00 1.40 0.00 0.70 1.00 0.50
+sphere 0.00 2.30 0.00 0.45
+sphere -0.15 2.40 0.35 0.10 200 200 200 255
+sphere 0.15 2.40 0.35 0.10 200 200 200 255
+sphere -0.15 2.40 0.38 0.04 30 30 30 255
+sphere 0.15 2.40 0.38 0.04 30 30 30 255
+cube 0.00 2.15 0.40 0.15 0.10 0.12 140 100 80 255
+cube -0.70 1.50 0.00 0.25 0.80 0.25
+cube 0.70 1.50 0.00 0.25 0.80 0.25
+cube -0.25 0.55 0.00 0.25 0.70 0.25
+cube 0.25 0.55 0.00 0.25 0.70 0.25
+cube 0.90 1.20 0.00 0.12 0.80 0.12 100 70 40 255
+.
+end
+
+monster moss_giant
+name Moss Giant
+description A giant covered in moss and vegetation from the swamps
+level 42
+health 120
+damage 10
+attack_cooldown 2.2
+chase_speed 2.5
+attack_range 2.8
+aggressive true
+body_color 70 120 50 255
+limb_color 50 90 35 255
+visual
+cube 0.00 1.50 0.00 0.75 1.10 0.55
+sphere 0.00 2.45 0.00 0.50
+sphere -0.18 2.55 0.38 0.12 180 180 100 255
+sphere 0.18 2.55 0.38 0.12 180 180 100 255
+sphere -0.18 2.55 0.42 0.05 30 30 30 255
+sphere 0.18 2.55 0.42 0.05 30 30 30 255
+cube -0.75 1.60 0.00 0.28 0.85 0.28
+cube 0.75 1.60 0.00 0.28 0.85 0.28
+cube -0.28 0.60 0.00 0.28 0.75 0.28
+cube 0.28 0.60 0.00 0.28 0.75 0.28
+sphere 0.40 1.80 0.30 0.15 40 80 30 255
+sphere -0.30 2.00 0.20 0.12 45 85 35 255
+sphere 0.00 2.70 0.10 0.18 35 75 25 255
+.
+end
+
+monster fire_giant
+name Fire Giant
+description A massive giant wreathed in flames from the volcano depths
+level 86
+health 220
+damage 18
+attack_cooldown 1.8
+chase_speed 3.2
+attack_range 3.0
+aggressive true
+body_color 180 60 30 255
+limb_color 150 40 20 255
+visual
+cube 0.00 1.60 0.00 0.80 1.20 0.60
+sphere 0.00 2.65 0.00 0.55
+sphere -0.20 2.75 0.42 0.14 255 200 50 255
+sphere 0.20 2.75 0.42 0.14 255 200 50 255
+sphere -0.20 2.75 0.46 0.06 30 30 30 255
+sphere 0.20 2.75 0.46 0.06 30 30 30 255
+cube -0.80 1.70 0.00 0.30 0.90 0.30
+cube 0.80 1.70 0.00 0.30 0.90 0.30
+cube -0.30 0.65 0.00 0.30 0.80 0.30
+cube 0.30 0.65 0.00 0.30 0.80 0.30
+sphere 0.00 3.00 0.00 0.25 255 150 50 255
+sphere 0.30 2.90 0.20 0.18 255 180 60 255
+sphere -0.25 2.85 0.15 0.15 255 160 40 255
+cube 0.00 1.20 0.00 0.85 0.25 0.50 80 40 20 255
+.
+end
+
+monster ice_giant
+name Ice Giant
+description A frozen colossus from the icy wastes of the north
+level 53
+health 150
+damage 12
+attack_cooldown 2.0
+chase_speed 2.6
+attack_range 2.8
+aggressive true
+body_color 150 200 230 255
+limb_color 120 170 200 255
+visual
+cube 0.00 1.55 0.00 0.78 1.15 0.58
+sphere 0.00 2.55 0.00 0.52
+sphere -0.18 2.65 0.40 0.13 200 230 255 255
+sphere 0.18 2.65 0.40 0.13 200 230 255 255
+sphere -0.18 2.65 0.44 0.05 80 100 140 255
+sphere 0.18 2.65 0.44 0.05 80 100 140 255
+cube -0.78 1.65 0.00 0.28 0.88 0.28
+cube 0.78 1.65 0.00 0.28 0.88 0.28
+cube -0.28 0.62 0.00 0.28 0.78 0.28
+cube 0.28 0.62 0.00 0.28 0.78 0.28
+sphere 0.35 2.30 0.25 0.12 220 240 255 255
+sphere -0.40 1.80 0.35 0.10 220 240 255 255
+sphere 0.00 2.85 0.15 0.15 230 245 255 255
+.
+end
+
+monster black_knight
+name Black Knight
+description An armored warrior serving dark forces
+level 46
+health 130
+damage 14
+attack_cooldown 1.5
+chase_speed 3.5
+attack_range 2.2
+aggressive true
+body_color 40 40 45 255
+limb_color 30 30 35 255
+visual
+cube 0.00 1.10 0.00 0.45 0.70 0.30
+sphere 0.00 1.70 0.00 0.30
+cube 0.00 1.70 0.00 0.35 0.38 0.35 35 35 40 255
+cube 0.00 1.75 0.25 0.08 0.20 0.05 35 35 40 255
+sphere -0.12 1.72 0.28 0.04 180 30 30 255
+sphere 0.12 1.72 0.28 0.04 180 30 30 255
+cube -0.50 1.15 0.00 0.15 0.55 0.15
+cube 0.50 1.15 0.00 0.15 0.55 0.15
+cube -0.15 0.45 0.00 0.15 0.55 0.15
+cube 0.15 0.45 0.00 0.15 0.55 0.15
+cube 0.65 1.00 0.00 0.08 0.60 0.05 60 60 70 255
+cube 0.00 0.95 0.00 0.50 0.10 0.25 50 50 55 255
+.
+end
+
+monster white_knight
+name White Knight
+description A noble warrior of Falador sworn to protect the realm
+level 36
+health 100
+damage 10
+attack_cooldown 1.6
+chase_speed 3.3
+attack_range 2.2
+aggressive false
+body_color 230 230 235 255
+limb_color 210 210 215 255
+visual
+cube 0.00 1.10 0.00 0.45 0.70 0.30
+sphere 0.00 1.70 0.00 0.30
+cube 0.00 1.70 0.00 0.35 0.38 0.35 240 240 245 255
+cube 0.00 1.75 0.25 0.08 0.20 0.05 240 240 245 255
+sphere -0.12 1.72 0.28 0.04 50 100 200 255
+sphere 0.12 1.72 0.28 0.04 50 100 200 255
+cube -0.50 1.15 0.00 0.15 0.55 0.15
+cube 0.50 1.15 0.00 0.15 0.55 0.15
+cube -0.15 0.45 0.00 0.15 0.55 0.15
+cube 0.15 0.45 0.00 0.15 0.55 0.15
+cube 0.65 1.00 0.00 0.08 0.60 0.05 180 180 190 255
+cube 0.00 1.20 0.22 0.12 0.25 0.02 200 50 50 255
+.
+end
+
+monster lesser_demon
+name Lesser Demon
+description A winged demon from the infernal depths
+level 82
+health 180
+damage 16
+attack_cooldown 1.4
+chase_speed 4.0
+attack_range 2.5
+aggressive true
+body_color 180 40 40 255
+limb_color 140 30 30 255
+visual
+cube 0.00 1.20 0.00 0.50 0.80 0.35
+sphere 0.00 1.90 0.00 0.35
+sphere -0.18 2.15 -0.05 0.12 140 30 30 255
+sphere 0.18 2.15 -0.05 0.12 140 30 30 255
+sphere -0.12 1.95 0.28 0.08 255 200 50 255
+sphere 0.12 1.95 0.28 0.08 255 200 50 255
+sphere -0.12 1.95 0.30 0.03 20 20 20 255
+sphere 0.12 1.95 0.30 0.03 20 20 20 255
+cube -0.55 1.25 0.00 0.18 0.60 0.18
+cube 0.55 1.25 0.00 0.18 0.60 0.18
+cube -0.18 0.50 0.00 0.18 0.60 0.18
+cube 0.18 0.50 0.00 0.18 0.60 0.18
+cube -0.35 1.50 -0.30 0.40 0.60 0.05 120 25 25 255
+cube 0.35 1.50 -0.30 0.40 0.60 0.05 120 25 25 255
+sphere 0.00 0.15 -0.30 0.10 140 30 30 255
+.
+end
+
+monster greater_demon
+name Greater Demon
+description A powerful demon lord commanding infernal legions
+level 92
+health 250
+damage 22
+attack_cooldown 1.6
+chase_speed 3.8
+attack_range 3.0
+aggressive true
+body_color 160 35 35 255
+limb_color 130 25 25 255
+visual
+cube 0.00 1.50 0.00 0.65 1.00 0.45
+sphere 0.00 1.55 0.10 0.58 170 40 40 255
+cube 0.00 1.20 0.00 0.55 0.30 0.40 145 30 30 255
+sphere 0.00 2.35 0.00 0.45
+sphere 0.00 2.28 0.12 0.38 170 40 40 255
+sphere -0.22 2.65 -0.08 0.15 130 25 25 255
+sphere 0.22 2.65 -0.08 0.15 130 25 25 255
+cube -0.25 2.82 -0.12 0.05 0.22 0.05 120 22 22 255
+cube 0.25 2.82 -0.12 0.05 0.22 0.05 120 22 22 255
+sphere -0.25 3.00 -0.12 0.07 115 20 20 255
+sphere 0.25 3.00 -0.12 0.07 115 20 20 255
+sphere -0.15 2.40 0.35 0.10 255 180 50 255
+sphere 0.15 2.40 0.35 0.10 255 180 50 255
+sphere -0.15 2.40 0.38 0.04 20 20 20 255
+sphere 0.15 2.40 0.38 0.04 20 20 20 255
+sphere 0.00 2.20 0.40 0.12 140 28 28 255
+cube 0.00 2.12 0.48 0.15 0.08 0.12 135 26 26 255
+cube -0.70 1.55 0.00 0.22 0.75 0.22
+cube 0.70 1.55 0.00 0.22 0.75 0.22
+sphere -0.70 1.95 0.00 0.18 145 32 32 255
+sphere 0.70 1.95 0.00 0.18 145 32 32 255
+cube -0.78 0.95 0.00 0.15 0.18 0.15 125 24 24 255
+cube 0.78 0.95 0.00 0.15 0.18 0.15 125 24 24 255
+sphere -0.78 0.82 0.00 0.12 150 35 35 255
+sphere 0.78 0.82 0.00 0.12 150 35 35 255
+cube -0.22 0.60 0.00 0.22 0.70 0.22
+cube 0.22 0.60 0.00 0.22 0.70 0.22
+sphere -0.22 0.08 0.00 0.18 140 30 30 255
+sphere 0.22 0.08 0.00 0.18 140 30 30 255
+cube -0.28 0.04 0.10 0.10 0.12 0.06 120 22 22 255
+cube -0.16 0.04 0.10 0.10 0.12 0.06 120 22 22 255
+cube 0.28 0.04 0.10 0.10 0.12 0.06 120 22 22 255
+cube 0.16 0.04 0.10 0.10 0.12 0.06 120 22 22 255
+cube -0.50 1.90 -0.40 0.55 0.80 0.06 110 20 20 255
+cube 0.50 1.90 -0.40 0.55 0.80 0.06 110 20 20 255
+cube -0.72 2.15 -0.50 0.42 0.65 0.05 105 18 18 255
+cube 0.72 2.15 -0.50 0.42 0.65 0.05 105 18 18 255
+cube -0.90 2.35 -0.58 0.30 0.50 0.05 100 16 16 255
+cube 0.90 2.35 -0.58 0.30 0.50 0.05 100 16 16 255
+sphere 0.00 0.18 -0.40 0.12 130 25 25 255
+sphere 0.00 0.22 -0.55 0.10 135 28 28 255
+sphere 0.00 0.25 -0.68 0.08 140 30 30 255
+sphere 0.00 0.28 -0.78 0.07 145 32 32 255
+cube 0.00 1.70 -0.32 0.06 0.12 0.06 150 35 35 255
+cube 0.00 1.55 -0.28 0.05 0.10 0.05 150 35 35 255
+cube 0.00 1.40 -0.25 0.05 0.10 0.05 150 35 35 255
+.
+end
+
+monster black_demon
+name Black Demon
+description An ancient demon of immense power shrouded in darkness
+level 172
+health 400
+damage 28
+attack_cooldown 1.8
+chase_speed 3.5
+attack_range 3.5
+aggressive true
+body_color 35 35 40 255
+limb_color 25 25 30 255
+visual
+cube 0.00 1.70 0.00 0.75 1.15 0.55
+sphere 0.00 2.70 0.00 0.55
+sphere -0.28 3.05 -0.10 0.18 25 25 30 255
+sphere 0.28 3.05 -0.10 0.18 25 25 30 255
+sphere -0.18 2.75 0.42 0.12 200 50 50 255
+sphere 0.18 2.75 0.42 0.12 200 50 50 255
+sphere -0.18 2.75 0.45 0.05 20 20 20 255
+sphere 0.18 2.75 0.45 0.05 20 20 20 255
+cube -0.80 1.75 0.00 0.26 0.85 0.26
+cube 0.80 1.75 0.00 0.26 0.85 0.26
+cube -0.26 0.70 0.00 0.26 0.80 0.26
+cube 0.26 0.70 0.00 0.26 0.80 0.26
+cube -0.60 2.20 -0.50 0.70 1.00 0.06 20 20 25 255
+cube 0.60 2.20 -0.50 0.70 1.00 0.06 20 20 25 255
+sphere 0.00 0.20 -0.50 0.15 25 25 30 255
+.
+end
+
+monster hellhound
+name Hellhound
+description A demonic hound wreathed in flames from the underworld
+level 122
+health 180
+damage 15
+attack_cooldown 1.2
+chase_speed 5.0
+attack_range 2.0
+aggressive true
+body_color 60 30 25 255
+limb_color 45 20 18 255
+visual
+cube 0.00 0.65 0.00 0.35 0.40 0.60
+sphere 0.00 0.70 0.08 0.32 70 35 30 255
+cube 0.00 0.55 0.00 0.30 0.25 0.55 55 28 23 255
+sphere 0.00 0.95 0.45 0.28
+sphere 0.00 0.90 0.38 0.24 70 35 30 255
+sphere -0.10 1.02 0.60 0.08 255 150 50 255
+sphere 0.10 1.02 0.60 0.08 255 150 50 255
+sphere -0.10 1.02 0.63 0.03 20 20 20 255
+sphere 0.10 1.02 0.63 0.03 20 20 20 255
+sphere 0.00 0.88 0.70 0.10 50 25 20 255
+sphere 0.00 0.82 0.78 0.06 45 22 18 255
+cube 0.00 0.80 0.82 0.08 0.04 0.06 40 20 15 255
+sphere -0.15 1.12 0.40 0.10 50 25 20 255
+sphere 0.15 1.12 0.40 0.10 50 25 20 255
+sphere -0.15 1.20 0.38 0.06 55 28 23 255
+sphere 0.15 1.20 0.38 0.06 55 28 23 255
+cube -0.22 0.35 0.25 0.10 0.35 0.10
+cube 0.22 0.35 0.25 0.10 0.35 0.10
+cube -0.22 0.35 -0.25 0.10 0.35 0.10
+cube 0.22 0.35 -0.25 0.10 0.35 0.10
+sphere -0.22 0.08 0.25 0.08 50 25 20 255
+sphere 0.22 0.08 0.25 0.08 50 25 20 255
+sphere -0.22 0.08 -0.25 0.08 50 25 20 255
+sphere 0.22 0.08 -0.25 0.08 50 25 20 255
+sphere 0.00 0.55 -0.55 0.12 60 30 25 255
+sphere 0.00 0.58 -0.70 0.10 60 30 25 255
+sphere 0.00 0.60 -0.82 0.08 60 30 25 255
+sphere 0.00 0.62 -0.92 0.07 65 32 27 255
+sphere 0.00 0.65 -1.00 0.06 70 35 30 255
+sphere 0.00 1.15 0.35 0.12 255 120 40 255
+sphere 0.12 1.08 0.32 0.08 255 150 50 255
+sphere -0.10 1.12 0.28 0.07 255 140 45 255
+sphere 0.00 1.22 0.30 0.06 255 180 60 255
+sphere 0.08 1.18 0.25 0.05 255 200 80 255
+sphere -0.05 1.20 0.35 0.05 255 190 70 255
+sphere 0.20 0.75 0.15 0.10 255 100 30 255
+sphere -0.18 0.80 0.20 0.08 255 110 35 255
+sphere 0.10 0.60 0.25 0.07 255 130 45 255
+sphere -0.15 0.65 0.22 0.06 255 140 50 255
+sphere 0.25 0.55 -0.10 0.08 255 120 40 255
+sphere -0.22 0.58 -0.15 0.07 255 110 35 255
+sphere 0.00 0.85 0.00 0.12 255 90 25 255
+sphere 0.15 0.78 -0.05 0.09 255 100 30 255
+sphere -0.12 0.82 0.05 0.08 255 105 32 255
+.
+end
+
+monster green_dragon
+name Green Dragon
+description A fearsome dragon that breathes toxic flames
+level 79
+health 200
+damage 20
+attack_cooldown 2.0
+chase_speed 3.5
+attack_range 3.5
+aggressive true
+body_color 50 120 50 255
+limb_color 40 100 40 255
+visual
+cube 0.00 1.20 0.00 0.60 0.70 0.90
+sphere 0.00 1.80 0.70 0.40
+sphere -0.12 1.90 0.95 0.10 200 200 50 255
+sphere 0.12 1.90 0.95 0.10 200 200 50 255
+sphere -0.12 1.90 0.98 0.04 20 20 20 255
+sphere 0.12 1.90 0.98 0.04 20 20 20 255
+cube 0.00 1.65 1.05 0.15 0.10 0.20 40 100 40 255
+cube -0.55 1.30 0.00 0.50 0.65 0.08 45 110 45 255
+cube 0.55 1.30 0.00 0.50 0.65 0.08 45 110 45 255
+cube -0.25 0.50 0.30 0.15 0.50 0.15
+cube 0.25 0.50 0.30 0.15 0.50 0.15
+cube -0.25 0.50 -0.30 0.15 0.50 0.15
+cube 0.25 0.50 -0.30 0.15 0.50 0.15
+sphere 0.00 1.10 -0.70 0.25 50 120 50 255
+sphere 0.00 1.15 -0.95 0.20 50 120 50 255
+sphere 0.00 1.20 -1.15 0.15 50 120 50 255
+.
+end
+
+monster blue_dragon
+name Blue Dragon
+description An ancient dragon with scales like sapphires
+level 111
+health 280
+damage 24
+attack_cooldown 2.2
+chase_speed 3.3
+attack_range 3.8
+aggressive true
+body_color 60 100 180 255
+limb_color 50 80 150 255
+visual
+cube 0.00 1.30 0.00 0.65 0.75 0.95
+sphere 0.00 1.95 0.75 0.45
+sphere -0.14 2.05 1.02 0.12 150 180 255 255
+sphere 0.14 2.05 1.02 0.12 150 180 255 255
+sphere -0.14 2.05 1.06 0.05 20 20 20 255
+sphere 0.14 2.05 1.06 0.05 20 20 20 255
+cube 0.00 1.75 1.15 0.18 0.12 0.22 50 80 150 255
+cube -0.60 1.40 0.00 0.55 0.70 0.08 55 90 160 255
+cube 0.60 1.40 0.00 0.55 0.70 0.08 55 90 160 255
+cube -0.28 0.55 0.32 0.18 0.55 0.18
+cube 0.28 0.55 0.32 0.18 0.55 0.18
+cube -0.28 0.55 -0.32 0.18 0.55 0.18
+cube 0.28 0.55 -0.32 0.18 0.55 0.18
+sphere 0.00 1.20 -0.75 0.28 60 100 180 255
+sphere 0.00 1.25 -1.05 0.22 60 100 180 255
+sphere 0.00 1.30 -1.30 0.18 60 100 180 255
+.
+end
+
+monster red_dragon
+name Red Dragon
+description A legendary dragon breathing scorching flames
+level 152
+health 350
+damage 30
+attack_cooldown 2.0
+chase_speed 3.6
+attack_range 4.0
+aggressive true
+body_color 180 50 40 255
+limb_color 150 40 30 255
+visual
+cube 0.00 1.40 0.00 0.70 0.80 1.00
+sphere 0.00 2.10 0.80 0.48
+sphere -0.16 2.22 1.10 0.14 255 200 50 255
+sphere 0.16 2.22 1.10 0.14 255 200 50 255
+sphere -0.16 2.22 1.14 0.06 20 20 20 255
+sphere 0.16 2.22 1.14 0.06 20 20 20 255
+cube 0.00 1.85 1.25 0.20 0.14 0.25 150 40 30 255
+cube -0.65 1.50 0.00 0.60 0.75 0.08 160 45 35 255
+cube 0.65 1.50 0.00 0.60 0.75 0.08 160 45 35 255
+cube -0.30 0.58 0.35 0.20 0.58 0.20
+cube 0.30 0.58 0.35 0.20 0.58 0.20
+cube -0.30 0.58 -0.35 0.20 0.58 0.20
+cube 0.30 0.58 -0.35 0.20 0.58 0.20
+sphere 0.00 1.30 -0.80 0.30 180 50 40 255
+sphere 0.00 1.35 -1.15 0.25 180 50 40 255
+sphere 0.00 1.40 -1.45 0.20 180 50 40 255
+.
+end
+
+monster black_dragon
+name Black Dragon
+description The most powerful of chromatic dragons with acidic breath
+level 227
+health 500
+damage 40
+attack_cooldown 2.2
+chase_speed 3.4
+attack_range 4.5
+aggressive true
+body_color 30 30 35 255
+limb_color 20 20 25 255
+visual
+cube 0.00 1.55 0.00 0.80 0.90 1.10
+sphere 0.00 1.60 0.15 0.75 35 35 40 255
+cube 0.00 1.20 0.00 0.70 0.30 0.90 25 25 30 255
+sphere 0.00 2.35 0.90 0.55
+sphere 0.00 2.20 0.75 0.48 35 35 40 255
+sphere -0.18 2.50 1.25 0.16 180 255 50 255
+sphere 0.18 2.50 1.25 0.16 180 255 50 255
+sphere -0.18 2.50 1.30 0.07 20 20 20 255
+sphere 0.18 2.50 1.30 0.07 20 20 20 255
+cube 0.00 2.05 1.40 0.22 0.16 0.28 20 20 25 255
+sphere 0.00 2.00 1.50 0.12 25 25 30 255
+cube -0.30 2.70 0.70 0.06 0.30 0.06 25 25 30 255
+cube 0.30 2.70 0.70 0.06 0.30 0.06 25 25 30 255
+sphere -0.30 2.95 0.70 0.08 20 20 25 255
+sphere 0.30 2.95 0.70 0.08 20 20 25 255
+cube -0.22 2.55 0.55 0.05 0.20 0.05 28 28 33 255
+cube 0.22 2.55 0.55 0.05 0.20 0.05 28 28 33 255
+cube 0.00 2.65 0.60 0.04 0.25 0.04 30 30 35 255
+sphere 0.00 2.85 0.60 0.06 25 25 30 255
+cube -0.75 1.65 0.00 0.70 0.85 0.08 25 25 30 255
+cube 0.75 1.65 0.00 0.70 0.85 0.08 25 25 30 255
+cube -0.95 1.85 -0.15 0.50 0.65 0.06 22 22 27 255
+cube 0.95 1.85 -0.15 0.50 0.65 0.06 22 22 27 255
+cube -1.15 2.00 -0.25 0.35 0.50 0.05 20 20 25 255
+cube 1.15 2.00 -0.25 0.35 0.50 0.05 20 20 25 255
+cube -0.35 0.65 0.40 0.22 0.65 0.22
+cube 0.35 0.65 0.40 0.22 0.65 0.22
+cube -0.35 0.65 -0.40 0.22 0.65 0.22
+cube 0.35 0.65 -0.40 0.22 0.65 0.22
+sphere -0.35 0.15 0.50 0.15 20 20 25 255
+sphere 0.35 0.15 0.50 0.15 20 20 25 255
+sphere -0.35 0.15 -0.50 0.15 20 20 25 255
+sphere 0.35 0.15 -0.50 0.15 20 20 25 255
+cube -0.42 0.08 0.55 0.08 0.12 0.05 15 15 18 255
+cube -0.28 0.08 0.55 0.08 0.12 0.05 15 15 18 255
+cube 0.42 0.08 0.55 0.08 0.12 0.05 15 15 18 255
+cube 0.28 0.08 0.55 0.08 0.12 0.05 15 15 18 255
+sphere 0.00 1.45 -0.90 0.35 30 30 35 255
+sphere 0.00 1.50 -1.30 0.28 30 30 35 255
+sphere 0.00 1.55 -1.65 0.22 30 30 35 255
+sphere 0.00 1.60 -1.95 0.18 28 28 33 255
+sphere 0.00 1.65 -2.20 0.15 26 26 31 255
+sphere 0.00 1.70 -2.42 0.12 24 24 29 255
+sphere 0.00 1.75 -2.60 0.10 22 22 27 255
+cube 0.00 1.78 -2.72 0.15 0.08 0.06 20 20 25 255
+cube 0.00 1.90 0.00 0.08 0.15 0.08 25 25 30 255
+cube 0.00 1.75 -0.20 0.07 0.12 0.07 25 25 30 255
+cube 0.00 1.60 -0.40 0.06 0.10 0.06 25 25 30 255
+cube 0.00 1.50 -0.60 0.06 0.10 0.06 25 25 30 255
+.
+end
+
+monster bronze_dragon
+name Bronze Dragon
+description A metallic dragon forged in ancient fires
+level 131
+health 300
+damage 26
+attack_cooldown 1.8
+chase_speed 3.2
+attack_range 3.5
+aggressive true
+body_color 180 130 70 255
+limb_color 150 105 55 255
+visual
+cube 0.00 1.35 0.00 0.68 0.78 0.98
+sphere 0.00 2.02 0.78 0.46
+sphere -0.15 2.15 1.08 0.13 220 180 100 255
+sphere 0.15 2.15 1.08 0.13 220 180 100 255
+sphere -0.15 2.15 1.12 0.05 40 30 20 255
+sphere 0.15 2.15 1.12 0.05 40 30 20 255
+cube 0.00 1.80 1.20 0.18 0.13 0.23 150 105 55 255
+cube -0.62 1.45 0.00 0.58 0.72 0.08 160 115 60 255
+cube 0.62 1.45 0.00 0.58 0.72 0.08 160 115 60 255
+cube -0.29 0.56 0.34 0.19 0.56 0.19
+cube 0.29 0.56 0.34 0.19 0.56 0.19
+cube -0.29 0.56 -0.34 0.19 0.56 0.19
+cube 0.29 0.56 -0.34 0.19 0.56 0.19
+sphere 0.00 1.25 -0.78 0.29 180 130 70 255
+sphere 0.00 1.30 -1.08 0.23 180 130 70 255
+sphere 0.00 1.35 -1.35 0.18 180 130 70 255
+.
+end
+
+monster iron_dragon
+name Iron Dragon
+description A terrifying dragon with iron-hard scales
+level 189
+health 380
+damage 32
+attack_cooldown 2.0
+chase_speed 3.0
+attack_range 3.8
+aggressive true
+body_color 100 100 105 255
+limb_color 80 80 85 255
+visual
+cube 0.00 1.45 0.00 0.72 0.82 1.02
+sphere 0.00 2.18 0.82 0.50
+sphere -0.16 2.32 1.15 0.14 150 150 160 255
+sphere 0.16 2.32 1.15 0.14 150 150 160 255
+sphere -0.16 2.32 1.20 0.06 40 40 45 255
+sphere 0.16 2.32 1.20 0.06 40 40 45 255
+cube 0.00 1.92 1.28 0.20 0.14 0.25 80 80 85 255
+cube -0.66 1.55 0.00 0.62 0.76 0.08 90 90 95 255
+cube 0.66 1.55 0.00 0.62 0.76 0.08 90 90 95 255
+cube -0.31 0.60 0.36 0.20 0.60 0.20
+cube 0.31 0.60 0.36 0.20 0.60 0.20
+cube -0.31 0.60 -0.36 0.20 0.60 0.20
+cube 0.31 0.60 -0.36 0.20 0.60 0.20
+sphere 0.00 1.35 -0.82 0.31 100 100 105 255
+sphere 0.00 1.40 -1.18 0.25 100 100 105 255
+sphere 0.00 1.45 -1.50 0.20 100 100 105 255
+.
+end
+
+monster steel_dragon
+name Steel Dragon
+description The pinnacle of metallic dragon evolution
+level 246
+health 450
+damage 38
+attack_cooldown 2.2
+chase_speed 2.8
+attack_range 4.0
+aggressive true
+body_color 140 145 155 255
+limb_color 120 125 135 255
+visual
+cube 0.00 1.55 0.00 0.78 0.88 1.08
+sphere 0.00 1.60 0.10 0.72 150 155 165 255
+cube 0.00 1.85 0.00 0.65 0.20 0.85 160 165 175 255
+cube 0.00 1.30 0.00 0.70 0.18 0.95 130 135 145 255
+sphere 0.00 2.35 0.88 0.54
+sphere 0.00 2.20 0.72 0.46 150 155 165 255
+sphere -0.18 2.50 1.25 0.16 200 205 215 255
+sphere 0.18 2.50 1.25 0.16 200 205 215 255
+sphere -0.18 2.50 1.30 0.07 60 65 75 255
+sphere 0.18 2.50 1.30 0.07 60 65 75 255
+cube 0.00 2.05 1.40 0.22 0.16 0.28 120 125 135 255
+sphere 0.00 2.00 1.52 0.14 130 135 145 255
+cube -0.32 2.75 0.68 0.07 0.35 0.07 160 165 175 255
+cube 0.32 2.75 0.68 0.07 0.35 0.07 160 165 175 255
+sphere -0.32 3.05 0.68 0.10 170 175 185 255
+sphere 0.32 3.05 0.68 0.10 170 175 185 255
+cube -0.24 2.58 0.52 0.06 0.22 0.06 155 160 170 255
+cube 0.24 2.58 0.52 0.06 0.22 0.06 155 160 170 255
+cube 0.00 2.70 0.58 0.05 0.28 0.05 165 170 180 255
+sphere 0.00 2.92 0.58 0.08 175 180 190 255
+cube -0.72 1.65 0.00 0.68 0.82 0.08 130 135 145 255
+cube 0.72 1.65 0.00 0.68 0.82 0.08 130 135 145 255
+cube -0.98 1.88 -0.18 0.55 0.68 0.06 125 130 140 255
+cube 0.98 1.88 -0.18 0.55 0.68 0.06 125 130 140 255
+cube -1.22 2.08 -0.32 0.40 0.52 0.05 120 125 135 255
+cube 1.22 2.08 -0.32 0.40 0.52 0.05 120 125 135 255
+cube -1.40 2.25 -0.42 0.25 0.35 0.04 115 120 130 255
+cube 1.40 2.25 -0.42 0.25 0.35 0.04 115 120 130 255
+cube -0.34 0.64 0.38 0.22 0.64 0.22
+cube 0.34 0.64 0.38 0.22 0.64 0.22
+cube -0.34 0.64 -0.38 0.22 0.64 0.22
+cube 0.34 0.64 -0.38 0.22 0.64 0.22
+sphere -0.38 0.18 0.48 0.16 125 130 140 255
+sphere 0.38 0.18 0.48 0.16 125 130 140 255
+sphere -0.38 0.18 -0.48 0.16 125 130 140 255
+sphere 0.38 0.18 -0.48 0.16 125 130 140 255
+cube -0.45 0.06 0.55 0.10 0.14 0.06 110 115 125 255
+cube -0.31 0.06 0.55 0.10 0.14 0.06 110 115 125 255
+cube 0.45 0.06 0.55 0.10 0.14 0.06 110 115 125 255
+cube 0.31 0.06 0.55 0.10 0.14 0.06 110 115 125 255
+sphere 0.00 1.45 -0.88 0.34 140 145 155 255
+sphere 0.00 1.50 -1.28 0.28 140 145 155 255
+sphere 0.00 1.55 -1.62 0.22 140 145 155 255
+sphere 0.00 1.60 -1.92 0.18 145 150 160 255
+sphere 0.00 1.65 -2.18 0.15 150 155 165 255
+sphere 0.00 1.70 -2.40 0.12 155 160 170 255
+sphere 0.00 1.75 -2.58 0.10 160 165 175 255
+cube 0.00 1.80 -2.72 0.18 0.10 0.08 170 175 185 255
+cube 0.00 1.95 -0.05 0.10 0.18 0.10 155 160 170 255
+cube 0.00 1.78 -0.25 0.08 0.15 0.08 155 160 170 255
+cube 0.00 1.62 -0.48 0.07 0.12 0.07 155 160 170 255
+cube 0.00 1.50 -0.68 0.06 0.10 0.06 155 160 170 255
+sphere 0.50 1.70 0.35 0.08 180 185 195 255
+sphere -0.45 1.45 0.40 0.06 180 185 195 255
+sphere 0.35 1.30 0.45 0.05 180 185 195 255
+.
+end
+
+monster abyssal_demon
+name Abyssal Demon
+description A demon from the abyss wielding a deadly whip-like appendage
+level 124
+health 200
+damage 18
+attack_cooldown 1.3
+chase_speed 4.2
+attack_range 3.0
+aggressive true
+body_color 80 40 90 255
+limb_color 60 30 70 255
+visual
+cube 0.00 1.15 0.00 0.48 0.75 0.35
+sphere 0.00 1.20 0.08 0.42 90 45 100 255
+cube 0.00 0.95 0.00 0.42 0.20 0.30 70 35 80 255
+sphere 0.00 1.80 0.00 0.38
+sphere 0.00 1.75 0.10 0.32 90 45 100 255
+sphere -0.25 2.00 -0.05 0.10 60 30 70 255
+sphere 0.25 2.00 -0.05 0.10 60 30 70 255
+cube -0.28 2.12 -0.08 0.04 0.15 0.04 50 25 60 255
+cube 0.28 2.12 -0.08 0.04 0.15 0.04 50 25 60 255
+sphere -0.28 2.25 -0.08 0.05 45 22 55 255
+sphere 0.28 2.25 -0.08 0.05 45 22 55 255
+sphere -0.14 1.85 0.30 0.08 200 100 220 255
+sphere 0.14 1.85 0.30 0.08 200 100 220 255
+sphere -0.14 1.85 0.33 0.03 20 20 20 255
+sphere 0.14 1.85 0.33 0.03 20 20 20 255
+sphere 0.00 1.68 0.32 0.06 60 30 70 255
+cube 0.00 1.60 0.35 0.10 0.05 0.08 50 25 60 255
+cube -0.52 1.20 0.00 0.16 0.58 0.16
+cube 0.52 1.20 0.00 0.16 0.58 0.16
+sphere -0.52 1.55 0.00 0.12 70 35 80 255
+sphere 0.52 1.55 0.00 0.12 70 35 80 255
+cube -0.58 0.75 0.00 0.10 0.12 0.10 65 32 75 255
+cube 0.58 0.75 0.00 0.10 0.12 0.10 65 32 75 255
+cube -0.16 0.48 0.00 0.16 0.55 0.16
+cube 0.16 0.48 0.00 0.16 0.55 0.16
+sphere -0.16 0.10 0.00 0.14 65 32 75 255
+sphere 0.16 0.10 0.00 0.14 65 32 75 255
+sphere 0.60 0.90 0.30 0.10 100 50 110 255
+sphere 0.72 0.85 0.48 0.08 105 52 115 255
+sphere 0.82 0.80 0.64 0.07 110 55 120 255
+sphere 0.92 0.76 0.78 0.06 115 58 125 255
+sphere 1.00 0.72 0.92 0.05 120 60 130 255
+sphere 1.08 0.70 1.04 0.04 125 62 135 255
+sphere 1.14 0.68 1.15 0.04 130 65 140 255
+sphere 1.20 0.66 1.25 0.03 135 68 145 255
+sphere 1.25 0.65 1.35 0.03 140 70 150 255
+cube 0.00 1.40 -0.25 0.05 0.12 0.05 70 35 80 255
+cube 0.15 1.35 -0.22 0.04 0.10 0.04 70 35 80 255
+cube -0.15 1.35 -0.22 0.04 0.10 0.04 70 35 80 255
+sphere 0.00 0.15 -0.25 0.10 70 35 80 255
+sphere 0.00 0.18 -0.38 0.08 75 38 85 255
+sphere 0.00 0.20 -0.48 0.06 80 40 90 255
+sphere -0.35 1.50 0.15 0.06 150 75 165 200
+sphere 0.40 1.35 0.20 0.05 150 75 165 200
+sphere -0.25 1.65 0.08 0.04 150 75 165 200
+.
+end
+
+monster bloodveld
+name Bloodveld
+description A grotesque creature with an impossibly long tongue
+level 76
+health 160
+damage 12
+attack_cooldown 1.5
+chase_speed 3.5
+attack_range 3.5
+aggressive true
+body_color 150 80 90 255
+limb_color 130 60 70 255
+visual
+sphere 0.00 0.90 0.00 0.55
+sphere 0.00 0.85 0.10 0.50 160 90 100 255
+sphere 0.00 0.95 -0.15 0.48 140 70 80 255
+sphere 0.00 1.40 0.10 0.40
+sphere 0.00 1.35 0.18 0.35 160 90 100 255
+sphere 0.00 1.50 0.05 0.32 145 75 85 255
+sphere -0.12 1.55 0.32 0.10 200 50 60 255
+sphere 0.12 1.55 0.32 0.10 200 50 60 255
+sphere -0.12 1.55 0.35 0.04 20 20 20 255
+sphere 0.12 1.55 0.35 0.04 20 20 20 255
+sphere 0.00 1.38 0.38 0.15 140 70 80 255
+cube 0.00 1.28 0.45 0.08 0.06 0.15 180 40 50 255
+cube 0.00 1.25 0.58 0.07 0.05 0.18 185 45 55 255
+cube 0.00 1.22 0.75 0.06 0.04 0.20 190 50 60 255
+cube 0.00 1.20 0.95 0.05 0.04 0.22 195 55 65 255
+cube 0.00 1.18 1.18 0.05 0.03 0.20 200 60 70 255
+cube 0.00 1.16 1.38 0.04 0.03 0.18 205 65 75 255
+cube 0.00 1.15 1.55 0.04 0.02 0.15 210 70 80 255
+sphere 0.00 1.14 1.68 0.05 215 75 85 255
+sphere -0.45 0.85 0.10 0.20
+sphere 0.45 0.85 0.10 0.20
+sphere -0.58 0.75 0.18 0.15
+sphere 0.58 0.75 0.18 0.15
+sphere -0.68 0.68 0.25 0.10 140 65 75 255
+sphere 0.68 0.68 0.25 0.10 140 65 75 255
+sphere -0.75 0.62 0.30 0.08 145 68 78 255
+sphere 0.75 0.62 0.30 0.08 145 68 78 255
+cube -0.18 0.30 0.00 0.15 0.35 0.15
+cube 0.18 0.30 0.00 0.15 0.35 0.15
+sphere -0.18 0.08 0.00 0.12 140 65 75 255
+sphere 0.18 0.08 0.00 0.12 140 65 75 255
+sphere 0.25 1.00 0.25 0.08 170 100 110 255
+sphere -0.30 1.15 0.20 0.07 170 100 110 255
+sphere 0.20 0.75 0.30 0.06 170 100 110 255
+sphere -0.15 0.90 0.35 0.05 175 105 115 255
+sphere 0.00 1.60 0.00 0.08 145 75 85 255
+.
+end
+
+monster gargoyle
+name Gargoyle
+description An animated stone guardian brought to life by dark magic
+level 75
+health 170
+damage 14
+attack_cooldown 1.8
+chase_speed 3.0
+attack_range 2.2
+aggressive true
+body_color 90 90 95 255
+limb_color 70 70 75 255
+visual
+cube 0.00 1.10 0.00 0.50 0.75 0.35
+sphere 0.00 1.15 0.08 0.45 100 100 105 255
+cube 0.00 0.90 0.00 0.45 0.25 0.30 80 80 85 255
+sphere 0.00 1.75 0.00 0.35
+sphere 0.00 1.70 0.10 0.30 100 100 105 255
+sphere -0.25 1.95 -0.08 0.12 70 70 75 255
+sphere 0.25 1.95 -0.08 0.12 70 70 75 255
+cube -0.28 2.08 -0.12 0.05 0.18 0.05 65 65 70 255
+cube 0.28 2.08 -0.12 0.05 0.18 0.05 65 65 70 255
+sphere -0.28 2.24 -0.12 0.06 60 60 65 255
+sphere 0.28 2.24 -0.12 0.06 60 60 65 255
+sphere -0.12 1.80 0.28 0.08 150 50 50 255
+sphere 0.12 1.80 0.28 0.08 150 50 50 255
+sphere -0.12 1.80 0.31 0.03 20 20 20 255
+sphere 0.12 1.80 0.31 0.03 20 20 20 255
+cube 0.00 1.60 0.30 0.12 0.08 0.15 75 75 80 255
+sphere 0.00 1.55 0.42 0.08 70 70 75 255
+cube -0.08 1.50 0.48 0.04 0.06 0.05 65 65 70 255
+cube 0.08 1.50 0.48 0.04 0.06 0.05 65 65 70 255
+cube -0.55 1.15 0.00 0.18 0.60 0.18
+cube 0.55 1.15 0.00 0.18 0.60 0.18
+sphere -0.55 1.52 0.00 0.14 80 80 85 255
+sphere 0.55 1.52 0.00 0.14 80 80 85 255
+cube -0.62 0.72 0.00 0.12 0.15 0.12 75 75 80 255
+cube 0.62 0.72 0.00 0.12 0.15 0.12 75 75 80 255
+sphere -0.62 0.62 0.00 0.10 85 85 90 255
+sphere 0.62 0.62 0.00 0.10 85 85 90 255
+cube -0.18 0.45 0.00 0.18 0.55 0.18
+cube 0.18 0.45 0.00 0.18 0.55 0.18
+sphere -0.18 0.08 0.00 0.15 75 75 80 255
+sphere 0.18 0.08 0.00 0.15 75 75 80 255
+cube -0.25 0.04 0.08 0.08 0.10 0.05 65 65 70 255
+cube -0.11 0.04 0.08 0.08 0.10 0.05 65 65 70 255
+cube 0.25 0.04 0.08 0.08 0.10 0.05 65 65 70 255
+cube 0.11 0.04 0.08 0.08 0.10 0.05 65 65 70 255
+cube -0.40 1.50 -0.35 0.45 0.55 0.06 80 80 85 255
+cube 0.40 1.50 -0.35 0.45 0.55 0.06 80 80 85 255
+cube -0.62 1.65 -0.45 0.35 0.45 0.05 75 75 80 255
+cube 0.62 1.65 -0.45 0.35 0.45 0.05 75 75 80 255
+cube -0.80 1.78 -0.52 0.25 0.35 0.04 70 70 75 255
+cube 0.80 1.78 -0.52 0.25 0.35 0.04 70 70 75 255
+cube -0.95 1.88 -0.58 0.18 0.25 0.04 65 65 70 255
+cube 0.95 1.88 -0.58 0.18 0.25 0.04 65 65 70 255
+sphere 0.00 0.85 -0.28 0.12 85 85 90 255
+sphere 0.00 0.88 -0.42 0.10 85 85 90 255
+sphere 0.00 0.90 -0.54 0.08 85 85 90 255
+sphere 0.00 0.92 -0.64 0.07 85 85 90 255
+sphere 0.30 1.25 0.20 0.06 105 105 110 255
+sphere -0.25 1.00 0.22 0.05 105 105 110 255
+sphere 0.15 0.75 0.25 0.04 105 105 110 255
+.
+end
+
+monster dust_devil
+name Dust Devil
+description A swirling vortex of sand and malice from the desert
+level 93
+health 150
+damage 14
+attack_cooldown 1.4
+chase_speed 4.5
+attack_range 2.5
+aggressive true
+body_color 180 160 120 255
+limb_color 160 140 100 255
+visual
+cylinder 0.00 0.50 0.00 0.45 1.20 0.00
+cylinder 0.00 1.40 0.00 0.35 0.60 0.00 170 150 110 255
+cylinder 0.00 1.90 0.00 0.25 0.40 0.00 160 140 100 255
+sphere 0.00 2.20 0.00 0.30
+sphere -0.12 2.25 0.22 0.08 255 200 100 255
+sphere 0.12 2.25 0.22 0.08 255 200 100 255
+sphere -0.12 2.25 0.25 0.03 30 30 30 255
+sphere 0.12 2.25 0.25 0.03 30 30 30 255
+sphere -0.35 1.00 0.20 0.10 190 170 130 255
+sphere 0.30 1.20 0.18 0.08 190 170 130 255
+sphere -0.25 1.50 0.15 0.06 190 170 130 255
+.
+end
+
+monster cave_horror
+name Cave Horror
+description A nightmare creature lurking in the darkest caves
+level 80
+health 140
+damage 13
+attack_cooldown 1.6
+chase_speed 3.8
+attack_range 2.5
+aggressive true
+body_color 60 50 55 255
+limb_color 45 38 42 255
+visual
+sphere 0.00 0.80 0.00 0.50
+sphere 0.00 1.25 0.05 0.38
+sphere 0.00 1.55 0.10 0.30
+sphere -0.15 1.65 0.28 0.12 180 180 50 255
+sphere 0.15 1.65 0.28 0.12 180 180 50 255
+sphere -0.15 1.65 0.32 0.05 20 20 20 255
+sphere 0.15 1.65 0.32 0.05 20 20 20 255
+cube 0.00 1.40 0.35 0.20 0.15 0.10 50 40 45 255
+sphere -0.40 1.10 0.20 0.18
+sphere 0.40 1.10 0.20 0.18
+sphere -0.55 1.00 0.30 0.12
+sphere 0.55 1.00 0.30 0.12
+cube -0.15 0.30 0.10 0.12 0.35 0.12
+cube 0.15 0.30 0.10 0.12 0.35 0.12
+.
+end
+
+monster nechryael
+name Nechryael
+description A demonic being surrounded by ethereal death spawn
+level 115
+health 190
+damage 16
+attack_cooldown 1.5
+chase_speed 3.6
+attack_range 2.8
+aggressive true
+body_color 100 60 80 255
+limb_color 80 45 65 255
+visual
+cube 0.00 1.20 0.00 0.52 0.80 0.38
+sphere 0.00 1.90 0.00 0.40
+sphere -0.25 2.15 -0.10 0.12 80 45 65 255
+sphere 0.25 2.15 -0.10 0.12 80 45 65 255
+sphere -0.14 1.95 0.32 0.10 180 100 150 255
+sphere 0.14 1.95 0.32 0.10 180 100 150 255
+sphere -0.14 1.95 0.36 0.04 20 20 20 255
+sphere 0.14 1.95 0.36 0.04 20 20 20 255
+cube -0.58 1.25 0.00 0.18 0.65 0.18
+cube 0.58 1.25 0.00 0.18 0.65 0.18
+cube -0.18 0.48 0.00 0.18 0.56 0.18
+cube 0.18 0.48 0.00 0.18 0.56 0.18
+sphere 0.50 1.80 0.30 0.15 150 80 120 200
+sphere -0.45 1.60 0.35 0.12 150 80 120 200
+cube -0.45 1.70 -0.40 0.50 0.60 0.06 90 55 75 255
+cube 0.45 1.70 -0.40 0.50 0.60 0.06 90 55 75 255
+.
+end
+
+monster kurask
+name Kurask
+description A bizarre creature immune to normal weapons
+level 106
+health 175
+damage 15
+attack_cooldown 1.7
+chase_speed 3.2
+attack_range 2.5
+aggressive true
+body_color 120 100 80 255
+limb_color 100 80 60 255
+visual
+cube 0.00 1.00 0.00 0.55 0.65 0.45
+sphere 0.00 1.55 0.15 0.35
+sphere -0.20 1.40 -0.25 0.20 100 80 60 255
+sphere 0.20 1.40 -0.25 0.20 100 80 60 255
+sphere -0.15 1.60 0.38 0.10 180 160 100 255
+sphere 0.15 1.60 0.38 0.10 180 160 100 255
+sphere -0.15 1.60 0.42 0.04 30 30 30 255
+sphere 0.15 1.60 0.42 0.04 30 30 30 255
+cube 0.00 1.40 0.45 0.18 0.10 0.18 110 90 70 255
+cube -0.50 1.05 0.10 0.20 0.50 0.20
+cube 0.50 1.05 0.10 0.20 0.50 0.20
+cube -0.20 0.38 0.00 0.18 0.45 0.18
+cube 0.20 0.38 0.00 0.18 0.45 0.18
+sphere -0.38 1.80 0.00 0.18 140 120 100 255
+sphere 0.38 1.80 0.00 0.18 140 120 100 255
+.
+end
+
+monster turoth
+name Turoth
+description An alien-like slayer creature with chitinous armor
+level 89
+health 155
+damage 13
+attack_cooldown 1.6
+chase_speed 3.4
+attack_range 2.3
+aggressive true
+body_color 90 110 80 255
+limb_color 70 90 60 255
+visual
+sphere 0.00 0.75 0.00 0.45
+sphere 0.00 1.15 0.08 0.38
+sphere 0.00 1.48 0.15 0.30
+sphere -0.12 1.58 0.35 0.10 150 180 100 255
+sphere 0.12 1.58 0.35 0.10 150 180 100 255
+sphere -0.12 1.58 0.38 0.04 20 20 20 255
+sphere 0.12 1.58 0.38 0.04 20 20 20 255
+cube -0.35 1.00 0.15 0.18 0.45 0.15
+cube 0.35 1.00 0.15 0.18 0.45 0.15
+cube -0.45 0.85 0.25 0.12 0.30 0.10
+cube 0.45 0.85 0.25 0.12 0.30 0.10
+cube -0.15 0.28 0.00 0.14 0.35 0.14
+cube 0.15 0.28 0.00 0.14 0.35 0.14
+sphere -0.18 1.70 0.10 0.10 80 100 70 255
+sphere 0.18 1.70 0.10 0.10 80 100 70 255
+.
+end
+
+monster basilisk
+name Basilisk
+description A serpentine creature whose gaze can petrify
+level 61
+health 130
+damage 11
+attack_cooldown 1.8
+chase_speed 3.0
+attack_range 2.5
+aggressive true
+body_color 70 90 60 255
+limb_color 55 75 45 255
+visual
+cylinder 0.00 0.30 0.00 0.30 0.60 0.00
+cylinder 0.00 0.55 0.20 0.28 0.50 0.00
+cylinder 0.00 0.80 0.40 0.25 0.45 0.00
+sphere 0.00 1.15 0.55 0.30
+sphere -0.10 1.25 0.75 0.10 200 180 50 255
+sphere 0.10 1.25 0.75 0.10 200 180 50 255
+sphere -0.10 1.25 0.78 0.04 20 20 20 255
+sphere 0.10 1.25 0.78 0.04 20 20 20 255
+sphere 0.00 1.40 0.50 0.12 60 80 50 255
+sphere -0.18 1.35 0.45 0.08 60 80 50 255
+sphere 0.18 1.35 0.45 0.08 60 80 50 255
+cube 0.00 1.05 0.80 0.05 0.03 0.20 180 50 50 255
+.
+end
+
+monster cockatrice
+name Cockatrice
+description A deadly hybrid of rooster and serpent
+level 37
+health 85
+damage 8
+attack_cooldown 1.5
+chase_speed 3.5
+attack_range 2.0
+aggressive true
+body_color 140 100 60 255
+limb_color 120 80 40 255
+visual
+sphere 0.00 0.55 0.00 0.35
+sphere 0.00 0.90 0.10 0.28
+sphere -0.08 1.00 0.28 0.08 255 200 50 255
+sphere 0.08 1.00 0.28 0.08 255 200 50 255
+sphere -0.08 1.00 0.30 0.03 20 20 20 255
+sphere 0.08 1.00 0.30 0.03 20 20 20 255
+cube 0.00 0.88 0.32 0.08 0.06 0.12 200 150 50 255
+sphere 0.00 1.12 0.05 0.12 180 50 50 255
+sphere 0.00 1.20 0.00 0.08 180 50 50 255
+cube -0.28 0.60 0.05 0.20 0.35 0.05 130 90 50 255
+cube 0.28 0.60 0.05 0.20 0.35 0.05 130 90 50 255
+cube -0.08 0.20 0.08 0.08 0.25 0.08
+cube 0.08 0.20 0.08 0.08 0.25 0.08
+sphere 0.00 0.35 -0.25 0.15 100 70 40 255
+sphere 0.00 0.32 -0.42 0.12 100 70 40 255
+.
+end
+
+monster pyrefiend
+name Pyrefiend
+description A lesser fire elemental wreathed in eternal flames
+level 48
+health 110
+damage 10
+attack_cooldown 1.4
+chase_speed 3.8
+attack_range 2.2
+aggressive true
+body_color 200 100 40 255
+limb_color 180 80 30 255
+visual
+sphere 0.00 0.70 0.00 0.40
+sphere 0.00 1.05 0.05 0.32
+sphere 0.00 1.35 0.10 0.25
+sphere -0.10 1.45 0.22 0.08 255 220 100 255
+sphere 0.10 1.45 0.22 0.08 255 220 100 255
+sphere -0.10 1.45 0.25 0.03 30 30 30 255
+sphere 0.10 1.45 0.25 0.03 30 30 30 255
+sphere -0.30 0.90 0.15 0.18
+sphere 0.30 0.90 0.15 0.18
+sphere -0.42 0.82 0.22 0.12
+sphere 0.42 0.82 0.22 0.12
+sphere 0.00 1.55 0.00 0.15 255 180 50 255
+sphere 0.15 1.50 0.08 0.10 255 200 80 255
+sphere -0.12 1.48 0.05 0.08 255 190 60 255
+.
+end
+
+monster jelly
+name Jelly
+description A translucent gelatinous blob from the dungeon depths
+level 78
+health 145
+damage 11
+attack_cooldown 1.6
+chase_speed 2.5
+attack_range 1.8
+aggressive true
+body_color 100 150 180 200
+limb_color 80 130 160 180
+visual
+sphere 0.00 0.45 0.00 0.50
+sphere 0.00 0.85 0.00 0.42 90 140 170 180
+sphere 0.00 1.15 0.00 0.32 80 130 160 160
+sphere -0.15 1.25 0.20 0.10 200 220 255 200
+sphere 0.15 1.25 0.20 0.10 200 220 255 200
+sphere -0.15 1.25 0.23 0.04 40 60 80 255
+sphere 0.15 1.25 0.23 0.04 40 60 80 255
+sphere -0.30 0.50 0.20 0.18 100 150 180 200
+sphere 0.30 0.50 0.20 0.18 100 150 180 200
+sphere -0.38 0.45 0.28 0.12 100 150 180 200
+sphere 0.38 0.45 0.28 0.12 100 150 180 200
+.
+end
+
+monster banshee
+name Banshee
+description A wailing spirit whose scream can shatter eardrums
+level 23
+health 60
+damage 6
+attack_cooldown 1.8
+chase_speed 4.0
+attack_range 3.0
+aggressive true
+body_color 180 200 220 180
+limb_color 160 180 200 150
+visual
+sphere 0.00 1.00 0.00 0.35 180 200 220 150
+sphere 0.00 1.40 0.00 0.30 170 190 210 140
+sphere 0.00 1.75 0.00 0.28 160 180 200 130
+sphere -0.10 1.82 0.22 0.08 100 150 200 200
+sphere 0.10 1.82 0.22 0.08 100 150 200 200
+sphere -0.10 1.82 0.25 0.03 50 80 120 255
+sphere 0.10 1.82 0.25 0.03 50 80 120 255
+sphere 0.00 1.65 0.25 0.12 40 40 50 200
+cube -0.35 1.30 0.00 0.25 0.50 0.08 180 200 220 120
+cube 0.35 1.30 0.00 0.25 0.50 0.08 180 200 220 120
+cylinder 0.00 0.40 0.00 0.30 0.70 0.00 180 200 220 100
+.
+end
+
+monster infernal_mage
+name Infernal Mage
+description A dark sorcerer corrupted by demonic power
+level 66
+health 135
+damage 12
+attack_cooldown 2.0
+chase_speed 3.2
+attack_range 4.0
+aggressive true
+body_color 80 40 50 255
+limb_color 60 30 40 255
+visual
+cube 0.00 1.00 0.00 0.35 0.65 0.25
+sphere 0.00 1.55 0.00 0.28
+cylinder 0.00 1.75 0.00 0.32 0.35 0.00 50 25 35 255
+sphere -0.10 1.60 0.22 0.06 255 150 50 255
+sphere 0.10 1.60 0.22 0.06 255 150 50 255
+sphere -0.10 1.60 0.24 0.02 20 20 20 255
+sphere 0.10 1.60 0.24 0.02 20 20 20 255
+cube -0.40 1.05 0.00 0.12 0.50 0.12
+cube 0.40 1.05 0.00 0.12 0.50 0.12
+cube -0.12 0.40 0.00 0.12 0.50 0.12
+cube 0.12 0.40 0.00 0.12 0.50 0.12
+cube 0.52 0.80 0.00 0.05 0.80 0.05 100 60 40 255
+sphere 0.52 1.40 0.00 0.10 255 100 50 255
+.
+end
+
+monster dark_beast
+name Dark Beast
+description A fearsome panther-like creature from the shadow realm
+level 182
+health 320
+damage 25
+attack_cooldown 1.3
+chase_speed 5.5
+attack_range 2.5
+aggressive true
+body_color 30 30 40 255
+limb_color 20 20 30 255
+visual
+cube 0.00 0.75 0.00 0.40 0.45 0.75
+sphere 0.00 0.80 0.08 0.38 35 35 45 255
+sphere 0.00 0.70 -0.10 0.35 28 28 38 255
+cube 0.00 0.65 0.00 0.35 0.25 0.65 25 25 35 255
+sphere 0.00 0.90 0.30 0.30 32 32 42 255
+sphere 0.00 1.10 0.55 0.32
+sphere 0.00 1.05 0.48 0.28 35 35 45 255
+sphere -0.12 1.18 0.72 0.10 180 180 255 255
+sphere 0.12 1.18 0.72 0.10 180 180 255 255
+sphere -0.12 1.18 0.76 0.04 20 20 20 255
+sphere 0.12 1.18 0.76 0.04 20 20 20 255
+sphere 0.00 1.02 0.82 0.08 25 25 35 255
+sphere 0.00 0.98 0.88 0.05 22 22 32 255
+cube 0.00 0.95 0.92 0.06 0.03 0.05 20 20 30 255
+sphere -0.18 1.28 0.50 0.10 25 25 35 255
+sphere 0.18 1.28 0.50 0.10 25 25 35 255
+sphere -0.18 1.35 0.48 0.06 28 28 38 255
+sphere 0.18 1.35 0.48 0.06 28 28 38 255
+cube -0.25 0.38 0.35 0.12 0.40 0.12
+cube 0.25 0.38 0.35 0.12 0.40 0.12
+cube -0.25 0.38 -0.30 0.12 0.40 0.12
+cube 0.25 0.38 -0.30 0.12 0.40 0.12
+sphere -0.25 0.62 0.35 0.10 28 28 38 255
+sphere 0.25 0.62 0.35 0.10 28 28 38 255
+sphere -0.25 0.62 -0.30 0.10 28 28 38 255
+sphere 0.25 0.62 -0.30 0.10 28 28 38 255
+sphere -0.25 0.10 0.35 0.10 25 25 35 255
+sphere 0.25 0.10 0.35 0.10 25 25 35 255
+sphere -0.25 0.10 -0.30 0.10 25 25 35 255
+sphere 0.25 0.10 -0.30 0.10 25 25 35 255
+cube -0.32 0.04 0.40 0.08 0.10 0.05 18 18 28 255
+cube -0.18 0.04 0.40 0.08 0.10 0.05 18 18 28 255
+cube 0.32 0.04 0.40 0.08 0.10 0.05 18 18 28 255
+cube 0.18 0.04 0.40 0.08 0.10 0.05 18 18 28 255
+sphere 0.00 0.65 -0.60 0.15 30 30 40 255
+sphere 0.00 0.68 -0.78 0.12 30 30 40 255
+sphere 0.00 0.72 -0.92 0.10 30 30 40 255
+sphere 0.00 0.75 -1.05 0.08 32 32 42 255
+sphere 0.00 0.78 -1.15 0.07 34 34 44 255
+sphere 0.00 0.82 -1.24 0.06 36 36 46 255
+sphere 0.00 0.85 -1.32 0.05 38 38 48 255
+sphere 0.15 0.85 0.15 0.06 60 60 100 180
+sphere -0.12 0.78 0.25 0.05 60 60 100 180
+sphere 0.08 0.70 -0.15 0.05 60 60 100 180
+sphere -0.18 0.82 -0.05 0.04 60 60 100 180
+sphere 0.20 0.75 0.00 0.04 60 60 100 180
+sphere 0.00 0.88 0.20 0.05 60 60 100 180
+.
+end
+
+monster dagannoth
+name Dagannoth
+description An amphibious creature from beneath the waves
+level 74
+health 155
+damage 13
+attack_cooldown 1.5
+chase_speed 3.6
+attack_range 2.2
+aggressive true
+body_color 80 100 90 255
+limb_color 60 80 70 255
+visual
+sphere 0.00 0.70 0.00 0.45
+sphere 0.00 1.10 0.10 0.38
+sphere 0.00 1.45 0.15 0.30
+sphere -0.12 1.55 0.35 0.10 200 180 100 255
+sphere 0.12 1.55 0.35 0.10 200 180 100 255
+sphere -0.12 1.55 0.38 0.04 20 20 20 255
+sphere 0.12 1.55 0.38 0.04 20 20 20 255
+cube 0.00 1.35 0.40 0.15 0.10 0.12 70 90 80 255
+cube -0.40 1.00 0.15 0.20 0.45 0.15
+cube 0.40 1.00 0.15 0.20 0.45 0.15
+cube -0.52 0.85 0.25 0.15 0.35 0.10
+cube 0.52 0.85 0.25 0.15 0.35 0.10
+cube -0.15 0.25 0.00 0.15 0.35 0.15
+cube 0.15 0.25 0.00 0.15 0.35 0.15
+sphere 0.00 0.55 -0.35 0.18 80 100 90 255
+.
+end
+
+monster zogre
+name Zogre
+description An undead ogre risen from its grave
+level 44
+health 100
+damage 9
+attack_cooldown 2.0
+chase_speed 2.2
+attack_range 2.5
+aggressive true
+body_color 90 110 80 255
+limb_color 70 90 60 255
+visual
+cube 0.00 1.30 0.00 0.60 0.85 0.45
+sphere 0.00 2.00 0.00 0.42
+sphere -0.15 2.10 0.32 0.10 180 180 100 255
+sphere 0.15 2.10 0.32 0.10 180 180 100 255
+sphere -0.15 2.10 0.35 0.04 20 20 20 255
+sphere 0.15 2.10 0.35 0.04 20 20 20 255
+cube 0.00 1.85 0.38 0.12 0.08 0.15 80 100 70 255
+cube -0.62 1.35 0.00 0.22 0.70 0.22
+cube 0.62 1.35 0.00 0.22 0.70 0.22
+cube -0.22 0.52 0.00 0.22 0.65 0.22
+cube 0.22 0.52 0.00 0.22 0.65 0.22
+sphere 0.30 1.60 0.25 0.12 110 90 70 255
+sphere -0.25 1.80 0.20 0.10 110 90 70 255
+sphere 0.00 1.50 0.30 0.08 100 80 60 255
+.
+end
+
+monster moss_guardian
+name Moss Guardian
+description An ancient stone construct overgrown with moss
+level 95
+health 200
+damage 15
+attack_cooldown 2.2
+chase_speed 2.4
+attack_range 2.8
+aggressive false
+body_color 80 90 80 255
+limb_color 60 70 60 255
+visual
+cube 0.00 1.40 0.00 0.65 1.00 0.50
+sphere 0.00 2.25 0.00 0.45
+sphere -0.15 2.35 0.35 0.12 100 180 100 255
+sphere 0.15 2.35 0.35 0.12 100 180 100 255
+sphere -0.15 2.35 0.39 0.05 30 50 30 255
+sphere 0.15 2.35 0.39 0.05 30 50 30 255
+cube -0.65 1.45 0.00 0.24 0.80 0.24
+cube 0.65 1.45 0.00 0.24 0.80 0.24
+cube -0.24 0.55 0.00 0.24 0.70 0.24
+cube 0.24 0.55 0.00 0.24 0.70 0.24
+sphere 0.35 1.70 0.25 0.15 50 100 50 255
+sphere -0.30 1.90 0.18 0.12 55 105 55 255
+sphere 0.00 2.50 0.08 0.18 45 95 45 255
+sphere -0.40 1.20 0.30 0.10 60 110 60 255
+.
+end
+
+monster cave_crawler
+name Cave Crawler
+description A venomous arthropod dwelling in dungeon caves
+level 23
+health 55
+damage 5
+attack_cooldown 1.4
+chase_speed 4.0
+attack_range 1.8
+aggressive true
+body_color 80 100 70 255
+limb_color 60 80 50 255
+visual
+sphere 0.00 0.30 0.00 0.28
+sphere 0.00 0.50 0.15 0.22
+sphere 0.00 0.65 0.28 0.18
+sphere -0.08 0.72 0.40 0.06 200 50 50 255
+sphere 0.08 0.72 0.40 0.06 200 50 50 255
+sphere -0.08 0.72 0.42 0.02 20 20 20 255
+sphere 0.08 0.72 0.42 0.02 20 20 20 255
+cube -0.22 0.25 0.08 0.20 0.10 0.08
+cube 0.22 0.25 0.08 0.20 0.10 0.08
+cube -0.30 0.22 0.15 0.15 0.08 0.06
+cube 0.30 0.22 0.15 0.15 0.08 0.06
+cube -0.35 0.20 0.22 0.10 0.06 0.05
+cube 0.35 0.20 0.22 0.10 0.06 0.05
+cube 0.00 0.55 0.42 0.04 0.02 0.10 180 40 40 255
+cube 0.00 0.55 0.50 0.03 0.02 0.06 180 40 40 255
+.
+end
+
+monster crawling_hand
+name Crawling Hand
+description A severed hand animated by dark magic
+level 12
+health 30
+damage 3
+attack_cooldown 1.2
+chase_speed 3.5
+attack_range 1.5
+aggressive true
+body_color 150 130 120 255
+limb_color 130 110 100 255
+visual
+cube 0.00 0.20 0.00 0.25 0.15 0.20
+cube -0.18 0.35 0.00 0.06 0.25 0.06
+cube -0.06 0.38 0.00 0.06 0.30 0.06
+cube 0.06 0.38 0.00 0.06 0.30 0.06
+cube 0.18 0.35 0.00 0.06 0.25 0.06
+cube 0.25 0.28 0.00 0.06 0.18 0.06
+sphere -0.18 0.55 0.00 0.05 140 120 110 255
+sphere -0.06 0.62 0.00 0.05 140 120 110 255
+sphere 0.06 0.62 0.00 0.05 140 120 110 255
+sphere 0.18 0.55 0.00 0.05 140 120 110 255
+sphere 0.28 0.42 0.00 0.05 140 120 110 255
+.
+end
+
+monster rock_crab
+name Rock Crab
+description A crab disguised as a rock until prey approaches
+level 13
+health 50
+damage 4
+attack_cooldown 2.0
+chase_speed 2.0
+attack_range 1.5
+aggressive false
+body_color 120 110 100 255
+limb_color 100 90 80 255
+visual
+sphere 0.00 0.25 0.00 0.40
+sphere 0.00 0.45 0.00 0.35 130 120 110 255
+sphere -0.15 0.55 0.25 0.08 180 160 140 255
+sphere 0.15 0.55 0.25 0.08 180 160 140 255
+sphere -0.15 0.55 0.28 0.03 30 30 30 255
+sphere 0.15 0.55 0.28 0.03 30 30 30 255
+cube -0.35 0.25 0.15 0.18 0.15 0.12
+cube 0.35 0.25 0.15 0.18 0.15 0.12
+sphere -0.50 0.22 0.20 0.12 100 90 80 255
+sphere 0.50 0.22 0.20 0.12 100 90 80 255
+cube -0.18 0.15 0.25 0.10 0.12 0.08
+cube 0.18 0.15 0.25 0.10 0.12 0.08
+cube -0.18 0.15 -0.20 0.10 0.12 0.08
+cube 0.18 0.15 -0.20 0.10 0.12 0.08
+.
+end
+
