@@ -120,6 +120,7 @@ static bool ParseMonsterResponse(const char* response, CustomMonster* monster, c
     monster->attackRange = 2.0f;
     monster->bodyColor = {150, 150, 150, 255};
     monster->limbColor = {100, 100, 100, 255};
+    monster->material = MAT_FLAT;
 
     bool inVisual = false;
     char* line = strtok(content, "\n");
@@ -213,6 +214,16 @@ static bool ParseMonsterResponse(const char* response, CustomMonster* monster, c
                     monster->limbColor = {(unsigned char)r, (unsigned char)g,
                                          (unsigned char)b, (unsigned char)(a > 0 ? a : 255)};
                 }
+            } else if (strncmp(line, "material ", 9) == 0) {
+                char matStr[32];
+                if (sscanf(line, "material %31s", matStr) == 1) {
+                    if (strcmp(matStr, "scales") == 0) monster->material = MAT_SCALES;
+                    else if (strcmp(matStr, "stone") == 0) monster->material = MAT_STONE;
+                    else if (strcmp(matStr, "fur") == 0) monster->material = MAT_FUR;
+                    else if (strcmp(matStr, "striped") == 0) monster->material = MAT_STRIPED;
+                    else if (strcmp(matStr, "spotted") == 0) monster->material = MAT_SPOTTED;
+                    else monster->material = MAT_FLAT;
+                }
             } else if (strcmp(line, "visual") == 0) {
                 inVisual = true;
             }
@@ -278,9 +289,17 @@ static void GenerationWorker(MonsterGenerator* gen) {
         "aggressive <true/false>\\n"
         "body_color <r> <g> <b> 255\\n"
         "limb_color <r> <g> <b> 255\\n"
+        "material <flat/scales/stone/fur/striped/spotted>\\n"
         "visual\\n"
         "<primitives>\\n"
         ".\\n\\n"
+        "MATERIALS (procedural textures):\\n"
+        "- flat: solid color (default)\\n"
+        "- scales: reptilian/fish scales (lizards, snakes, dragons)\\n"
+        "- stone: rocky surface (golems, elementals)\\n"
+        "- fur: fuzzy texture (mammals, beasts)\\n"
+        "- striped: tiger/zebra stripes\\n"
+        "- spotted: leopard spots\\n\\n"
         "PRIMITIVES (one per line):\\n"
         "- cube x y z width height depth [r g b a]\\n"
         "- sphere x y z radius [r g b a]\\n"
@@ -303,6 +322,7 @@ static void GenerationWorker(MonsterGenerator* gen) {
         "aggressive true\\n"
         "body_color 140 30 30 255\\n"
         "limb_color 100 20 20 255\\n"
+        "material scales\\n"
         "visual\\n"
         "cube 0 1.0 0 0.5 0.8 0.3\\n"
         "sphere 0 1.7 0 0.28\\n"
@@ -323,7 +343,7 @@ static void GenerationWorker(MonsterGenerator* gen) {
         "cylinder 0 0.7 -0.2 0.08 0.6\\n"
         "sphere 0 0.4 -0.5 0.12 200 50 20 255\\n"
         ".\\n\\n"
-        "Match stats to description (weak=low level, fierce=aggressive/high damage). Be creative and detailed!";
+        "Match stats and material to description. Use: scales for reptiles/fish/dragons, fur for mammals, stone for golems, striped/spotted for patterned creatures. Be creative and detailed!";
 
     // Escape user input for JSON
     char escapedInput[1024];
@@ -691,9 +711,10 @@ bool HandleMonsterGeneratorInput(MonsterGenerator* gen,
                          (float)(UI_WIDTH - 30), (float)(LIST_ITEM_HEIGHT * LIST_VISIBLE_ITEMS) };
     contentY += LIST_ITEM_HEIGHT * LIST_VISIBLE_ITEMS + 10;
 
-    // Spawn and Delete buttons
-    Rectangle spawnBtn = { (float)(x + 15), (float)contentY, 80, BUTTON_HEIGHT };
-    Rectangle deleteBtn = { (float)(x + 105), (float)contentY, 80, BUTTON_HEIGHT };
+    // Spawn, Delete, and Spawn Party buttons
+    Rectangle spawnBtn = { (float)(x + 15), (float)contentY, 70, BUTTON_HEIGHT };
+    Rectangle deleteBtn = { (float)(x + 95), (float)contentY, 70, BUTTON_HEIGHT };
+    Rectangle partyBtn = { (float)(x + 175), (float)contentY, 100, BUTTON_HEIGHT };
 
     // Handle mouse clicks
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
@@ -748,6 +769,34 @@ bool HandleMonsterGeneratorInput(MonsterGenerator* gen,
             // Save changes
             SaveCustomMonsters("monsters/custom.monster", customMonsters, *customMonsterCount);
             return false;
+        }
+
+        // Spawn All button - spawn all monsters in a circle around player
+        bool canParty = *customMonsterCount > 0;
+        if (canParty && CheckCollisionPointRec(mousePos, partyBtn)) {
+            // Calculate radius based on number of monsters (3 meters spacing each)
+            float spacing = 3.0f;
+            float radius = (*customMonsterCount * spacing) / (2.0f * PI);
+            if (radius < 5.0f) radius = 5.0f;  // Minimum radius
+
+            Vector3 center = camera->position;
+            center.y = GetTerrainHeight(center.x, center.z);
+
+            for (int i = 0; i < *customMonsterCount && *enemyCount < maxEnemies; i++) {
+                float angle = ((float)i / (float)*customMonsterCount) * 2.0f * PI;
+                Vector3 spawnPos = {
+                    center.x + cosf(angle) * radius,
+                    0,
+                    center.z + sinf(angle) * radius
+                };
+                spawnPos.y = GetTerrainHeight(spawnPos.x, spawnPos.z);
+
+                SpawnMonsterFromList(gen, i, customMonsters, *customMonsterCount,
+                                     enemies, enemyCount, maxEnemies, spawnPos);
+            }
+
+            CloseMonsterGenerator(gen);
+            return true;
         }
     }
 
@@ -885,26 +934,38 @@ void DrawMonsterGenerator(const MonsterGenerator* gen,
 
     contentY += LIST_ITEM_HEIGHT * LIST_VISIBLE_ITEMS + 10;
 
-    // Spawn and Delete buttons
-    Rectangle spawnBtn = { (float)(x + 15), (float)contentY, 80, BUTTON_HEIGHT };
-    Rectangle deleteBtn = { (float)(x + 105), (float)contentY, 80, BUTTON_HEIGHT };
+    // Spawn, Delete, and Spawn Party buttons
+    Rectangle spawnBtn = { (float)(x + 15), (float)contentY, 70, BUTTON_HEIGHT };
+    Rectangle deleteBtn = { (float)(x + 95), (float)contentY, 70, BUTTON_HEIGHT };
+    Rectangle partyBtn = { (float)(x + 175), (float)contentY, 100, BUTTON_HEIGHT };
 
     bool canSpawn = gen->selectedIndex >= 0 && gen->selectedIndex < customMonsterCount;
+    bool canParty = customMonsterCount > 0;
     bool hoverSpawn = canSpawn && CheckCollisionPointRec(GetMousePosition(), spawnBtn);
     bool hoverDelete = canSpawn && CheckCollisionPointRec(GetMousePosition(), deleteBtn);
+    bool hoverParty = canParty && CheckCollisionPointRec(GetMousePosition(), partyBtn);
 
     Color spawnBtnColor = canSpawn ? (hoverSpawn ? PARCHMENT_BUTTON_HOVER : PARCHMENT_BUTTON) : PARCHMENT_DARK;
     DrawRectangleRec(spawnBtn, spawnBtnColor);
     DrawRectangleLinesEx(spawnBtn, 1, PARCHMENT_BORDER);
     int spawnTextW = MeasureText("Spawn", 14);
-    DrawText("Spawn", x + 15 + (80 - spawnTextW) / 2, contentY + 8, 14, PARCHMENT_TEXT);
+    DrawText("Spawn", x + 15 + (70 - spawnTextW) / 2, contentY + 8, 14, PARCHMENT_TEXT);
 
     Color deleteBtnColor = canSpawn ? (hoverDelete ? (Color){180, 120, 100, 255} : (Color){160, 100, 80, 255})
                                      : PARCHMENT_DARK;
     DrawRectangleRec(deleteBtn, deleteBtnColor);
     DrawRectangleLinesEx(deleteBtn, 1, PARCHMENT_BORDER);
+
     int deleteTextW = MeasureText("Delete", 14);
-    DrawText("Delete", x + 105 + (80 - deleteTextW) / 2, contentY + 8, 14, PARCHMENT_TEXT);
+    DrawText("Delete", x + 95 + (70 - deleteTextW) / 2, contentY + 8, 14, PARCHMENT_TEXT);
+
+    // Spawn Party button (spawns all monsters in a circle)
+    Color partyBtnColor = canParty ? (hoverParty ? (Color){130, 160, 130, 255} : (Color){110, 140, 110, 255})
+                                   : PARCHMENT_DARK;
+    DrawRectangleRec(partyBtn, partyBtnColor);
+    DrawRectangleLinesEx(partyBtn, 1, PARCHMENT_BORDER);
+    int partyTextW = MeasureText("Spawn All", 14);
+    DrawText("Spawn All", x + 175 + (100 - partyTextW) / 2, contentY + 8, 14, PARCHMENT_TEXT);
 
     // Error message
     if (gen->state == GeneratorState::ERROR) {

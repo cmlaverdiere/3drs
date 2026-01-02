@@ -1175,6 +1175,7 @@ int main(int argc, char* argv[]) {
         SetShaderLightingUniforms(&lighting, resources.grassShader, camera.position);
         SetShaderLightingUniforms(&lighting, resources.waterShader, camera.position);
         SetShaderLightingUniforms(&lighting, resources.entityShader, camera.position);
+        SetShaderLightingUniforms(&lighting, resources.entityModels.monsterShader, camera.position);
         SetShaderLightingUniforms(&lighting, resources.grass.bladeShader, camera.position);
         for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
             SetShaderLightingUniforms(&lighting, resources.wallShaders[i], camera.position);
@@ -1184,6 +1185,7 @@ int main(int argc, char* argv[]) {
         BindShadowMapToShader(&lighting, resources.grassShader);
         BindShadowMapToShader(&lighting, resources.waterShader);
         BindShadowMapToShader(&lighting, resources.entityShader);
+        BindShadowMapToShader(&lighting, resources.entityModels.monsterShader);
         for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
             BindShadowMapToShader(&lighting, resources.wallShaders[i]);
         }

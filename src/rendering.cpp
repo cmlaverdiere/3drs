@@ -453,11 +453,31 @@ void DrawDragon(const EntityModels* models, Vector3 pos, float facingAngle, bool
     rlPopMatrix();
 }
 
-void DrawCustomMonster(const EntityModels* models, const CustomMonster* monster,
+void DrawCustomMonster(EntityModels* models, const CustomMonster* monster,
                        Vector3 pos, float facingAngle, bool highlighted) {
     rlPushMatrix();
     rlTranslatef(pos.x, pos.y, pos.z);
     rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
+
+    // Check if we need procedural texturing
+    bool useMonsterShader = (monster->material != MAT_FLAT);
+
+    if (useMonsterShader) {
+        // Set monster shader uniforms
+        int matType = (int)monster->material;
+        // Use stable seed from monster name hash (not position, which changes!)
+        float seed = 0.0f;
+        for (int i = 0; monster->name[i] && i < 32; i++) {
+            seed += (float)monster->name[i] * (i + 1) * 7.3f;
+        }
+        SetShaderValue(models->monsterShader, models->monsterMaterialLoc, &matType, SHADER_UNIFORM_INT);
+        SetShaderValue(models->monsterShader, models->monsterSeedLoc, &seed, SHADER_UNIFORM_FLOAT);
+
+        // Swap to monster shader
+        models->cube.materials[0].shader = models->monsterShader;
+        models->sphere.materials[0].shader = models->monsterShader;
+        models->cylinder.materials[0].shader = models->monsterShader;
+    }
 
     for (int i = 0; i < monster->primitiveCount; i++) {
         const MonsterPrimitive* prim = &monster->primitives[i];
@@ -477,11 +497,18 @@ void DrawCustomMonster(const EntityModels* models, const CustomMonster* monster,
         }
     }
 
+    if (useMonsterShader) {
+        // Restore entity shader
+        models->cube.materials[0].shader = models->entityShader;
+        models->sphere.materials[0].shader = models->entityShader;
+        models->cylinder.materials[0].shader = models->entityShader;
+    }
+
     rlPopMatrix();
     (void)highlighted;
 }
 
-void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted,
+void DrawEnemy(EntityModels* models, const Enemy& enemy, bool highlighted,
                const CustomMonster* customMonsters, int customMonsterCount) {
     // Check if this is a custom monster
     if (enemy.customMonsterIndex >= 0 && customMonsters != nullptr &&

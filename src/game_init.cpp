@@ -121,6 +121,9 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     res.skyModel.materials[0].shader = res.skyShader;
 
     // Create primitive models for entity rendering (with proper normals)
+    // Store entity shader reference in EntityModels for restoration after monster shader
+    res.entityModels.entityShader = res.entityShader;
+
     // Unit cube (1x1x1), will be scaled per draw call
     Mesh cubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
     res.entityModels.cube = LoadModelFromMesh(cubeMesh);
@@ -142,6 +145,11 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     Mesh firePlaneMesh = GenMeshPlane(1.0f, 1.0f, 1, 1);
     res.entityModels.firePlane = LoadModelFromMesh(firePlaneMesh);
     res.entityModels.firePlane.materials[0].shader = res.entityModels.fireShader;
+
+    // Monster shader for procedural textures (scales, fur, stone, etc.)
+    res.entityModels.monsterShader = LoadShaderWithIncludes("shaders/monster.vs", "shaders/monster.fs");
+    res.entityModels.monsterMaterialLoc = GetShaderLocation(res.entityModels.monsterShader, "materialType");
+    res.entityModels.monsterSeedLoc = GetShaderLocation(res.entityModels.monsterShader, "monsterSeed");
 
     res.entityModels.initialized = true;
 
@@ -512,6 +520,7 @@ void CleanupGameResources(GameResources* res) {
         UnloadModel(res->entityModels.cylinder);
         UnloadModel(res->entityModels.firePlane);
         UnloadShader(res->entityModels.fireShader);
+        UnloadShader(res->entityModels.monsterShader);
     }
 
     UnloadSoundSystem();

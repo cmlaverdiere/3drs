@@ -24,6 +24,28 @@ static PrimitiveType ParsePrimitiveType(const char* typeStr) {
     return PRIM_CUBE;  // Default to cube
 }
 
+// Parse a monster material type from string
+static MonsterMaterial ParseMaterialType(const char* matStr) {
+    if (strcmp(matStr, "scales") == 0) return MAT_SCALES;
+    if (strcmp(matStr, "stone") == 0) return MAT_STONE;
+    if (strcmp(matStr, "fur") == 0) return MAT_FUR;
+    if (strcmp(matStr, "striped") == 0) return MAT_STRIPED;
+    if (strcmp(matStr, "spotted") == 0) return MAT_SPOTTED;
+    return MAT_FLAT;  // Default to flat
+}
+
+// Get material type name for saving
+static const char* GetMaterialName(MonsterMaterial mat) {
+    switch (mat) {
+        case MAT_SCALES: return "scales";
+        case MAT_STONE: return "stone";
+        case MAT_FUR: return "fur";
+        case MAT_STRIPED: return "striped";
+        case MAT_SPOTTED: return "spotted";
+        default: return "flat";
+    }
+}
+
 // Parse a visual primitive line
 // Format: "type x y z w h d [r g b a]"
 // For sphere: w is radius, h and d are ignored
@@ -170,6 +192,7 @@ int LoadCustomMonsters(const char* filepath, CustomMonster* monsters, int maxMon
             current->aggressive = false;
             current->bodyColor = {150, 150, 150, 255};
             current->limbColor = {100, 100, 100, 255};
+            current->material = MAT_FLAT;
         }
         else if (current) {
             // Parse monster properties
@@ -213,6 +236,12 @@ int LoadCustomMonsters(const char* filepath, CustomMonster* monsters, int maxMon
             else if (strcmp(key, "limb_color") == 0) {
                 current->limbColor = ParseColor(line + 11);
             }
+            else if (strcmp(key, "material") == 0) {
+                char matStr[32];
+                if (sscanf(line, "material %31s", matStr) == 1) {
+                    current->material = ParseMaterialType(matStr);
+                }
+            }
             else if (strcmp(key, "visual") == 0) {
                 inVisualBlock = true;
             }
@@ -254,6 +283,9 @@ bool SaveCustomMonsters(const char* filepath, const CustomMonster* monsters, int
                 m->bodyColor.r, m->bodyColor.g, m->bodyColor.b, m->bodyColor.a);
         fprintf(file, "limb_color %d %d %d %d\n",
                 m->limbColor.r, m->limbColor.g, m->limbColor.b, m->limbColor.a);
+        if (m->material != MAT_FLAT) {
+            fprintf(file, "material %s\n", GetMaterialName(m->material));
+        }
 
         if (m->primitiveCount > 0) {
             fprintf(file, "visual\n");

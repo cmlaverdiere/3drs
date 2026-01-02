@@ -13,6 +13,15 @@ struct EntityModels {
     Model firePlane;      // Billboard plane for fire shader
     Shader fireShader;    // Procedural fire shader
     int fireTimeLoc;      // Time uniform location
+
+    // Entity shader (default for entities)
+    Shader entityShader;
+
+    // Monster shader for procedural textures
+    Shader monsterShader;
+    int monsterMaterialLoc;
+    int monsterSeedLoc;
+
     bool initialized;
 };
 

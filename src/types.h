@@ -172,6 +172,16 @@ enum PrimitiveType {
     PRIM_CYLINDER
 };
 
+// Material types for procedural monster textures
+enum MonsterMaterial {
+    MAT_FLAT = 0,    // Solid color (default)
+    MAT_SCALES,      // Reptilian/fish scales
+    MAT_STONE,       // Rocky/golem texture
+    MAT_FUR,         // Fuzzy streaks
+    MAT_STRIPED,     // Tiger/zebra stripes
+    MAT_SPOTTED      // Leopard spots
+};
+
 // Custom monster limits
 constexpr int MAX_MONSTER_PRIMITIVES = 100;
 constexpr int MAX_CUSTOM_MONSTERS = 64;
@@ -395,6 +405,9 @@ struct CustomMonster {
     // Colors
     Color bodyColor;
     Color limbColor;
+
+    // Material for procedural texturing
+    MonsterMaterial material;
 
     // Visual representation
     MonsterPrimitive primitives[MAX_MONSTER_PRIMITIVES];

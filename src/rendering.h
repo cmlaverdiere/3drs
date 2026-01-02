@@ -24,12 +24,12 @@ void DrawCow(const EntityModels* models, Vector3 pos, float facingAngle, bool hi
 // Draw a scorpion
 void DrawScorpion(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted);
 
-// Draw any enemy by type
-void DrawEnemy(const EntityModels* models, const Enemy& enemy, bool highlighted,
+// Draw any enemy by type (non-const models because custom monsters may swap shaders)
+void DrawEnemy(EntityModels* models, const Enemy& enemy, bool highlighted,
                const CustomMonster* customMonsters = nullptr, int customMonsterCount = 0);
 
-// Draw a custom monster from data
-void DrawCustomMonster(const EntityModels* models, const CustomMonster* monster,
+// Draw a custom monster from data (non-const because it may swap shaders)
+void DrawCustomMonster(EntityModels* models, const CustomMonster* monster,
                        Vector3 pos, float facingAngle, bool highlighted);
 
 // Draw item on ground
