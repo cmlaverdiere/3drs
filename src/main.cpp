@@ -1438,8 +1438,13 @@ int main(int argc, char* argv[]) {
         DrawTimeSelectMenu(&timeSelectMenu, lighting.timeOfDay, g_currentSeason,
                           screenWidth, screenHeight, &timePreset, &seasonPreset);
         if (timePreset > 0) {
-            float presets[] = { TIME_PRESET_DAWN, TIME_PRESET_NOON, TIME_PRESET_DUSK, TIME_PRESET_MIDNIGHT };
-            lighting.timeOfDay = presets[timePreset - 1];
+            if (timePreset == 5) {
+                // Random time of day
+                lighting.timeOfDay = (float)GetRandomValue(0, 1000) / 1000.0f;
+            } else {
+                float presets[] = { TIME_PRESET_DAWN, TIME_PRESET_NOON, TIME_PRESET_DUSK, TIME_PRESET_MIDNIGHT };
+                lighting.timeOfDay = presets[timePreset - 1];
+            }
         }
         if (seasonPreset >= 0) {
             g_currentSeason = (Season)seasonPreset;

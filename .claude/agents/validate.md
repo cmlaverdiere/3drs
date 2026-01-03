@@ -1,8 +1,8 @@
 ---
 name: validate
 description: Automated visual testing for 3DRS game features. Use after implementing new features or fixing bugs to verify correctness via scripted input and screenshot analysis.
-tools: Read, Write, Bash(cmake --build:*), Bash(./build/game:*), Bash(./last_screenshots.sh:*), Glob, Grep
-model: sonnet
+tools: Read, Write, Create, Bash(cmake --build:*), Bash(./build/game:*), Bash(./last_screenshots.sh:*), Glob, Grep
+model: opus
 ---
 
 # 3DRS Visual Validation Agent
@@ -129,8 +129,20 @@ Return a structured report:
 ### Issues Found:
 - [Issue 1, if any]
 
-### Recommendations:
-- [Any suggestions]
+### Testing Difficulties:
+[Describe any challenges encountered during testing, such as:]
+- Script commands that didn't work as expected
+- Missing DSL features that would have helped
+- Timing issues or race conditions
+- Screenshots that were hard to analyze
+- Information that was missing or unclear
+
+### Suggestions for Test Harness:
+[Propose improvements to make future testing easier, such as:]
+- New script commands that would be useful
+- Better error messages or logging
+- Additional state manipulation capabilities
+- Screenshot labeling or comparison features
 ```
 
 ## Manual Testing Fallback
@@ -222,8 +234,10 @@ screenshot after_combat
 1. Parent agent invokes you with feature context
 2. Load required files (always + feature-specific)
 3. Generate test script(s)
-4. Write script to /tmp/test_<feature>.script
-5. Run: `./build/game --script /tmp/test_<feature>.script`
+4. Write script to `tests/scripts/<feature>.script`
+5. Run: `./build/game --script tests/scripts/<feature>.script --headless`
 6. Get screenshots: `./last_screenshots.sh N`
 7. Read and analyze each screenshot
 8. Return PASS/FAIL/MANUAL_TEST_REQUIRED report
+
+**Script directory**: All test scripts should be stored in `tests/scripts/` for version control and reusability.

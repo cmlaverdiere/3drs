@@ -98,6 +98,8 @@ This renders a few frames, saves a screenshot, and exits immediately. The screen
 
 **USE THIS** to verify features that require player positioning, input sequences, or multi-step interactions.
 
+**IMPORTANT:** Always delegate testing to the subagent. Do NOT manually write test scripts or run tests yourself - invoke the subagent and let it handle the entire workflow autonomously.
+
 The `validate` subagent can:
 - Warp the player to specific positions
 - Simulate keypresses and mouse clicks
@@ -119,11 +121,26 @@ The `validate` subagent can:
 
 **Invocation:**
 
-The subagent will:
-1. Generate a test script using the DSL in `src/script_input.h`
-2. Build and run the game headless with the script
-3. Capture and analyze screenshots
-4. Return a structured PASS/FAIL report
+```
+Task(subagent_type="validate", prompt="<high-level feature description>")
+```
+
+**Prompt guidelines:**
+- Describe WHAT to test, not HOW to test it
+- Provide high-level acceptance criteria, not specific keys/clicks/steps
+- Let the subagent determine the implementation details (keys, positions, timing)
+- Include expected visual outcomes for verification
+
+**Good prompt:** "Verify the Random button in the time menu works - it should appear in the menu and clicking it should visibly change the time of day (lighting/sky color)."
+
+**Bad prompt:** "Press T to open menu, wait 10 frames, take screenshot, verify 5 buttons exist..." (too prescriptive)
+
+The subagent will autonomously:
+1. Read relevant source files to understand the feature
+2. Generate a test script and save it to `tests/scripts/<feature>.script`
+3. Build and run the game headless with the script
+4. Capture and analyze screenshots
+5. Return a structured PASS/FAIL report
 
 If the feature is too complex for automated testing, the subagent will return MANUAL_TEST_REQUIRED with instructions for manual verification.
 

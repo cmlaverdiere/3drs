@@ -1,0 +1,38 @@
+# Test: Random button in time menu
+# Verify that clicking the Random button changes time of day
+
+# Start at a known position
+warp 0 1.8 10
+face 0 0
+wait 30
+
+# Capture baseline (should be at default time)
+screenshot baseline_time
+
+# Open time menu (press T)
+press T
+wait 10
+screenshot menu_open
+
+# Click Random button (5th button in left column)
+# Menu is centered, left column starts around 40% from left
+# Random button is the 5th time button
+# Button Y positions: ~48, 82, 116, 150, 184 (from menu top)
+# Menu center is at screenWidth/2, screenHeight/2
+# Assuming 1280x720 screen: menu at 640x360
+# Left column X: ~490 (640 - 150)
+# Random button Y: menu_y + 48 + (4 * 34) = 360 - 120 + 184 = 424
+
+click 490 424
+wait 30
+screenshot after_random_1
+
+# Click Random again to verify it produces different results
+click 490 424
+wait 30
+screenshot after_random_2
+
+# Close menu
+press T
+wait 10
+screenshot menu_closed

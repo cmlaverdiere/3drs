@@ -1,0 +1,7 @@
+# Test: Verify Random button appears in time menu
+# Press T to open time menu, take screenshot
+
+wait 30
+press T
+wait 10
+screenshot time_menu_random

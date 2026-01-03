@@ -1,0 +1,49 @@
+# Test: Random button in time menu (v2 - corrected click position)
+# Verify that clicking the Random button changes time of day
+
+# Start at a known position
+warp 0 1.8 10
+face 0 0
+wait 30
+
+# Capture baseline (should be at default time)
+screenshot baseline_time_v2
+
+# Open time menu (press T)
+press T
+wait 10
+screenshot menu_open_v2
+
+# Close menu first to prepare for testing
+press T
+wait 10
+
+# Test 1: Change to Dawn
+press T
+wait 10
+# Dawn button is the first button, roughly at Y=360-120+48 = 288
+# Left column center X ≈ 560 (based on menu screenshot)
+click 560 300
+wait 30
+screenshot after_dawn
+
+# Test 2: Change to Random time
+press T
+wait 10
+# Random button is the 5th button, roughly at Y=360-120+184 = 424
+# But the menu appears centered, so left column X ≈ 560
+click 560 430
+wait 30
+screenshot after_random_v2_1
+
+# Test 3: Random again
+press T
+wait 10
+click 560 430
+wait 30
+screenshot after_random_v2_2
+
+# Close menu
+press ESCAPE
+wait 10
+screenshot final_v2

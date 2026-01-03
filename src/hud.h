@@ -76,7 +76,7 @@ int GetMinimapHeight();
 void DrawItemIcon(ItemType item, int cx, int cy);
 
 // Draw time and season selection menu and handle clicks
-// timeResult: 0 = no change, 1-4 = preset selected (dawn/noon/dusk/midnight)
+// timeResult: 0 = no change, 1-4 = preset selected (dawn/noon/dusk/midnight), 5 = random
 // seasonResult: -1 = no change, 0-3 = season selected (spring/summer/autumn/winter)
 void DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, Season currentSeason,
                         int screenWidth, int screenHeight, int* timeResult, int* seasonResult);

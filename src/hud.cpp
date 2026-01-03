@@ -1459,11 +1459,12 @@ void DrawTimeSelectMenu(TimeSelectMenu* menu, float currentTime, Season currentS
         {"Dawn", (Color){255, 180, 120, 255}},
         {"Noon", (Color){255, 255, 180, 255}},
         {"Dusk", (Color){255, 140, 100, 255}},
-        {"Midnight", (Color){100, 120, 180, 255}}
+        {"Midnight", (Color){100, 120, 180, 255}},
+        {"Random", (Color){200, 150, 220, 255}}
     };
 
     int buttonY = MENU_Y + 48;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         Rectangle btnRect = {
             (float)leftColX,
             (float)buttonY,

@@ -1,0 +1,34 @@
+# Test: Random button - Final verification
+# Start with a known time (midnight), then use Random to change it
+
+warp 0 1.8 10
+face 0 0
+wait 30
+
+# Set to Midnight first (known dark state)
+press T
+wait 10
+click 560 390  # Midnight button (4th button)
+wait 30
+screenshot test_1_midnight
+
+# Now click Random to get a different time
+press T
+wait 10
+click 560 430  # Random button (5th button)
+wait 30
+screenshot test_2_after_random
+
+# Click Random again for another random time
+press T
+wait 10
+click 560 430  # Random button again
+wait 30
+screenshot test_3_after_random_again
+
+# Set to Noon for comparison (known bright state)
+press T
+wait 10
+click 560 320  # Noon button (2nd button)
+wait 30
+screenshot test_4_noon
