@@ -1,0 +1,64 @@
+# Brick Shader Bump Mapping Test
+# Verifies that brick walls show proper 3D bump mapping effect with lighting
+# Test multiple angles and sun positions to highlight the bump effect
+
+# Start at a good position near the southeast brick tower at (8, 0, -4)
+# Position close to see brick detail, angled for lighting
+warp 10.0 1.8 -2.0
+set_time 0.35
+
+wait 30
+
+# Face the brick tower at an oblique angle for maximum bump visibility
+look_at 8.0 3.0 -4.0
+wait 10
+
+screenshot brick_baseline_morning
+
+# Move closer for more detail
+warp 9.5 1.8 -3.0
+look_at 8.0 2.5 -4.0
+wait 10
+
+screenshot brick_closeup_morning
+
+# Try a different time of day - low sun angle to emphasize bumps
+set_time 0.15
+wait 30
+
+screenshot brick_dawn_shadows
+
+# Midday overhead light for comparison
+set_time 0.4
+wait 30
+
+screenshot brick_midday
+
+# Evening low angle from opposite side
+set_time 0.68
+wait 30
+
+# Move to other side of tower for different lighting
+warp 6.5 1.8 -3.0
+look_at 8.0 3.0 -4.0
+wait 10
+
+screenshot brick_dusk_opposite
+
+# Check the northwest tower for consistency
+warp -6.0 1.8 -10.0
+set_time 0.3
+wait 30
+
+look_at -8.0 4.0 -12.0
+wait 10
+
+screenshot brick_nw_tower
+
+# Very close view to see individual brick bevels
+warp -7.0 1.8 -11.5
+look_at -8.0 2.0 -12.0
+wait 10
+
+screenshot brick_extreme_closeup
+
