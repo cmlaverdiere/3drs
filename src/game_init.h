@@ -31,17 +31,49 @@ struct EntityModels {
     bool initialized;
 };
 
-// Grass blade system (baked mesh = 1 draw call, very efficient)
-static const int GRASS_BLADE_COUNT = 20000;  // Dense coverage, single draw call
-static const float GRASS_SPAWN_RADIUS = 50.0f;  // Grass spawns within this radius of origin
+// Grass blade system (instanced rendering with chunked streaming)
+static const int GRASS_CHUNK_SIZE = 32;           // Units per chunk
+static const int GRASS_CHUNKS_PER_SIDE = 16;      // 16x16 chunks = 512x512 world
+static const int GRASS_VISIBLE_RADIUS = 3;        // 3 chunks in each direction (96 units)
+static const int GRASS_BLADES_PER_CHUNK = 400;    // ~0.4 blades per sq unit
+static const int GRASS_MAX_VISIBLE_CHUNKS = 49;   // 7x7 grid
+static const int GRASS_MAX_BLADES = GRASS_MAX_VISIBLE_CHUNKS * GRASS_BLADES_PER_CHUNK;
+static const int GRASS_CHUNK_CACHE_CAPACITY = 100; // Cache more chunks than visible
+
+struct GrassChunk {
+    int chunkX, chunkZ;
+    Matrix* transforms;    // Per-blade transforms for this chunk
+    int bladeCount;
+    bool loaded;
+};
 
 struct GrassSystem {
+    // Single blade mesh (instanced)
     Mesh bladeMesh;
     Material bladeMaterial;
     Shader bladeShader;
-    Matrix* transforms;
-    int bladeCount;
+
+    // Instance buffer for visible blades
+    Matrix* visibleTransforms;
+    int visibleBladeCount;
+
+    // Chunk cache
+    GrassChunk* chunkCache;
+    int chunkCacheSize;
+
+    // Exclusion zone data (copied from map)
+    Sand* sandZones;
+    int sandCount;
+    Water* waterBodies;
+    int waterCount;
+
+    // Shader locations
     int timeLoc;
+
+    // Player tracking for chunk updates
+    int lastPlayerChunkX;
+    int lastPlayerChunkZ;
+
     bool initialized;
 };
 
@@ -114,8 +146,11 @@ void PopulateSpatialHash(WorldSpatialData* spatial, const Wall* walls, int wallC
 // Cleanup all game resources
 void CleanupGameResources(GameResources* res);
 
-// Initialize grass blade system
-void InitGrassSystem(GrassSystem* grass);
+// Initialize grass blade system (pass sand/water zones for exclusion)
+void InitGrassSystem(GrassSystem* grass, Sand* sandZones, int sandCount, Water* waterBodies, int waterCount);
+
+// Update grass chunks based on player position (call each frame before drawing)
+void UpdateGrassSystem(GrassSystem* grass, Vector3 playerPos);
 
 // Draw grass blades (call after terrain, before transparent objects)
 void DrawGrassBlades(GrassSystem* grass, float time);

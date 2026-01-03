@@ -9,6 +9,8 @@
 #include "raymath.h"
 #include <cstdlib>
 #include <cmath>
+#include <climits>
+#include <cstring>
 
 void InitGameWindow(int* screenWidth, int* screenHeight) {
     // Get monitor size first
@@ -168,8 +170,8 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
 
     res.entityModels.initialized = true;
 
-    // Initialize grass blade system
-    InitGrassSystem(&res.grass);
+    // Initialize grass blade system (pass sand/water zones for exclusion)
+    InitGrassSystem(&res.grass, sandZones, mapData.sandCount, waterBodies, mapData.waterCount);
 
     // Create wall models
     res.wallCount = mapData.wallCount;
@@ -369,96 +371,182 @@ void PopulateSpatialHash(WorldSpatialData* spatial, const Wall* walls, int wallC
              wallCount, enemyCount, treeCount);
 }
 
-// Generate a combined mesh with all grass blades baked in (single draw call)
-static Mesh GenCombinedGrassMesh(float bladeWidth, float bladeHeight, int bladeCount, float spawnRadius) {
+// Generate a single grass blade mesh (unit size, to be instanced)
+static Mesh GenSingleGrassBladeMesh(float bladeWidth, float bladeHeight) {
     Mesh mesh = { 0 };
 
-    int vertsPerBlade = 4;
-    int trisPerBlade = 2;
+    mesh.vertexCount = 4;
+    mesh.triangleCount = 2;
+    mesh.vertices = (float*)RL_MALLOC(4 * 3 * sizeof(float));
+    mesh.texcoords = (float*)RL_MALLOC(4 * 2 * sizeof(float));
+    mesh.normals = (float*)RL_MALLOC(4 * 3 * sizeof(float));
+    mesh.indices = (unsigned short*)RL_MALLOC(6 * sizeof(unsigned short));
 
-    mesh.vertexCount = bladeCount * vertsPerBlade;
-    mesh.triangleCount = bladeCount * trisPerBlade;
-    mesh.vertices = (float*)RL_MALLOC(mesh.vertexCount * 3 * sizeof(float));
-    mesh.texcoords = (float*)RL_MALLOC(mesh.vertexCount * 2 * sizeof(float));
-    mesh.normals = (float*)RL_MALLOC(mesh.vertexCount * 3 * sizeof(float));
-    mesh.indices = (unsigned short*)RL_MALLOC(mesh.triangleCount * 3 * sizeof(unsigned short));
+    float halfW = bladeWidth * 0.5f;
+    float tipW = bladeWidth * 0.15f;
 
-    float halfWidth = bladeWidth * 0.5f;
-    float tipWidth = bladeWidth * 0.15f;
+    // Bottom left (base)
+    mesh.vertices[0] = -halfW; mesh.vertices[1] = 0.0f; mesh.vertices[2] = 0.0f;
+    mesh.texcoords[0] = 0.0f; mesh.texcoords[1] = 0.0f;
 
-    srand(12345);  // Fixed seed for consistent placement
+    // Bottom right (base)
+    mesh.vertices[3] = halfW; mesh.vertices[4] = 0.0f; mesh.vertices[5] = 0.0f;
+    mesh.texcoords[2] = 1.0f; mesh.texcoords[3] = 0.0f;
 
-    for (int i = 0; i < bladeCount; i++) {
-        // Random position
-        float angle = ((float)rand() / RAND_MAX) * 2.0f * PI;
-        float dist = sqrtf((float)rand() / RAND_MAX) * spawnRadius;
-        float x = cosf(angle) * dist;
-        float z = sinf(angle) * dist;
-        float y = GetTerrainHeight(x, z);
+    // Top left (tip)
+    mesh.vertices[6] = -tipW; mesh.vertices[7] = bladeHeight; mesh.vertices[8] = 0.0f;
+    mesh.texcoords[4] = 0.0f; mesh.texcoords[5] = 1.0f;
 
-        // Random rotation and scale
-        float rotY = ((float)rand() / RAND_MAX) * 2.0f * PI;
-        float scale = 0.8f + ((float)rand() / RAND_MAX) * 0.4f;
-        float cosR = cosf(rotY);
-        float sinR = sinf(rotY);
+    // Top right (tip)
+    mesh.vertices[9] = tipW; mesh.vertices[10] = bladeHeight; mesh.vertices[11] = 0.0f;
+    mesh.texcoords[6] = 1.0f; mesh.texcoords[7] = 1.0f;
 
-        float w = halfWidth * scale;
-        float tw = tipWidth * scale;
-        float h = bladeHeight * scale;
-
-        int vi = i * vertsPerBlade * 3;
-        int ti = i * vertsPerBlade * 2;
-        int ii = i * trisPerBlade * 3;
-
-        // Bottom left
-        mesh.vertices[vi + 0] = x + (-w * cosR);
-        mesh.vertices[vi + 1] = y;
-        mesh.vertices[vi + 2] = z + (-w * sinR);
-        mesh.texcoords[ti + 0] = 0.0f; mesh.texcoords[ti + 1] = 0.0f;
-
-        // Bottom right
-        mesh.vertices[vi + 3] = x + (w * cosR);
-        mesh.vertices[vi + 4] = y;
-        mesh.vertices[vi + 5] = z + (w * sinR);
-        mesh.texcoords[ti + 2] = 1.0f; mesh.texcoords[ti + 3] = 0.0f;
-
-        // Top left
-        mesh.vertices[vi + 6] = x + (-tw * cosR);
-        mesh.vertices[vi + 7] = y + h;
-        mesh.vertices[vi + 8] = z + (-tw * sinR);
-        mesh.texcoords[ti + 4] = 0.0f; mesh.texcoords[ti + 5] = 1.0f;
-
-        // Top right
-        mesh.vertices[vi + 9] = x + (tw * cosR);
-        mesh.vertices[vi + 10] = y + h;
-        mesh.vertices[vi + 11] = z + (tw * sinR);
-        mesh.texcoords[ti + 6] = 1.0f; mesh.texcoords[ti + 7] = 1.0f;
-
-        // Normals pointing up-ish
-        for (int j = 0; j < vertsPerBlade; j++) {
-            int ni = (i * vertsPerBlade + j) * 3;
-            mesh.normals[ni + 0] = sinR * 0.3f;
-            mesh.normals[ni + 1] = 0.9f;
-            mesh.normals[ni + 2] = cosR * 0.3f;
-        }
-
-        // Indices
-        unsigned short base = i * vertsPerBlade;
-        mesh.indices[ii + 0] = base + 0;
-        mesh.indices[ii + 1] = base + 1;
-        mesh.indices[ii + 2] = base + 2;
-        mesh.indices[ii + 3] = base + 1;
-        mesh.indices[ii + 4] = base + 3;
-        mesh.indices[ii + 5] = base + 2;
+    // Normals (pointing forward, will be rotated by instance transform)
+    for (int i = 0; i < 4; i++) {
+        mesh.normals[i*3 + 0] = 0.0f;
+        mesh.normals[i*3 + 1] = 0.3f;
+        mesh.normals[i*3 + 2] = 0.95f;
     }
+
+    // Indices
+    mesh.indices[0] = 0; mesh.indices[1] = 1; mesh.indices[2] = 2;
+    mesh.indices[3] = 1; mesh.indices[4] = 3; mesh.indices[5] = 2;
 
     UploadMesh(&mesh, false);
     return mesh;
 }
 
-void InitGrassSystem(GrassSystem* grass) {
-    // Load grass blade shader
-    grass->bladeShader = LoadShader("shaders/grass_blade.vs", "shaders/grass_blade.fs");
+// Check if position is inside a sand zone
+static bool IsInSandZone(float x, float z, Sand* sandZones, int sandCount) {
+    for (int i = 0; i < sandCount; i++) {
+        float halfW = sandZones[i].width * 0.5f;
+        float halfL = sandZones[i].length * 0.5f;
+        float cx = sandZones[i].position.x;
+        float cz = sandZones[i].position.z;
+        if (x >= cx - halfW && x <= cx + halfW &&
+            z >= cz - halfL && z <= cz + halfL) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Check if position is inside a water body
+static bool IsInWaterZone(float x, float z, Water* waterBodies, int waterCount) {
+    for (int i = 0; i < waterCount; i++) {
+        float halfW = waterBodies[i].width * 0.5f;
+        float halfL = waterBodies[i].length * 0.5f;
+        float cx = waterBodies[i].position.x;
+        float cz = waterBodies[i].position.z;
+        if (x >= cx - halfW && x <= cx + halfW &&
+            z >= cz - halfL && z <= cz + halfL) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Generate grass transforms for a chunk
+static void GenerateGrassChunk(GrassChunk* chunk, int chunkX, int chunkZ,
+                                Sand* sandZones, int sandCount,
+                                Water* waterBodies, int waterCount) {
+    chunk->chunkX = chunkX;
+    chunk->chunkZ = chunkZ;
+    chunk->transforms = (Matrix*)RL_MALLOC(GRASS_BLADES_PER_CHUNK * sizeof(Matrix));
+    chunk->bladeCount = 0;
+
+    // World position of chunk corner (heightmap centered at origin)
+    float worldX = (chunkX * GRASS_CHUNK_SIZE) - HEIGHTMAP_OFFSET;
+    float worldZ = (chunkZ * GRASS_CHUNK_SIZE) - HEIGHTMAP_OFFSET;
+
+    // Deterministic seed for this chunk (consistent across runs)
+    unsigned int seed = (unsigned int)(chunkX * 73856093 + chunkZ * 19349663);
+    srand(seed);
+
+    for (int i = 0; i < GRASS_BLADES_PER_CHUNK; i++) {
+        // Random position within chunk
+        float localX = ((float)rand() / RAND_MAX) * GRASS_CHUNK_SIZE;
+        float localZ = ((float)rand() / RAND_MAX) * GRASS_CHUNK_SIZE;
+        float x = worldX + localX;
+        float z = worldZ + localZ;
+
+        // Skip grass in excluded zones
+        if (IsInSandZone(x, z, sandZones, sandCount)) continue;
+        if (IsInWaterZone(x, z, waterBodies, waterCount)) continue;
+
+        float y = GetTerrainHeight(x, z);
+
+        // Random rotation and scale
+        float rotY = ((float)rand() / RAND_MAX) * 2.0f * PI;
+        float scale = 0.8f + ((float)rand() / RAND_MAX) * 0.4f;
+
+        // Build transform matrix: Scale * RotationY * Translation
+        Matrix matScale = MatrixScale(scale, scale, scale);
+        Matrix matRot = MatrixRotateY(rotY);
+        Matrix matTrans = MatrixTranslate(x, y, z);
+
+        // Combine: first scale, then rotate, then translate
+        Matrix transform = MatrixMultiply(matScale, matRot);
+        transform = MatrixMultiply(transform, matTrans);
+
+        chunk->transforms[chunk->bladeCount] = transform;
+        chunk->bladeCount++;
+    }
+
+    chunk->loaded = true;
+}
+
+// Find a chunk in cache or return NULL
+static GrassChunk* FindChunkInCache(GrassSystem* grass, int chunkX, int chunkZ) {
+    for (int i = 0; i < grass->chunkCacheSize; i++) {
+        if (grass->chunkCache[i].loaded &&
+            grass->chunkCache[i].chunkX == chunkX &&
+            grass->chunkCache[i].chunkZ == chunkZ) {
+            return &grass->chunkCache[i];
+        }
+    }
+    return NULL;
+}
+
+// Get or generate a chunk (uses cache)
+static GrassChunk* GetOrGenerateChunk(GrassSystem* grass, int chunkX, int chunkZ) {
+    // First check cache
+    GrassChunk* existing = FindChunkInCache(grass, chunkX, chunkZ);
+    if (existing) return existing;
+
+    // Need to generate new chunk - find a slot
+    int slot = -1;
+
+    // First try to find an empty slot
+    if (grass->chunkCacheSize < GRASS_CHUNK_CACHE_CAPACITY) {
+        slot = grass->chunkCacheSize;
+        grass->chunkCacheSize++;
+    } else {
+        // Cache is full, find LRU slot (simple: just use slot 0 and shift)
+        // For simplicity, just overwrite a random old chunk
+        slot = rand() % GRASS_CHUNK_CACHE_CAPACITY;
+        // Free old chunk's transforms
+        if (grass->chunkCache[slot].transforms) {
+            RL_FREE(grass->chunkCache[slot].transforms);
+            grass->chunkCache[slot].transforms = NULL;
+        }
+    }
+
+    // Generate new chunk
+    GenerateGrassChunk(&grass->chunkCache[slot], chunkX, chunkZ,
+                       grass->sandZones, grass->sandCount,
+                       grass->waterBodies, grass->waterCount);
+
+    return &grass->chunkCache[slot];
+}
+
+void InitGrassSystem(GrassSystem* grass, Sand* sandZones, int sandCount, Water* waterBodies, int waterCount) {
+    // Load instanced grass blade shader
+    grass->bladeShader = LoadShader("shaders/grass_blade_instanced.vs", "shaders/grass_blade.fs");
+
+    // CRITICAL: Bind instanceTransform as a vertex attribute for instancing
+    grass->bladeShader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocationAttrib(grass->bladeShader, "instanceTransform");
+
     grass->timeLoc = GetShaderLocation(grass->bladeShader, "time");
 
     // Pass season to blade shader (0=Spring, 1=Summer, 2=Autumn, 3=Winter)
@@ -466,23 +554,90 @@ void InitGrassSystem(GrassSystem* grass) {
     int seasonVal = (int)g_currentSeason;
     SetShaderValue(grass->bladeShader, seasonLoc, &seasonVal, SHADER_UNIFORM_INT);
 
-    // Generate combined mesh with all blades baked in (single draw call!)
-    grass->bladeMesh = GenCombinedGrassMesh(0.12f, 0.22f, GRASS_BLADE_COUNT, GRASS_SPAWN_RADIUS);
+    // Generate single blade mesh (to be instanced)
+    grass->bladeMesh = GenSingleGrassBladeMesh(0.12f, 0.22f);
 
     // Setup material
     grass->bladeMaterial = LoadMaterialDefault();
     grass->bladeMaterial.shader = grass->bladeShader;
 
-    // No transforms needed - positions baked into mesh
-    grass->transforms = NULL;
-    grass->bladeCount = GRASS_BLADE_COUNT;
+    // Allocate instance buffer for visible blades
+    grass->visibleTransforms = (Matrix*)RL_MALLOC(GRASS_MAX_BLADES * sizeof(Matrix));
+    grass->visibleBladeCount = 0;
+
+    // Allocate chunk cache
+    grass->chunkCache = (GrassChunk*)RL_CALLOC(GRASS_CHUNK_CACHE_CAPACITY, sizeof(GrassChunk));
+    grass->chunkCacheSize = 0;
+
+    // Store exclusion zone references
+    grass->sandZones = sandZones;
+    grass->sandCount = sandCount;
+    grass->waterBodies = waterBodies;
+    grass->waterCount = waterCount;
+
+    // Initialize player tracking to force first update
+    grass->lastPlayerChunkX = INT_MIN;
+    grass->lastPlayerChunkZ = INT_MIN;
 
     grass->initialized = true;
-    TraceLog(LOG_INFO, "Grass system initialized with %d blades (baked mesh)", GRASS_BLADE_COUNT);
+    TraceLog(LOG_INFO, "Instanced grass system initialized (max %d blades, %d chunk cache)",
+             GRASS_MAX_BLADES, GRASS_CHUNK_CACHE_CAPACITY);
+}
+
+void UpdateGrassSystem(GrassSystem* grass, Vector3 playerPos) {
+    if (!grass->initialized) return;
+
+    // Calculate player's current chunk coordinates
+    int playerChunkX = (int)floorf((playerPos.x + HEIGHTMAP_OFFSET) / GRASS_CHUNK_SIZE);
+    int playerChunkZ = (int)floorf((playerPos.z + HEIGHTMAP_OFFSET) / GRASS_CHUNK_SIZE);
+
+    // Only rebuild visible transforms if player moved to a new chunk
+    if (playerChunkX == grass->lastPlayerChunkX && playerChunkZ == grass->lastPlayerChunkZ) {
+        return;
+    }
+
+    grass->lastPlayerChunkX = playerChunkX;
+    grass->lastPlayerChunkZ = playerChunkZ;
+
+    // Determine visible chunk range
+    int minCX = playerChunkX - GRASS_VISIBLE_RADIUS;
+    int maxCX = playerChunkX + GRASS_VISIBLE_RADIUS;
+    int minCZ = playerChunkZ - GRASS_VISIBLE_RADIUS;
+    int maxCZ = playerChunkZ + GRASS_VISIBLE_RADIUS;
+
+    // Clamp to world bounds (0 to GRASS_CHUNKS_PER_SIDE-1)
+    if (minCX < 0) minCX = 0;
+    if (maxCX >= GRASS_CHUNKS_PER_SIDE) maxCX = GRASS_CHUNKS_PER_SIDE - 1;
+    if (minCZ < 0) minCZ = 0;
+    if (maxCZ >= GRASS_CHUNKS_PER_SIDE) maxCZ = GRASS_CHUNKS_PER_SIDE - 1;
+
+    // Collect visible transforms from all visible chunks
+    grass->visibleBladeCount = 0;
+
+    for (int cz = minCZ; cz <= maxCZ; cz++) {
+        for (int cx = minCX; cx <= maxCX; cx++) {
+            // Get or generate chunk
+            GrassChunk* chunk = GetOrGenerateChunk(grass, cx, cz);
+            if (!chunk || !chunk->loaded) continue;
+
+            // Copy transforms to visible buffer
+            int copyCount = chunk->bladeCount;
+            if (grass->visibleBladeCount + copyCount > GRASS_MAX_BLADES) {
+                copyCount = GRASS_MAX_BLADES - grass->visibleBladeCount;
+            }
+
+            if (copyCount > 0) {
+                memcpy(&grass->visibleTransforms[grass->visibleBladeCount],
+                       chunk->transforms,
+                       copyCount * sizeof(Matrix));
+                grass->visibleBladeCount += copyCount;
+            }
+        }
+    }
 }
 
 void DrawGrassBlades(GrassSystem* grass, float time) {
-    if (!grass->initialized) return;
+    if (!grass->initialized || grass->visibleBladeCount == 0) return;
 
     // Update time uniform for wind animation
     SetShaderValue(grass->bladeShader, grass->timeLoc, &time, SHADER_UNIFORM_FLOAT);
@@ -490,8 +645,9 @@ void DrawGrassBlades(GrassSystem* grass, float time) {
     // Disable backface culling so grass is visible from both sides
     rlDisableBackfaceCulling();
 
-    // Single draw call for all grass (positions baked into mesh)
-    DrawMesh(grass->bladeMesh, grass->bladeMaterial, MatrixIdentity());
+    // Single instanced draw call for all visible grass
+    DrawMeshInstanced(grass->bladeMesh, grass->bladeMaterial,
+                      grass->visibleTransforms, grass->visibleBladeCount);
 
     // Restore state
     rlEnableBackfaceCulling();
@@ -502,7 +658,24 @@ void CleanupGrassSystem(GrassSystem* grass) {
 
     UnloadMesh(grass->bladeMesh);
     UnloadShader(grass->bladeShader);
-    // transforms is NULL with baked mesh approach
+
+    // Free visible transforms buffer
+    if (grass->visibleTransforms) {
+        RL_FREE(grass->visibleTransforms);
+        grass->visibleTransforms = NULL;
+    }
+
+    // Free chunk cache and all chunk transforms
+    if (grass->chunkCache) {
+        for (int i = 0; i < grass->chunkCacheSize; i++) {
+            if (grass->chunkCache[i].transforms) {
+                RL_FREE(grass->chunkCache[i].transforms);
+            }
+        }
+        RL_FREE(grass->chunkCache);
+        grass->chunkCache = NULL;
+    }
+
     grass->initialized = false;
 }
 

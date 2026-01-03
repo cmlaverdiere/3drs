@@ -1248,7 +1248,8 @@ int main(int argc, char* argv[]) {
             // Draw terrain
             DrawModel(resources.groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
 
-            // Draw grass blades
+            // Update and draw grass blades (streaming around player)
+            UpdateGrassSystem(&resources.grass, camera.position);
             DrawGrassBlades(&resources.grass, (float)GetTime());
 
             // Draw entities (models have entity shader assigned)
