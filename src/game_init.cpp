@@ -151,6 +151,21 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     res.entityModels.monsterMaterialLoc = GetShaderLocation(res.entityModels.monsterShader, "materialType");
     res.entityModels.monsterSeedLoc = GetShaderLocation(res.entityModels.monsterShader, "monsterSeed");
 
+    // Tree shaders - foliage (leafy canopy) and wood (bark texture)
+    // Use entity.vs for both since they have the same interface
+    res.entityModels.foliageShader = LoadShaderWithIncludes("shaders/entity.vs", "shaders/foliage.fs");
+    res.entityModels.woodShader = LoadShaderWithIncludes("shaders/entity.vs", "shaders/wood.fs");
+
+    // Foliage sphere - for tree canopy
+    Mesh foliageSphereMesh = GenMeshSphere(1.0f, 16, 16);
+    res.entityModels.foliageSphere = LoadModelFromMesh(foliageSphereMesh);
+    res.entityModels.foliageSphere.materials[0].shader = res.entityModels.foliageShader;
+
+    // Wood cylinder - for tree trunk
+    Mesh woodCylinderMesh = GenMeshCylinder(1.0f, 1.0f, 16);
+    res.entityModels.woodCylinder = LoadModelFromMesh(woodCylinderMesh);
+    res.entityModels.woodCylinder.materials[0].shader = res.entityModels.woodShader;
+
     res.entityModels.initialized = true;
 
     // Initialize grass blade system
@@ -521,6 +536,11 @@ void CleanupGameResources(GameResources* res) {
         UnloadModel(res->entityModels.firePlane);
         UnloadShader(res->entityModels.fireShader);
         UnloadShader(res->entityModels.monsterShader);
+        // Tree models and shaders
+        UnloadModel(res->entityModels.foliageSphere);
+        UnloadModel(res->entityModels.woodCylinder);
+        UnloadShader(res->entityModels.foliageShader);
+        UnloadShader(res->entityModels.woodShader);
     }
 
     UnloadSoundSystem();

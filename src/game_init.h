@@ -22,6 +22,12 @@ struct EntityModels {
     int monsterMaterialLoc;
     int monsterSeedLoc;
 
+    // Tree shaders and models
+    Shader foliageShader;    // Procedural leafy canopy shader
+    Shader woodShader;       // Procedural bark/wood shader
+    Model foliageSphere;     // Sphere with foliage shader
+    Model woodCylinder;      // Cylinder with wood shader
+
     bool initialized;
 };
 

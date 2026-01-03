@@ -1,0 +1,97 @@
+# Test: Tree Shader Visual Validation
+# Verifies foliage (leaf) and wood (bark) procedural shaders
+# Captures close-ups of tree trunk, canopy, and full tree at different seasons
+
+# ============================================================================
+# SUMMER - Full trees with green foliage
+# ============================================================================
+set_season summer
+set_time 0.4
+wait 30
+
+# Test 1: Close-up of tree trunk (bark texture)
+# Position near a normal tree at (-12, 0, 0), looking at the trunk
+warp -10.0 1.5 0.0
+face -90 0
+wait 20
+screenshot summer_trunk_closeup
+
+# Test 2: Close-up of tree canopy (foliage texture)
+# Look up at the leaves
+warp -10.0 1.5 0.0
+face -90 30
+wait 20
+screenshot summer_canopy_closeup
+
+# Test 3: Full tree view - normal tree
+# Step back to see entire tree
+warp -8.0 1.8 0.0
+face -90 10
+wait 20
+screenshot summer_full_tree_normal
+
+# Test 4: Full oak tree view - larger tree
+# Oak tree at (-13, 0, 2)
+warp -9.0 1.8 2.0
+face -135 15
+wait 20
+screenshot summer_full_tree_oak
+
+# ============================================================================
+# AUTUMN - Fall colors (red, orange, gold)
+# ============================================================================
+set_season autumn
+wait 30
+
+# Test 5: Autumn canopy colors
+warp -10.0 1.5 0.0
+face -90 30
+wait 20
+screenshot autumn_canopy_colors
+
+# Test 6: Full autumn scene with multiple trees
+# Step back to see color variation among trees
+warp -5.0 1.8 5.0
+face -135 15
+wait 20
+screenshot autumn_full_scene
+
+# ============================================================================
+# WINTER - Evergreen/pine trees with snow
+# ============================================================================
+set_season winter
+wait 30
+
+# Test 7: Winter evergreen trunk
+warp -10.0 1.5 0.0
+face -90 0
+wait 20
+screenshot winter_trunk_closeup
+
+# Test 8: Winter evergreen canopy with snow
+warp -10.0 1.5 0.0
+face -90 30
+wait 20
+screenshot winter_canopy_snow
+
+# Test 9: Full winter evergreen tree
+warp -8.0 1.8 0.0
+face -90 15
+wait 20
+screenshot winter_full_evergreen
+
+# ============================================================================
+# SPRING - Fresh green foliage
+# ============================================================================
+set_season spring
+wait 30
+
+# Test 10: Spring canopy (brighter green)
+warp -10.0 1.5 0.0
+face -90 30
+wait 20
+screenshot spring_canopy_closeup
+
+# Final: Restore to summer for baseline
+set_season summer
+wait 10

@@ -1,0 +1,29 @@
+# Brick Mortar Recess Close-up Test
+# Verifies that mortar grooves appear darker and recessed compared to raised brick surfaces
+# Position close to a brick wall with morning/afternoon lighting for visible shadows
+
+# Position near the northwest castle tower brick wall at (-8, 0, -12)
+# Standing at (-6, 2, -10) looking at the wall
+warp -6.0 1.8 -10.0
+set_time 0.3
+
+wait 30
+
+# Face the brick tower - look at eye level on the wall
+look_at -8.0 3.0 -12.0
+wait 10
+
+screenshot mortar_closeup_morning
+
+# Move even closer for detail
+warp -7.0 1.8 -11.0
+look_at -8.0 2.5 -12.0
+wait 10
+
+screenshot mortar_extreme_closeup
+
+# Try late afternoon sun for strong side-lighting on mortar
+set_time 0.65
+wait 30
+
+screenshot mortar_closeup_afternoon

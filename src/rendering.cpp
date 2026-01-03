@@ -22,6 +22,17 @@ void DrawModelCylinder(const EntityModels* models, Vector3 pos, float radiusBott
     DrawModelEx(models->cylinder, pos, (Vector3){0, 1, 0}, 0.0f, (Vector3){radius, height, radius}, color);
 }
 
+// Helper: Draw a foliage sphere (tree canopy) with procedural leaf shader
+void DrawFoliageSphere(const EntityModels* models, Vector3 pos, float radius, Color color) {
+    DrawModelEx(models->foliageSphere, pos, (Vector3){0, 1, 0}, 0.0f, (Vector3){radius, radius, radius}, color);
+}
+
+// Helper: Draw a wood cylinder (tree trunk) with procedural bark shader
+void DrawWoodCylinder(const EntityModels* models, Vector3 pos, float radiusBottom, float radiusTop, float height, Color color) {
+    float radius = (radiusBottom + radiusTop) * 0.5f;
+    DrawModelEx(models->woodCylinder, pos, (Vector3){0, 1, 0}, 0.0f, (Vector3){radius, height, radius}, color);
+}
+
 void DrawSword(const EntityModels* models, Vector3 pos, Color bladeColor, Color handleColor) {
     DrawModelCube(models, (Vector3){pos.x, pos.y + 0.05f, pos.z}, 0.08f, 0.05f, 0.6f, bladeColor);
     DrawModelCube(models, (Vector3){pos.x, pos.y + 0.05f, pos.z - 0.35f}, 0.06f, 0.08f, 0.15f, handleColor);
@@ -763,32 +774,32 @@ void DrawEvergreenTree(const EntityModels* models, Vector3 pos, TreeType type, b
 
     float scale = (type == TREE_OAK) ? 1.3f : 1.0f;
 
-    // Trunk - taller and thinner for evergreen
+    // Trunk - taller and thinner for evergreen (with bark shader)
     float trunkHeight = 2.0f * scale;
-    DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.2f * scale, 0.25f * scale, trunkHeight, trunkColor);
+    DrawWoodCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.2f * scale, 0.25f * scale, trunkHeight, trunkColor);
 
-    // Conical layers of branches (bottom to top)
+    // Conical layers of branches (bottom to top) - use foliage shader for pine
     float baseY = pos.y + trunkHeight * 0.5f;
 
     // Bottom layer - widest
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 0.5f * scale, pos.z}, 1.8f * scale, 0.0f, 1.2f * scale, pineGreen);
+    DrawFoliageSphere(models, (Vector3){pos.x, baseY + 0.8f * scale, pos.z}, 1.6f * scale, pineGreen);
     // Snow on bottom branches
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 0.85f * scale, pos.z}, 1.4f * scale, 0.0f, 0.15f * scale, pineSnow);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.2f * scale, pos.z}, 1.2f * scale, 0.0f, 0.15f * scale, pineSnow);
 
     // Middle layer
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.5f * scale, pos.z}, 1.4f * scale, 0.0f, 1.0f * scale, pineGreen);
+    DrawFoliageSphere(models, (Vector3){pos.x, baseY + 1.8f * scale, pos.z}, 1.2f * scale, pineGreen);
     // Snow on middle branches
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.8f * scale, pos.z}, 1.1f * scale, 0.0f, 0.12f * scale, pineSnow);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.1f * scale, pos.z}, 0.9f * scale, 0.0f, 0.12f * scale, pineSnow);
 
     // Upper layer
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.3f * scale, pos.z}, 1.0f * scale, 0.0f, 0.9f * scale, pineGreen);
+    DrawFoliageSphere(models, (Vector3){pos.x, baseY + 2.6f * scale, pos.z}, 0.9f * scale, pineGreen);
     // Snow on upper branches
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.55f * scale, pos.z}, 0.75f * scale, 0.0f, 0.1f * scale, pineSnow);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.9f * scale, pos.z}, 0.6f * scale, 0.0f, 0.1f * scale, pineSnow);
 
-    // Top layer - pointed
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.0f * scale, pos.z}, 0.6f * scale, 0.0f, 0.8f * scale, pineGreen);
+    // Top point
+    DrawFoliageSphere(models, (Vector3){pos.x, baseY + 3.3f * scale, pos.z}, 0.5f * scale, pineGreen);
     // Snow cap
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.25f * scale, pos.z}, 0.4f * scale, 0.0f, 0.08f * scale, pineSnow);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.5f * scale, pos.z}, 0.3f * scale, 0.0f, 0.08f * scale, pineSnow);
 
     // Snow accumulation at base
     DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.05f, pos.z}, 0.8f * scale, 0.8f * scale, 0.1f, pineSnow);
@@ -849,28 +860,28 @@ void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highl
         // Oak tree - larger and darker
         Color oakTrunk = { 70, 45, 20, 255 };
 
-        // Thicker trunk
-        DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.5f, 0.6f, 3.5f, oakTrunk);
+        // Thicker trunk with bark shader
+        DrawWoodCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.5f, 0.6f, 3.5f, oakTrunk);
 
-        // Larger, more layered canopy
-        DrawModelSphere(models, (Vector3){pos.x, pos.y + 5.0f, pos.z}, 2.2f, oakLeaves);
-        DrawModelSphere(models, (Vector3){pos.x - 1.0f, pos.y + 4.2f, pos.z + 0.8f}, 1.6f, oakLeavesDark);
-        DrawModelSphere(models, (Vector3){pos.x + 1.0f, pos.y + 4.2f, pos.z - 0.8f}, 1.6f, oakLeavesDark);
-        DrawModelSphere(models, (Vector3){pos.x + 0.5f, pos.y + 4.5f, pos.z + 1.0f}, 1.3f, oakLeaves);
-        DrawModelSphere(models, (Vector3){pos.x - 0.5f, pos.y + 4.5f, pos.z - 1.0f}, 1.3f, oakLeaves);
-        DrawModelSphere(models, (Vector3){pos.x, pos.y + 6.0f, pos.z}, 1.2f, oakLeaves);
+        // Larger, more layered canopy with foliage shader
+        DrawFoliageSphere(models, (Vector3){pos.x, pos.y + 5.0f, pos.z}, 2.2f, oakLeaves);
+        DrawFoliageSphere(models, (Vector3){pos.x - 1.0f, pos.y + 4.2f, pos.z + 0.8f}, 1.6f, oakLeavesDark);
+        DrawFoliageSphere(models, (Vector3){pos.x + 1.0f, pos.y + 4.2f, pos.z - 0.8f}, 1.6f, oakLeavesDark);
+        DrawFoliageSphere(models, (Vector3){pos.x + 0.5f, pos.y + 4.5f, pos.z + 1.0f}, 1.3f, oakLeaves);
+        DrawFoliageSphere(models, (Vector3){pos.x - 0.5f, pos.y + 4.5f, pos.z - 1.0f}, 1.3f, oakLeaves);
+        DrawFoliageSphere(models, (Vector3){pos.x, pos.y + 6.0f, pos.z}, 1.2f, oakLeaves);
     } else {
         // Normal tree
         Color trunkColor = { 101, 67, 33, 255 };
 
-        // Trunk
-        DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.3f, 0.4f, 2.5f, trunkColor);
+        // Trunk with bark shader
+        DrawWoodCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.3f, 0.4f, 2.5f, trunkColor);
 
-        // Leaves (layered spheres)
-        DrawModelSphere(models, (Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.5f, leavesColor);
-        DrawModelSphere(models, (Vector3){pos.x - 0.5f, pos.y + 3.0f, pos.z + 0.5f}, 1.0f, leavesDark);
-        DrawModelSphere(models, (Vector3){pos.x + 0.5f, pos.y + 3.0f, pos.z - 0.5f}, 1.0f, leavesDark);
-        DrawModelSphere(models, (Vector3){pos.x, pos.y + 4.2f, pos.z}, 0.8f, leavesColor);
+        // Leaves (layered spheres) with foliage shader
+        DrawFoliageSphere(models, (Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.5f, leavesColor);
+        DrawFoliageSphere(models, (Vector3){pos.x - 0.5f, pos.y + 3.0f, pos.z + 0.5f}, 1.0f, leavesDark);
+        DrawFoliageSphere(models, (Vector3){pos.x + 0.5f, pos.y + 3.0f, pos.z - 0.5f}, 1.0f, leavesDark);
+        DrawFoliageSphere(models, (Vector3){pos.x, pos.y + 4.2f, pos.z}, 0.8f, leavesColor);
     }
 
     (void)highlighted;  // Unused - wireframe removed

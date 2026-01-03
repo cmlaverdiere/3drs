@@ -32,8 +32,7 @@ vec3 perturbNormal(vec3 N, vec3 pos, vec2 uv, vec3 normalOffset) {
 }
 
 // Brick pattern with bump mapping
-// Returns: x = brick mask (1 inside brick, 0 in mortar), y = brick ID
-// Outputs normalOffset for bump mapping
+// Outputs: brickMask (1=brick, 0=mortar), brickID (per-brick hash), normalOffset for bump mapping
 void brick(vec2 uv, float brickWidth, float brickHeight, float mortarWidth,
            out float brickMask, out float brickID, out vec3 normalOffset) {
     vec2 brickUV = uv / vec2(brickWidth, brickHeight);
@@ -47,11 +46,11 @@ void brick(vec2 uv, float brickWidth, float brickHeight, float mortarWidth,
     vec2 brickCell = floor(brickUV);
     vec2 brickFract = fract(brickUV);
 
-    // Calculate mortar thresholds
+    // Calculate mortar thresholds (in brick-space units)
     float mortarX = mortarWidth / brickWidth;
     float mortarY = mortarWidth / brickHeight;
 
-    // Smooth brick mask with soft edges for better bump mapping
+    // Brick mask - 1 inside brick, 0 in mortar
     float edgeSmooth = 0.02;
     float leftEdge = smoothstep(mortarX - edgeSmooth, mortarX + edgeSmooth, brickFract.x);
     float rightEdge = smoothstep(mortarX - edgeSmooth, mortarX + edgeSmooth, 1.0 - brickFract.x);
@@ -62,35 +61,71 @@ void brick(vec2 uv, float brickWidth, float brickHeight, float mortarWidth,
     brickID = hash(brickCell);
 
     // === BUMP MAPPING ===
+    // Think of height profile: bricks are raised plateaus, mortar is recessed valley
+    // Normal = gradient of height field
     normalOffset = vec3(0.0);
 
-    // 1. Brick edges - normals point outward at edges to catch light
-    float edgeFalloff = 0.15;  // How far edge effect extends into brick
+    // Distance from each edge (positive = inside brick, negative = in mortar)
+    float distLeft = brickFract.x - mortarX;
+    float distRight = (1.0 - mortarX) - brickFract.x;
+    float distBottom = brickFract.y - mortarY;
+    float distTop = (1.0 - mortarY) - brickFract.y;
 
-    // Left edge - normal points left (-X)
-    float leftBevel = smoothstep(mortarX + edgeFalloff, mortarX, brickFract.x);
-    // Right edge - normal points right (+X)
-    float rightBevel = smoothstep(1.0 - mortarX - edgeFalloff, 1.0 - mortarX, brickFract.x);
-    // Bottom edge - normal points down (-Y)
-    float bottomBevel = smoothstep(mortarY + edgeFalloff, mortarY, brickFract.y);
-    // Top edge - normal points up (+Y)
-    float topBevel = smoothstep(1.0 - mortarY - edgeFalloff, 1.0 - mortarY, brickFract.y);
+    // Find closest edge and distance to it
+    float minDistX = min(distLeft, distRight);
+    float minDistY = min(distBottom, distTop);
+    float minDist = min(minDistX, minDistY);
 
-    float bevelStrength = 1.5;
-    normalOffset.x = (rightBevel - leftBevel) * bevelStrength;
-    normalOffset.y = (topBevel - bottomBevel) * bevelStrength;
+    // Mortar depth effect - in mortar, normal points toward nearest brick
+    // This creates the "valley" that makes mortar look recessed
+    float mortarDepth = 3.0;  // How deep the mortar appears
+    float mortarSlope = 2.5;  // How steep the sides are
 
-    // 2. Surface roughness - add noise-based bumps on brick surface
+    if (minDist < 0.0) {
+        // We're in the mortar - create slope toward nearest brick
+        // Direction toward brick center
+        vec2 toBrickCenter = vec2(0.5, 0.5) - brickFract;
+
+        // Stronger effect deeper in mortar, but limit it
+        float mortarAmount = clamp(-minDist * 10.0, 0.0, 1.0);
+
+        // Normal points toward brick (upward slope)
+        normalOffset.x = sign(toBrickCenter.x) * mortarSlope * mortarAmount;
+        normalOffset.y = sign(toBrickCenter.y) * mortarSlope * mortarAmount;
+    }
+
+    // Brick edge bevels - the raised lip where brick meets mortar
+    float bevelWidth = 0.12;  // How wide the bevel is
+    float bevelStrength = 2.0;
+
+    // Only apply bevel on brick side (minDist > 0)
+    if (minDist > 0.0 && minDist < bevelWidth) {
+        float bevelAmount = 1.0 - (minDist / bevelWidth);
+        bevelAmount = bevelAmount * bevelAmount;  // Quadratic falloff
+
+        // Which edge are we closest to?
+        if (minDistX < minDistY) {
+            // Closer to left/right edge
+            float sign_x = (distLeft < distRight) ? -1.0 : 1.0;
+            normalOffset.x += sign_x * bevelStrength * bevelAmount;
+        } else {
+            // Closer to top/bottom edge
+            float sign_y = (distBottom < distTop) ? -1.0 : 1.0;
+            normalOffset.y += sign_y * bevelStrength * bevelAmount;
+        }
+    }
+
+    // Surface roughness - noise bumps on brick surface only
     float roughScale = 25.0;
-    float roughStrength = 0.4;
+    float roughStrength = 0.5;
     float n1 = noise(uv * roughScale + brickID * 100.0);
     float n2 = noise(uv * roughScale + brickID * 100.0 + vec2(0.1, 0.0));
     float n3 = noise(uv * roughScale + brickID * 100.0 + vec2(0.0, 0.1));
     normalOffset.x += (n2 - n1) * roughStrength * brickMask;
     normalOffset.y += (n3 - n1) * roughStrength * brickMask;
 
-    // 3. Per-brick tilt variation - each brick slightly tilted differently
-    float tiltStrength = 0.2;
+    // Per-brick tilt - each brick slightly tilted differently
+    float tiltStrength = 0.25;
     normalOffset.x += (hash(brickCell + vec2(1.0, 0.0)) - 0.5) * tiltStrength * brickMask;
     normalOffset.y += (hash(brickCell + vec2(0.0, 1.0)) - 0.5) * tiltStrength * brickMask;
 }
@@ -136,12 +171,16 @@ void main() {
     float wear = noise(uv * 30.0) * 0.1;
     brickColor -= vec3(wear);
 
-    // Mortar variation
+    // Mortar variation - darker base to emphasize depth
     float mortarNoise = noise(uv * 50.0) * 0.08;
-    vec3 finalMortar = mortarColor + vec3(mortarNoise);
+    vec3 finalMortar = mortarColor * 0.7 + vec3(mortarNoise);  // Darken mortar
 
     // Blend brick and mortar
     vec3 surfaceColor = mix(finalMortar, brickColor, brickMask);
+
+    // Add ambient occlusion in mortar grooves
+    float ao = mix(0.6, 1.0, brickMask);  // Darker in mortar
+    surfaceColor *= ao;
 
     // Calculate perturbed normal for bump mapping
     vec3 baseNormal = normalize(fragNormal);

@@ -21,7 +21,7 @@ cmake -B build && cmake --build build
 ./build/game
 ```
 
-## Headless Test Mode
+## Init-only Test Mode
 
 **USE THIS** to verify map loading and systems without opening a window:
 
@@ -93,6 +93,33 @@ This renders a few frames, saves a screenshot, and exits immediately. The screen
 3. Screenshot: `./build/game --screenshot`
 4. Get filename: `./last_screenshots.sh 1`
 5. Read the screenshot file to visually verify
+
+## Headless Mode
+
+The `--headless` flag runs the game with a hidden window (no visible UI). Use it with `--script` for automated testing:
+
+```bash
+./build/game --headless --script tests/scripts/my_test.script
+```
+
+**ALWAYS USE `--screenshot` for quick visual tests** (not `--headless` alone):
+
+```bash
+cmake --build build && ./build/game --screenshot && ./last_screenshots.sh 1
+# Then read the screenshot to verify
+```
+
+The `--screenshot` flag renders a few frames, saves a screenshot, and exits immediately. This is the fastest way to verify rendering changes without using the full validation subagent.
+
+**When to use `--screenshot`:**
+- Quick smoke test after shader/rendering changes
+- Verifying the game doesn't crash after code changes
+- When you just need to see if something renders without detailed validation
+
+**When to use the validate subagent instead:**
+- When you need to test specific player positions or interactions
+- When you need multiple screenshots or time-of-day changes
+- When you need detailed PASS/FAIL analysis
 
 ## Visual Validation Subagent
 
