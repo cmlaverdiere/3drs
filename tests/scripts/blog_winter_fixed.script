@@ -1,0 +1,16 @@
+# Blog Screenshot: Winter mode - fixed rendering
+set_season winter
+set_time 0.35
+wait 60
+
+# Snowy landscape with proper winter rendering
+warp 0.0 3.0 -10.0
+face 45 10
+wait 30
+screenshot blog_winter_fixed
+
+# Close up of snowy trees
+warp -10.0 2.0 5.0
+face -60 15
+wait 20
+screenshot blog_winter_trees_fixed

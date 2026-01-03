@@ -1,0 +1,10 @@
+# Blog Screenshot: Winter mode - better angle showing snow
+set_season winter
+set_time 0.4
+wait 90
+
+# Position in center of Lumbridge to get full snow coverage
+warp 0.0 2.5 0.0
+face 0 5
+wait 30
+screenshot blog_winter_v2

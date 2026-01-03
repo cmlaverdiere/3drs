@@ -1,0 +1,10 @@
+# Blog Screenshot: Autumn colors - fixed to ensure ground matches trees
+set_season autumn
+set_time 0.35
+wait 60
+
+# Fall foliage scene - looking at colorful trees with matching autumn ground
+warp -5.0 2.0 5.0
+face -90 15
+wait 30
+screenshot blog_autumn_fixed
