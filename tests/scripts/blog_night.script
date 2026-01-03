@@ -1,0 +1,16 @@
+# Blog Screenshot: Night scene with lights
+set_season summer
+set_time 0.85
+wait 30
+
+# Night with street lamps
+warp 0.0 2.0 5.0
+face 0 10
+wait 30
+screenshot blog_night_lamps
+
+# Moonlit scene
+warp 10.0 3.0 0.0
+face 180 5
+wait 20
+screenshot blog_night_moon

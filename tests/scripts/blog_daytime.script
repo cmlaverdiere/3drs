@@ -1,0 +1,16 @@
+# Blog Screenshot: Daytime overview of Lumbridge
+set_season summer
+set_time 0.4
+wait 30
+
+# Overview from hill looking at village
+warp 20.0 8.0 -30.0
+face -135 -10
+wait 20
+screenshot blog_daytime_overview
+
+# Near the river with trees
+warp 5.0 2.0 15.0
+face -45 5
+wait 20
+screenshot blog_river_scene

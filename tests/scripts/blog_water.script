@@ -1,0 +1,16 @@
+# Blog Screenshot: Water shader
+set_season summer
+set_time 0.45
+wait 30
+
+# Bridge over water
+warp 0.0 4.0 20.0
+face 0 -15
+wait 30
+screenshot blog_water_bridge
+
+# Water close-up
+warp 3.0 2.5 25.0
+face -90 -10
+wait 20
+screenshot blog_water_closeup

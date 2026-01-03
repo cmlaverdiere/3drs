@@ -1,0 +1,16 @@
+# Blog Screenshot: Autumn colors
+set_season autumn
+set_time 0.35
+wait 30
+
+# Fall foliage scene
+warp 0.0 3.0 0.0
+face -90 15
+wait 30
+screenshot blog_autumn_colors
+
+# Looking at colorful trees
+warp -5.0 2.0 5.0
+face -120 10
+wait 20
+screenshot blog_autumn_trees

@@ -1,0 +1,16 @@
+# Blog Screenshot: Game features (HUD, trees, grass)
+set_season summer
+set_time 0.4
+wait 30
+
+# Looking at trees with grass and HUD visible
+warp 0.0 2.0 0.0
+face -45 0
+wait 20
+screenshot blog_features_grass_trees
+
+# Desert area in Al Kharid
+warp 100.0 2.0 60.0
+face 0 10
+wait 30
+screenshot blog_alkharid_desert
