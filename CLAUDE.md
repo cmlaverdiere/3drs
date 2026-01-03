@@ -85,9 +85,7 @@ This renders a few frames, saves a screenshot, and exits immediately. The screen
 - When you need to verify a visual change worked correctly
 
 **When NOT to use:**
-- Features that require player position (e.g., being near an enemy, in a specific location)
-- Features that require interaction (e.g., attacking, opening menus, picking up items)
-- For these cases, just verify the code compiles and trust the implementation
+- Features that require player position or interaction - use the **validate subagent** instead
 
 **Workflow:**
 1. Make changes
@@ -95,6 +93,39 @@ This renders a few frames, saves a screenshot, and exits immediately. The screen
 3. Screenshot: `./build/game --screenshot`
 4. Get filename: `./last_screenshots.sh 1`
 5. Read the screenshot file to visually verify
+
+## Visual Validation Subagent
+
+**USE THIS** to verify features that require player positioning, input sequences, or multi-step interactions.
+
+The `validate` subagent can:
+- Warp the player to specific positions
+- Simulate keypresses and mouse clicks
+- Take multiple sequential screenshots
+- Analyze screenshots and report PASS/FAIL
+
+**When to use:**
+- After implementing new UI features (menus, dialogs, inventory interactions)
+- After adding new NPCs or dialogue
+- After modifying combat, movement, or input handling
+- When testing requires specific player position or game state
+- When you need to verify a sequence of interactions works correctly
+
+**When NOT to use:**
+- Simple rendering changes (use `--screenshot` instead)
+- Real-time combat feel and timing (request manual testing)
+- Audio synchronization (request manual testing)
+- Performance/framerate issues (request manual testing)
+
+**Invocation:**
+
+The subagent will:
+1. Generate a test script using the DSL in `src/script_input.h`
+2. Build and run the game headless with the script
+3. Capture and analyze screenshots
+4. Return a structured PASS/FAIL report
+
+If the feature is too complex for automated testing, the subagent will return MANUAL_TEST_REQUIRED with instructions for manual verification.
 
 ## Save File Migration
 
