@@ -778,28 +778,28 @@ void DrawEvergreenTree(const EntityModels* models, Vector3 pos, TreeType type, b
     float trunkHeight = 2.0f * scale;
     DrawWoodCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.2f * scale, 0.25f * scale, trunkHeight, trunkColor);
 
-    // Conical layers of branches (bottom to top) - use foliage shader for pine
+    // Conical layers of branches (bottom to top)
     float baseY = pos.y + trunkHeight * 0.5f;
 
     // Bottom layer - widest
-    DrawFoliageSphere(models, (Vector3){pos.x, baseY + 0.8f * scale, pos.z}, 1.6f * scale, pineGreen);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 0.5f * scale, pos.z}, 1.8f * scale, 0.0f, 1.2f * scale, pineGreen);
     // Snow on bottom branches
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.2f * scale, pos.z}, 1.2f * scale, 0.0f, 0.15f * scale, pineSnow);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 0.85f * scale, pos.z}, 1.4f * scale, 0.0f, 0.15f * scale, pineSnow);
 
     // Middle layer
-    DrawFoliageSphere(models, (Vector3){pos.x, baseY + 1.8f * scale, pos.z}, 1.2f * scale, pineGreen);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.5f * scale, pos.z}, 1.4f * scale, 0.0f, 1.0f * scale, pineGreen);
     // Snow on middle branches
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.1f * scale, pos.z}, 0.9f * scale, 0.0f, 0.12f * scale, pineSnow);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.8f * scale, pos.z}, 1.1f * scale, 0.0f, 0.12f * scale, pineSnow);
 
     // Upper layer
-    DrawFoliageSphere(models, (Vector3){pos.x, baseY + 2.6f * scale, pos.z}, 0.9f * scale, pineGreen);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.3f * scale, pos.z}, 1.0f * scale, 0.0f, 0.9f * scale, pineGreen);
     // Snow on upper branches
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.9f * scale, pos.z}, 0.6f * scale, 0.0f, 0.1f * scale, pineSnow);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.55f * scale, pos.z}, 0.75f * scale, 0.0f, 0.1f * scale, pineSnow);
 
-    // Top point
-    DrawFoliageSphere(models, (Vector3){pos.x, baseY + 3.3f * scale, pos.z}, 0.5f * scale, pineGreen);
+    // Top layer - pointed
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.0f * scale, pos.z}, 0.6f * scale, 0.0f, 0.8f * scale, pineGreen);
     // Snow cap
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.5f * scale, pos.z}, 0.3f * scale, 0.0f, 0.08f * scale, pineSnow);
+    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.25f * scale, pos.z}, 0.4f * scale, 0.0f, 0.08f * scale, pineSnow);
 
     // Snow accumulation at base
     DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.05f, pos.z}, 0.8f * scale, 0.8f * scale, 0.1f, pineSnow);
