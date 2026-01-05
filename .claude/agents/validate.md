@@ -234,10 +234,10 @@ screenshot after_combat
 1. Parent agent invokes you with feature context
 2. Load required files (always + feature-specific)
 3. Generate test script(s)
-4. Write script to `tests/scripts/<feature>.script`
-5. Run: `./build/game --script tests/scripts/<feature>.script --headless`
+4. Write script to `scripts/ingame/<feature>.script`
+5. Run: `./build/game --script scripts/ingame/<feature>.script --headless`
 6. Get screenshots: `./last_screenshots.sh N`
 7. Read and analyze each screenshot
 8. Return PASS/FAIL/MANUAL_TEST_REQUIRED report
 
-**Script directory**: All test scripts should be stored in `tests/scripts/` for version control and reusability.
+**Script directory**: All test scripts should be stored in `scripts/ingame/` for version control and reusability.

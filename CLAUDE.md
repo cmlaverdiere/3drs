@@ -99,7 +99,7 @@ This renders a few frames, saves a screenshot, and exits immediately. The screen
 The `--headless` flag runs the game with a hidden window (no visible UI). Use it with `--script` for automated testing:
 
 ```bash
-./build/game --headless --script tests/scripts/my_test.script
+./build/game --headless --script scripts/ingame/my_test.script
 ```
 
 **ALWAYS USE `--screenshot` for quick visual tests** (not `--headless` alone):
@@ -164,7 +164,7 @@ Task(subagent_type="validate", prompt="<high-level feature description>")
 
 The subagent will autonomously:
 1. Read relevant source files to understand the feature
-2. Generate a test script and save it to `tests/scripts/<feature>.script`
+2. Generate a test script and save it to `scripts/ingame/<feature>.script`
 3. Build and run the game headless with the script
 4. Capture and analyze screenshots
 5. Return a structured PASS/FAIL report

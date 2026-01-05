@@ -38,10 +38,10 @@ Screenshots are saved to `screenshots/` with timestamp filenames.
 Run the game with a script file for automated testing:
 
 ```bash
-./build/game --headless --script tests/scripts/my_test.script
+./build/game --headless --script scripts/ingame/my_test.script
 ```
 
-Scripts support commands like `warp`, `face`, `press`, `click`, `set_time`, `set_season`, `screenshot`, and `wait`. Multiple instances can run in parallel for batch screenshot capture. See `tests/scripts/` for examples.
+Scripts support commands like `warp`, `face`, `press`, `click`, `set_time`, `set_season`, `screenshot`, and `wait`. Multiple instances can run in parallel for batch screenshot capture. See `scripts/ingame/` for examples.
 
 ## Controls
 
@@ -335,6 +335,68 @@ The bank provides 48 slots (8x6 grid) of persistent item storage separate from i
 - Bank storage is saved in `savegame.json` (`bank` and `bankCount` arrays)
 - Stackable items (gil) combine into single slots
 - Bank state is managed by `MenuSystem.bank`
+
+## Image-to-Map Pipeline
+
+Python tools for analyzing reference images and generating `.map` files. Located in `scripts/`.
+
+### Setup
+
+```bash
+cd scripts
+uv sync
+```
+
+### Commands
+
+```bash
+# Fetch a reference image from the OSRS wiki
+uv run python image_to_map.py fetch \
+  --url "https://oldschoolrunescape.fandom.com/wiki/Lumbridge?file=Lumbridge_map.png"
+
+# Analyze an image (sends to Claude Vision API)
+uv run python image_to_map.py analyze --image refs/map.png --output data.json
+
+# Preview generated .map output
+uv run python image_to_map.py map --input data.json
+
+# Generate a .map file
+uv run python image_to_map.py generate --input data.json --output maps/area.map
+
+# Annotate source image with detected entity markers
+uv run python image_to_map.py annotate --image refs/map.png --input data.json --output annotated.png
+
+# Validate a map loads correctly
+uv run python image_to_map.py validate --map maps/area.map --project-root ..
+
+# Full pipeline (fetch/analyze → generate → annotate → validate)
+uv run python image_to_map.py pipeline \
+  --url "https://oldschoolrunescape.fandom.com/wiki/Lumbridge?file=Lumbridge_map.png" \
+  --output maps/lumbridge_gen.map --bounds -50,50,-50,50 --project-root ..
+```
+
+### Entity Catalog & Feature Diff
+
+```bash
+# Extract all supported entity types from source code
+uv run python entity_catalog.py --project-root .. --output catalog.json
+
+# Compare analyzed map against catalog to find unsupported entities
+uv run python feature_diff.py --map-json data.json --catalog catalog.json --output diff.json
+```
+
+The diff groups related unsupported entities (e.g., furnace + anvil → "smithing") so they can be implemented together via `/implement-resources diff.json`.
+
+### Running Tests
+
+```bash
+cd scripts
+uv run pytest         # all tests
+uv run pytest -v      # verbose with test names
+uv run pytest tests/test_coordinate.py  # single module
+```
+
+Tests cover coordinate mapping, map generation, entity catalog parsing, feature diffing, and URL resolution. No API keys or network access required (the vision API call is not tested; all other modules are tested with synthetic data).
 
 ## Adding New Content
 
