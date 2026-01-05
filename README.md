@@ -33,17 +33,36 @@ Render one frame, save screenshot, and exit (useful for automated visual testing
 
 Screenshots are saved to `screenshots/` with timestamp filenames.
 
+## Scripted Mode
+
+Run the game with a script file for automated testing:
+
+```bash
+./build/game --headless --script tests/scripts/my_test.script
+```
+
+Scripts support commands like `warp`, `face`, `press`, `click`, `set_time`, `set_season`, `screenshot`, and `wait`. Multiple instances can run in parallel for batch screenshot capture. See `tests/scripts/` for examples.
+
 ## Controls
 
-- WASD - Move
-- Mouse - Look
-- R - Toggle run
-- SHIFT - Inventory
-- E - Talk to NPC
-- LMB - Attack/chop
-- P - Screenshot
-- ESC - Exit
-- 0 - Reload game (hot-reload maps, quests, enemies)
+### Movement & Combat
+- **WASD** - Move
+- **Mouse** - Look
+- **R** - Toggle run/walk
+- **LMB** - Attack / chop tree
+- **E** - Interact (talk to NPC, pick up item, use ladder)
+
+### Menus
+- **SHIFT** - Toggle inventory
+- **T** - Time menu (set time of day)
+- **H** - Quest help (LLM-powered hints)
+- **G** - Monster generator (LLM-powered)
+- **ESC** - Close menu / Exit game
+
+### Utility
+- **P** - Screenshot
+- **0** - Reload game (hot-reload maps, quests, enemies)
+- **1/2/3** - Set season (summer/autumn/winter)
 
 ## Architecture
 
@@ -62,6 +81,12 @@ Screenshots are saved to `screenshots/` with timestamp filenames.
 - **src/xp_system.cpp** - OSRS-style XP table, level calculation, damage rolls
 - **src/save_system.cpp** - JSON save/load of player state
 - **src/quest_system.cpp** - Data-driven quest loading and state management
+- **src/arrow_system.cpp** - Ranged combat with bow and arrow
+- **src/monster_system.cpp** - Custom monster persistence and spawning
+- **src/monster_generator.cpp** - LLM-powered monster generation from text descriptions
+- **src/help_system.cpp** - LLM-powered quest hints (spoiler-free)
+- **src/voice_system.cpp** - Piper TTS integration for NPC dialogue
+- **src/script_input.cpp** - Scripted input for automated testing
 
 ### World
 
@@ -176,6 +201,7 @@ All textures are generated procedurally in fragment shaders (no image files):
 - **src/collision.cpp** - AABB collision detection
 - **src/math_utils.h** - Distance, facing checks, random floats, terrain height
 - **src/sound_system.cpp** - Sound effect loading and playback
+- **src/shader_utils.cpp** - Shader loading and compilation helpers
 
 ## Map Format
 
@@ -312,27 +338,4 @@ The bank provides 48 slots (8x6 grid) of persistent item storage separate from i
 
 ## Adding New Content
 
-### Adding a New Item
-
-1. **src/types.h** - Add to `ItemType` enum (before `ITEM_COUNT`)
-2. **src/types.cpp** - Add name to `ITEM_NAMES` array (same index as enum)
-3. **src/rendering.cpp** - Add case in `DrawWorldItem()` for 3D world rendering
-4. **src/hud.cpp** - Add case in `DrawItemIcon()` for inventory icon
-5. **src/quest_system.cpp** - Add to `ParseItemType()` if used in quests
-6. **src/types.cpp** - Add to enemy's `drops[]` in `ENEMY_CONFIGS` if dropped by enemies
-
-### Adding a New Enemy
-
-1. **src/types.h** - Add to `EnemyType` enum (before `ENEMY_TYPE_COUNT`)
-2. **src/types.cpp** - Add config to `ENEMY_CONFIGS` array (level, HP, damage, drops)
-3. **src/rendering.cpp** - Add `Draw<Enemy>()` function and case in `DrawEnemy()` switch
-4. **src/map.cpp** - Add to enemy type parsing in `LoadMap()`
-5. **maps/*.map** - Place enemy with `enemy <type> x y z`
-
-### Adding a New NPC
-
-1. **src/types.h** - Add to `NPCType` enum (before `NPC_COUNT`)
-2. **src/types.cpp** - Add config to `NPC_CONFIGS` array (name, colors, dialogue)
-3. **src/map.cpp** - Add to NPC type parsing in `LoadMap()`
-4. **src/quest_system.cpp** - Add to `ParseNPCType()` if used in quests
-5. **maps/*.map** - Place NPC with `npc <type> x y z`
+See `CLAUDE.md` for checklists on adding new items, enemies, and NPCs.
