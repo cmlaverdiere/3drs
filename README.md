@@ -349,22 +349,25 @@ uv sync
 
 ### Commands
 
+All pipeline outputs (fetched images, intermediate JSON, annotated images) go to `scripts/pipeline-output/` which is gitignored.
+
 ```bash
 # Fetch a reference image from the OSRS wiki
 uv run python image_to_map.py fetch \
   --url "https://oldschoolrunescape.fandom.com/wiki/Lumbridge?file=Lumbridge_map.png"
 
 # Analyze an image (sends to Claude Vision API)
-uv run python image_to_map.py analyze --image refs/map.png --output data.json
+uv run python image_to_map.py analyze --image pipeline-output/map.png
 
 # Preview generated .map output
-uv run python image_to_map.py map --input data.json
+uv run python image_to_map.py map --input pipeline-output/data.json
 
 # Generate a .map file
-uv run python image_to_map.py generate --input data.json --output maps/area.map
+uv run python image_to_map.py generate --input pipeline-output/data.json --output maps/area.map
 
 # Annotate source image with detected entity markers
-uv run python image_to_map.py annotate --image refs/map.png --input data.json --output annotated.png
+uv run python image_to_map.py annotate --image pipeline-output/map.png \
+  --input pipeline-output/data.json --output pipeline-output/annotated.png
 
 # Validate a map loads correctly
 uv run python image_to_map.py validate --map maps/area.map --project-root ..
@@ -379,10 +382,11 @@ uv run python image_to_map.py pipeline \
 
 ```bash
 # Extract all supported entity types from source code
-uv run python entity_catalog.py --project-root .. --output catalog.json
+uv run python entity_catalog.py --project-root .. --output pipeline-output/catalog.json
 
 # Compare analyzed map against catalog to find unsupported entities
-uv run python feature_diff.py --map-json data.json --catalog catalog.json --output diff.json
+uv run python feature_diff.py --map-json pipeline-output/data.json \
+  --catalog pipeline-output/catalog.json --output pipeline-output/diff.json
 ```
 
 The diff groups related unsupported entities (e.g., furnace + anvil → "smithing") so they can be implemented together via `/implement-resources diff.json`.

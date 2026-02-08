@@ -6,6 +6,8 @@ requires-python = ">=3.10"
 dependencies = [
     "anthropic>=0.79.0",
     "httpx>=0.28.1",
+    "numpy>=1.26.0",
+    "opencv-python>=4.9.0",
     "pillow>=12.1.0",
 ]
 
@@ -13,3 +15,7 @@ dependencies = [
 dev = [
     "pytest>=9.0.2",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["scripts/tests"]
+pythonpath = ["scripts"]

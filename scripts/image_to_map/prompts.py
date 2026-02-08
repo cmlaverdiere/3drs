@@ -17,7 +17,7 @@ hans (townsperson), shopkeeper, guard, cook, varrock_trader, varrock_bartender,
 alkharid_silk (silk merchant), alkharid_spice (spice trader), scimitar_shop, banker
 
 ### Wall Materials
-wood, stone, brick
+s = stone, w = wood, b = brick
 
 ### Trees
 tree (normal), oak_tree
@@ -35,80 +35,155 @@ lamp, campfire
 ladder
 """
 
-ANALYSIS_PROMPT = f"""You are analyzing a top-down or overhead reference image of a game area inspired by
-old-school RuneScape. Your job is to identify all placeable game entities and their
-approximate positions in the image.
+ANALYSIS_PROMPT = f"""You are creating an EXHAUSTIVE, near 1:1 recreation of an OSRS overhead map image as
+structured JSON. Your goal is to capture EVERY visible feature — every building, every tree,
+every wall segment, every NPC dot, every water body. Nothing should be skipped.
 
 {ENTITY_CATALOG}
 
-## Instructions
+## How to Read OSRS Overhead Maps
 
-1. Examine the image carefully. Identify every distinct game entity you can see.
-2. For each entity, estimate its normalized position where (0,0) is the top-left
-   corner and (1,1) is the bottom-right corner of the image.
-3. For walls, also estimate normalized width and height (as fraction of image dimensions).
-4. For water and sand zones, estimate position and dimensions similarly.
-5. If you see something that looks like a game entity but does NOT match any supported
-   type above, still identify it — put it in the "unknown" category with a descriptive
-   type name (e.g., "furnace", "anvil", "fishing_spot", "well", "altar").
+These maps use consistent visual conventions:
+- **Buildings** appear as tan/beige rectangular footprints with dark outlines. Each building
+  MUST be decomposed into its 4 walls (north, south, east, west). Large or L-shaped buildings
+  should be split into rectangular sections, each with 4 walls.
+- **Trees** appear as green circular blobs scattered throughout. Regular trees are darker green,
+  oak trees are slightly larger/different shade. There are often MANY trees — capture every one.
+- **Water** appears as blue areas (rivers, ponds, moats, lakes). Rivers should be split into
+  rectangular segments that follow the river's path.
+- **Sand/desert** appears as tan/yellow terrain distinct from the green grass.
+- **Roads/paths** appear as lighter gray/brown lines connecting areas.
+- **NPCs/entities** appear as small colored dots/icons on the map.
+- **Rocks** appear as small grey/brown angular shapes, typically near mining areas.
+- **City/perimeter walls** appear as thick grey lines around towns — these are long wall segments.
+- **Gates** appear as gaps in city walls, often with guard tower structures flanking them.
 
-## Output Format
+## Instructions — Be EXHAUSTIVE
 
-Return ONLY valid JSON with this exact structure:
+This is a 1:1 recreation. Capture the FULL layout. Scan left to right, top to bottom:
+
+1. **EVERY building gets 4 walls.** A typical OSRS town has 15-30+ buildings = 60-120+ walls.
+   - Tiny structures: ~0.015-0.025 wide/tall
+   - Small houses: ~0.025-0.045 wide/tall
+   - Medium buildings: ~0.04-0.07 wide/tall
+   - Large structures: ~0.07-0.15 wide/tall
+   - Wall thickness: ~0.003-0.005
+2. **City/perimeter walls**: Every segment, split at corners and gates.
+3. **EVERY tree**: 20-50+ trees typical. Don't skip any.
+4. **EVERY NPC dot**: Each colored circle/icon.
+5. **ALL water bodies**: Split long rivers into rectangular segments. Moats need multiple segments.
+6. **ALL sand zones**.
+7. **Lights**: Lamps at intersections/entrances, campfires at gathering areas.
+8. **Rocks**: Near mining areas.
+9. **Unknown features**: furnace, anvil, altar, well, range, fishing_spot, bank, stairs, etc.
+
+Positions are normalized: (0,0) = top-left, (1,1) = bottom-right.
+
+## COMPACT Output Format
+
+Use arrays instead of objects to save space. Return ONLY valid JSON:
 
 {{
-  "metadata": {{
-    "description": "Brief description of the area",
-    "orientation": "north_up"
-  }},
+  "metadata": {{"description": "...", "orientation": "north_up"}},
   "entities": {{
-    "player_spawn": {{"x": 0.5, "y": 0.5}},
+    "player_spawn": [0.5, 0.5],
     "walls": [
-      {{"position": {{"x": 0.5, "y": 0.3}}, "dimensions": {{"width": 0.16, "height": 0.02}}, "material": "stone", "label": "castle north wall"}}
+      [x, y, width, height, "s", "label"],
+      [0.5, 0.3, 0.06, 0.003, "s", "castle N"],
+      [0.47, 0.32, 0.003, 0.04, "s", "castle W"],
+      [0.53, 0.32, 0.003, 0.04, "s", "castle E"],
+      [0.5, 0.34, 0.06, 0.003, "s", "castle S"]
     ],
-    "trees": [
-      {{"type": "tree", "position": {{"x": 0.3, "y": 0.4}}}}
-    ],
-    "oak_trees": [
-      {{"type": "oak_tree", "position": {{"x": 0.7, "y": 0.2}}}}
-    ],
-    "rocks": [
-      {{"type": "copper", "position": {{"x": 0.6, "y": 0.8}}}}
-    ],
-    "npcs": [
-      {{"type": "guard", "position": {{"x": 0.5, "y": 0.55}}, "label": "gate guard"}}
-    ],
-    "enemies": [
-      {{"type": "cow", "position": {{"x": 0.8, "y": 0.6}}, "label": "cow field"}}
-    ],
-    "items": [
-      {{"type": "bronze_shortsword", "position": {{"x": 0.4, "y": 0.3}}}}
-    ],
-    "water": [
-      {{"position": {{"x": 0.1, "y": 0.5}}, "dimensions": {{"width": 0.05, "height": 0.3}}, "label": "river"}}
-    ],
-    "sand": [
-      {{"position": {{"x": 0.9, "y": 0.7}}, "dimensions": {{"width": 0.1, "height": 0.1}}}}
-    ],
-    "lights": [
-      {{"type": "campfire", "position": {{"x": 0.5, "y": 0.5}}}}
-    ],
-    "unknown": [
-      {{"type": "furnace", "position": {{"x": 0.6, "y": 0.4}}, "description": "Smelting furnace for ores"}}
-    ]
+    "trees": [[x, y], [0.3, 0.4], [0.35, 0.45]],
+    "oak_trees": [[0.7, 0.2]],
+    "rocks": [[x, y, "type"], [0.6, 0.8, "copper"]],
+    "npcs": [[x, y, "type", "label"], [0.5, 0.55, "guard", "gate guard"]],
+    "enemies": [[x, y, "type", "label"], [0.8, 0.6, "cow", "field"]],
+    "items": [[x, y, "type"], [0.4, 0.3, "bronze_shortsword"]],
+    "water": [[x, y, w, h, "label"], [0.1, 0.5, 0.05, 0.3, "river"]],
+    "sand": [[x, y, w, h, "label"], [0.9, 0.7, 0.1, 0.1, "desert"]],
+    "lights": [[x, y, "type"], [0.5, 0.5, "lamp"]],
+    "unknown": [[x, y, "type", "desc"], [0.6, 0.4, "furnace", "Smelting furnace"]]
   }},
   "buildings": [
-    {{"name": "castle", "walls": ["castle north wall", "castle east wall"], "description": "Main castle structure"}}
+    {{"name": "castle", "walls": ["castle N", "castle E", "castle S", "castle W"], "description": "..."}}
   ],
-  "landmarks": [
-    {{"name": "river", "description": "River running north-south along the west edge"}}
-  ]
+  "landmarks": [{{"name": "river", "description": "..."}}]
 }}
 
-Important:
+KEY FORMAT RULES:
+- walls: [x, y, width, height, material_code, label]  — material: "s"=stone, "w"=wood, "b"=brick
+  - N/S walls: width > height (wide and thin)
+  - E/W walls: height > width (thin and tall)
+- trees/oak_trees: [x, y]
+- npcs/enemies: [x, y, type, label]
+- water/sand: [x, y, width, height, label]
+- lights: [x, y, type]
+- rocks: [x, y, type]
+- unknown: [x, y, type, description]
+- player_spawn: [x, y]
+- Keep labels SHORT (e.g., "castle N", "shop1 W", "guild E") — abbreviate to save tokens.
+- The first element in each array is a header comment showing format — skip it when parsing.
+  Actually, do NOT include header comments. Just put data arrays directly.
+
+CRITICAL RULES:
+- DO NOT stop early. Output the COMPLETE JSON with EVERY entity.
+- A town with 20 buildings should have ~80+ wall entries.
 - Omit empty arrays entirely.
-- Use only supported type names for known entities (exact strings from the catalog above).
-- For unknown entities, use descriptive lowercase_snake_case names.
-- Positions must be normalized 0.0-1.0 coordinates.
-- Include a player_spawn if you can identify a logical starting point (town center, entrance, etc.).
+- All positions normalized 0.0-1.0.
+"""
+
+CLASSIFICATION_PROMPT = """\
+You are classifying features detected by computer vision in an OSRS overhead map image.
+OpenCV has already detected positions and dimensions. You only need to LABEL and CLASSIFY.
+
+{entity_catalog}
+
+## CV-Detected Features
+
+The following features were detected automatically. Each has an ID (B=building, W=water, T=tree, D=dot):
+
+```
+{feature_summary}
+```
+
+## Your Task
+
+Classify each detected feature. You do NOT need to provide positions — CV already has those.
+
+Return ONLY valid JSON:
+
+{{
+  "buildings": [
+    {{"id": "B0", "name": "castle", "material": "stone"}},
+    {{"id": "B1", "name": "shop", "material": "wood"}}
+  ],
+  "trees": {{
+    "oak": "T0-T5",
+    "normal": "T6-T42"
+  }},
+  "water": [
+    {{"id": "W0", "label": "moat"}},
+    {{"id": "W1", "label": "river"}}
+  ],
+  "dots": [
+    {{"id": "D0", "type": "guard", "is_npc": true, "label": "gate guard"}},
+    {{"id": "D1", "type": "cow", "is_npc": false, "label": "field cow"}}
+  ],
+  "additional_entities": [
+    {{"type": "furnace", "x": 0.45, "y": 0.32, "description": "Smelting furnace near smithy"}}
+  ],
+  "player_spawn_near": "B0"
+}}
+
+RULES:
+- Use IDs from the CV feature list (B0, W0, T0-T42, D0-D20, etc.)
+- For trees, use ID ranges (e.g., "T0-T5") to classify groups. All unlisted trees default to normal.
+- For additional_entities: ONLY add things CV clearly missed (furnaces, anvils, altars, ladders, items).
+  These are the only entities where you provide position (normalized 0-1).
+- material codes: "stone", "wood", "brick"
+- player_spawn_near: building ID where the player should spawn nearby
+- Keep labels SHORT.
+- Dot types must be from the entity catalog above.
+- Omit empty arrays/objects.
 """

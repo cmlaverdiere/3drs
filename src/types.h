@@ -594,7 +594,7 @@ inline float SmoothTurn(float current, float target, float maxTurn) {
 const int MAX_ENEMIES = 1000;
 const int MAX_WORLD_ITEMS = 500;
 const int MAX_WALLS = 1000;
-const int MAX_NPCS = 32;
+const int MAX_NPCS = 64;
 const int MAX_DAMAGE_INDICATORS = 20;
 const int MAX_XP_POPUPS = 10;
 

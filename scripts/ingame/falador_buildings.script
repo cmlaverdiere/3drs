@@ -1,0 +1,36 @@
+# Falador buildings and structures verification
+# Falador map offset: (-80, 40)
+# World coords = local + offset
+
+# Set bright daytime for clear visibility
+set_time 0.4
+set_season summer
+wait 10
+
+# === Screenshot 1: Castle walls and moat from east side ===
+# Warp to (-120, 1.8, 5) facing east to see castle walls and moat
+# This is near the castle center local (-42, -31) -> world (-122, 9)
+# Shifted south a bit to see the moat (water at local -52.8, -34.2 -> world -132.8, 5.8)
+warp -120 1.8 5
+wait 10
+face 90 -5
+wait 30
+screenshot falador_castle_east
+
+# === Screenshot 2: Town buildings from east side ===
+# Warp to (-100, 1.8, -10) facing west
+# This is east of the main building cluster, looking back toward them
+warp -100 1.8 -10
+wait 10
+face -90 -5
+wait 30
+screenshot falador_town_west
+
+# === Screenshot 3: Overview from center facing north ===
+# Warp to (-110, 1.8, 0) facing north for an overview
+# This should show walls, buildings, and trees
+warp -110 1.8 0
+wait 10
+face 0 -5
+wait 30
+screenshot falador_overview_north

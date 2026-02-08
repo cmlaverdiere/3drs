@@ -5,6 +5,13 @@ savegame.json
 save_backups/
 compile_commands.json
 
+# Python
+.venv/
+.pytest_cache/
+
+# Image-to-map pipeline artifacts
+scripts/pipeline-output/
+
 # Voice system (large files)
 external/
 voices/*.onnx

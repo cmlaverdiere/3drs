@@ -1,0 +1,49 @@
+# Falador exploration - view the area from player perspective
+# Falador map offset: (-80, 40)
+# Content local coords: walls around X=-52 to -22, Z=-55 to -32
+# Water moat: local (-44, -34) and (-49, -43)
+# World = local + offset: X' = localX + (-80), Z' = localZ + 40
+
+# Set daytime for good visibility
+set_time 0.4
+set_season summer
+wait 10
+
+# Position south of the castle walls, looking north toward them
+# Local (-35, 0, -20) -> World (-115, 1.8, 20)
+# This puts us south of the walls (which are at local Z=-32 to -55)
+# so we can see the castle facade and moat from a distance
+warp -115 1.8 15
+wait 10
+
+# Face north (toward the castle walls and moat)
+# Yaw 0 = north in this engine (negative Z direction)
+face 0 -5
+wait 30
+screenshot falador_facing_north
+
+# Now warp closer to the castle and moat area
+# Local (-40, 0, -40) -> World (-120, 1.8, 0)
+warp -120 1.8 0
+wait 10
+
+# Face east (yaw=90) to see along the castle walls
+face 90 -5
+wait 30
+screenshot falador_facing_east
+
+# Face west (yaw=-90) from same position
+face -90 -5
+wait 30
+screenshot falador_facing_west
+
+# Warp to the water moat area to see it up close
+# Local water center (-44.4, -34.2) -> World (-124.4, 1.8, 5.8)
+# Stand just south of the water
+warp -124 1.8 12
+wait 10
+
+# Look north toward the moat and castle
+face 0 -10
+wait 30
+screenshot falador_moat_view

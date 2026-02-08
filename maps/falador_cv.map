@@ -1,0 +1,171 @@
+# Generated from falador
+# Source: scripts/pipeline-output/falador.png
+# Bounds: X[-80.0, 80.0] Z[-80.0, 80.0]
+
+player_spawn -51.8 0 -22.0
+
+# === WALLS ===
+wall -23.7 0 63.2 7.2 4.0 0.5 stone
+wall -23.7 0 71.7 7.2 4.0 0.5 stone
+wall -27.0 0 67.4 0.5 4.0 9.0 stone
+wall -20.3 0 67.4 0.5 4.0 9.0 stone
+wall -66.2 0 25.4 3.6 4.0 0.5 stone
+wall -66.2 0 35.7 3.6 4.0 0.5 stone
+wall -67.8 0 30.6 0.5 4.0 10.8 stone
+wall -64.7 0 30.6 0.5 4.0 10.8 stone
+wall 44.6 0 9.2 7.2 4.0 0.5 stone
+wall 44.6 0 17.7 7.2 4.0 0.5 stone
+wall 41.3 0 13.5 0.5 4.0 9.0 stone
+wall 48.0 0 13.5 0.5 4.0 9.0 stone
+wall 33.9 0 -7.0 7.2 4.0 0.5 stone
+wall 33.9 0 -0.2 7.2 4.0 0.5 stone
+wall 30.5 0 -3.6 0.5 4.0 7.2 stone
+wall 37.2 0 -3.6 0.5 4.0 7.2 stone
+wall 57.8 0 -12.3 4.8 4.0 0.5 stone
+wall 57.8 0 -0.2 4.8 4.0 0.5 stone
+wall 55.7 0 -6.3 0.5 4.0 12.6 stone
+wall 60.0 0 -6.3 0.5 4.0 12.6 stone
+wall 17.7 0 -12.3 15.6 4.0 0.6 stone
+wall 17.7 0 -2.1 15.6 4.0 0.6 stone
+wall 10.2 0 -7.2 0.6 4.0 10.8 stone
+wall 25.1 0 -7.2 0.6 4.0 10.8 stone
+wall -42.8 0 -23.1 1.8 4.0 0.5 stone
+wall -42.8 0 -7.4 1.8 4.0 0.5 stone
+wall -43.5 0 -15.3 0.5 4.0 16.2 stone
+wall -42.2 0 -15.3 0.5 4.0 16.2 stone
+wall 56.6 0 -28.5 7.2 4.0 0.5 stone
+wall 56.6 0 -16.4 7.2 4.0 0.5 stone
+wall 53.3 0 -22.5 0.5 4.0 12.6 stone
+wall 60.0 0 -22.5 0.5 4.0 12.6 stone
+wall 44.6 0 -28.5 9.6 4.0 0.6 stone
+wall 44.6 0 -18.3 9.6 4.0 0.6 stone
+wall 40.1 0 -23.4 0.6 4.0 10.8 stone
+wall 49.2 0 -23.4 0.6 4.0 10.8 stone
+wall -11.1 0 -28.5 8.4 4.0 0.5 stone
+wall -11.1 0 -20.0 8.4 4.0 0.5 stone
+wall -15.0 0 -24.3 0.5 4.0 9.0 stone
+wall -7.1 0 -24.3 0.5 4.0 9.0 stone
+wall -65.2 0 -41.1 8.7 4.0 0.5 stone
+wall -65.2 0 -27.2 8.7 4.0 0.5 stone
+wall -69.3 0 -34.2 0.5 4.0 14.4 stone
+wall -61.1 0 -34.2 0.5 4.0 14.4 stone
+wall -32.1 0 -44.7 9.6 4.0 0.6 stone
+wall -32.1 0 -29.1 9.6 4.0 0.6 stone
+wall -36.6 0 -36.9 0.6 4.0 16.2 stone
+wall -27.6 0 -36.9 0.6 4.0 16.2 stone
+wall -51.8 0 -48.2 10.8 4.0 0.6 stone
+wall -51.8 0 -25.5 10.8 4.0 0.6 stone
+wall -56.9 0 -36.9 0.6 4.0 23.4 stone
+wall -46.8 0 -36.9 0.6 4.0 23.4 stone
+wall 71.6 0 -55.5 6.0 4.0 0.5 stone
+wall 71.6 0 -41.6 6.0 4.0 0.5 stone
+wall 68.9 0 -48.5 0.5 4.0 14.4 stone
+wall 74.4 0 -48.5 0.5 4.0 14.4 stone
+wall 33.9 0 -57.3 7.2 4.0 0.5 stone
+wall 33.9 0 -41.6 7.2 4.0 0.5 stone
+wall 30.5 0 -49.4 0.5 4.0 16.2 stone
+wall 37.2 0 -49.4 0.5 4.0 16.2 stone
+wall -11.7 0 -62.7 1.8 4.0 0.5 stone
+wall -11.7 0 -52.4 1.8 4.0 0.5 stone
+wall -12.3 0 -57.5 0.5 4.0 10.8 stone
+wall -11.0 0 -57.5 0.5 4.0 10.8 stone
+wall -32.4 0 -62.7 4.2 4.0 0.5 stone
+wall -32.4 0 -54.2 4.2 4.0 0.5 stone
+wall -34.2 0 -58.4 0.5 4.0 9.0 stone
+wall -30.5 0 -58.4 0.5 4.0 9.0 stone
+wall -66.2 0 -66.3 8.4 4.0 0.5 stone
+wall -66.2 0 -45.2 8.4 4.0 0.5 stone
+wall -70.2 0 -55.7 0.5 4.0 21.6 stone
+wall -62.3 0 -55.7 0.5 4.0 21.6 stone
+wall -50.6 0 -69.9 6.0 4.0 0.5 stone
+wall -50.6 0 -59.6 6.0 4.0 0.5 stone
+wall -53.4 0 -64.7 0.5 4.0 10.8 stone
+wall -47.9 0 -64.7 0.5 4.0 10.8 stone
+wall -59.3 0 -69.9 7.8 4.0 0.5 stone
+wall -59.3 0 -59.6 7.8 4.0 0.5 stone
+wall -63.0 0 -64.7 0.5 4.0 10.8 stone
+wall -55.7 0 -64.7 0.5 4.0 10.8 stone
+
+# === TREES ===
+tree 25.3 0 78.6
+tree 12.3 0 78.0
+tree 76.9 0 76.6
+tree 27.7 0 73.0
+tree 21.4 0 71.0
+tree -6.3 0 70.4
+tree 2.5 0 69.4
+tree -60.9 0 67.6
+tree 9.7 0 65.8
+tree -66.8 0 65.4
+tree 37.3 0 64.0
+tree 13.3 0 64.0
+tree 2.7 0 63.6
+tree -56.2 0 64.0
+tree 17.1 0 54.6
+tree 78.1 0 44.2
+tree 11.1 0 40.3
+tree -79.6 0 34.9
+tree 78.1 0 33.4
+tree -10.7 0 23.9
+tree 66.1 0 19.1
+tree -41.1 0 17.8
+tree 66.1 0 4.7
+tree 16.7 0 1.0
+tree 66.2 0 -6.5
+tree 2.5 0 -7.9
+tree -2.1 0 -11.9
+tree 10.1 0 -18.4
+tree 1.5 0 -17.0
+tree -56.0 0 -20.9
+tree -21.4 0 -22.3
+tree -33.4 0 -22.8
+tree -26.0 0 -24.5
+tree 74.6 0 -33.4
+tree 9.2 0 -42.2
+tree 20.3 0 -56.5
+tree -7.8 0 -69.8
+tree -12.4 0 -70.1
+tree 45.8 0 -73.1
+
+# === NPCS ===
+npc guard -77.5 0 -69.6
+npc shopkeeper -54.0 0 -68.7
+npc guard -0.4 0 -69.4
+npc hans -18.9 0 -62.0
+npc guard -19.7 0 -53.6
+npc hans 68.6 0 -46.8
+npc hans -4.5 0 -45.0
+npc guard 6.6 0 -46.1
+npc hans 68.6 0 -44.0
+npc shopkeeper 6.3 0 -43.0
+npc guard -68.6 0 -37.1
+npc guard -30.3 0 -31.7
+npc guard 54.7 0 -30.1
+npc shopkeeper 45.5 0 -27.6
+npc shopkeeper -15.6 0 -25.8
+npc guard 26.6 0 -19.2
+npc guard 48.2 0 -15.0
+npc shopkeeper 61.1 0 -7.8
+npc guard 21.3 0 -6.5
+npc guard -66.5 0 -1.6
+npc guard 22.9 0 2.2
+npc guard 27.9 0 5.8
+npc shopkeeper 41.9 0 15.6
+npc guard -41.8 0 20.3
+npc hans 20.7 0 21.5
+npc hans 20.7 0 24.3
+npc hans -68.6 0 31.3
+npc shopkeeper -36.0 0 42.5
+npc guard 66.4 0 43.0
+npc guard 45.1 0 59.9
+npc guard -79.2 0 74.4
+npc shopkeeper 62.6 0 75.6
+npc guard 1.0 0 78.3
+
+# === WATER ===
+water -28.5 -0.3 20.7 67.1 80.9
+water 21.6 -0.3 -51.2 12.6 16.2
+water -9.3 -0.3 -57.5 2.4 7.2
+water -14.1 -0.3 -57.5 2.4 7.2
+water -76.1 -0.3 -73.3 7.8 13.5
+

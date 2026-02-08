@@ -1,0 +1,75 @@
+# Falador Region Rendering Validation
+# Tests that the Falador region (world offset -80, 40) renders correctly
+# with walls, trees, water (moat), NPCs, and town layout visible.
+
+# Set daytime for best visibility
+set_time 0.4
+set_season spring
+wait 30
+
+# ============================================================
+# Position 1: Castle Courtyard - looking south toward castle walls
+# World coords: local (-36, -24) + offset (-80, 40) = (-116, 16)
+# Hans NPC should be here, castle walls should surround us
+# ============================================================
+warp -116 1.8 16
+face 180 -5
+wait 60
+screenshot falador_castle_courtyard_south
+
+# Look north from castle courtyard - should see castle inner walls and towers
+face 0 -5
+wait 30
+screenshot falador_castle_courtyard_north
+
+# ============================================================
+# Position 2: Bank/Shop District - central Falador
+# Local (-24, -34) + offset (-80, 40) = (-104, 6)
+# Bank building walls, shop walls, bankers and shopkeeper NPCs nearby
+# ============================================================
+warp -104 1.8 6
+face 90 -10
+wait 60
+screenshot falador_bank_district_east
+
+# Turn to look west toward the castle
+face 270 -5
+wait 30
+screenshot falador_bank_district_west
+
+# ============================================================
+# Position 3: Near moat and Mining Guild area
+# Local (8, -27) + offset (-80, 40) = (-72, 13)
+# Should see mining guild buildings, rocks, water moat, eastern city wall
+# ============================================================
+warp -72 1.8 13
+face 90 -10
+wait 60
+screenshot falador_mining_guild_east
+
+# Turn to look west across the town
+face 270 -5
+wait 30
+screenshot falador_mining_guild_west
+
+# ============================================================
+# Position 4: Park area looking south
+# Local (-16, -50) + offset (-80, 40) = (-96, -10)
+# Should see park trees, structures, and town to the south
+# ============================================================
+warp -96 1.8 -10
+face 180 -10
+wait 60
+screenshot falador_park_looking_south
+
+# ============================================================
+# Position 5: Southern moat area
+# Local (-36, 2) + offset (-80, 40) = (-116, 42)
+# Should see water (moat) and southern buildings
+# ============================================================
+warp -116 1.8 42
+face 0 -10
+wait 60
+screenshot falador_south_moat_area
+
+wait 30

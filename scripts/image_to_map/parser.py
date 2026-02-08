@@ -1,7 +1,11 @@
 """Parse and validate vision response into intermediate JSON format."""
 
 import json
+import shutil
+from datetime import datetime
 from pathlib import Path
+
+from .vision import expand_compact
 
 
 def validate_position(pos: dict) -> bool:
@@ -34,10 +38,47 @@ def normalize_response(vision_data: dict, source_image: str, bounds: tuple[float
 
 
 def load_intermediate(path: str) -> dict:
-    """Load intermediate JSON from file."""
-    return json.loads(Path(path).read_text())
+    """Load intermediate JSON from file, expanding compact format if needed."""
+    data = json.loads(Path(path).read_text())
+    return expand_compact(data)
 
 
 def save_intermediate(data: dict, path: str):
-    """Save intermediate JSON to file."""
-    Path(path).write_text(json.dumps(data, indent=2) + "\n")
+    """Save intermediate JSON to file (compact format)."""
+    Path(path).write_text(json.dumps(data, separators=(",", ":")) + "\n")
+
+
+def create_run_dir(name: str, base_dir: str = "scripts/pipeline-output") -> Path:
+    """Create a timestamped run folder and update the 'latest' symlink.
+
+    Returns the Path to the new run directory.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    folder_name = f"{name}_{timestamp}"
+    run_dir = Path(base_dir) / folder_name
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # Update 'latest' symlink
+    latest = Path(base_dir) / "latest"
+    if latest.is_symlink() or latest.exists():
+        latest.unlink()
+    latest.symlink_to(folder_name)
+
+    return run_dir
+
+
+def save_to_run(run_dir: Path, filename: str, data: dict | str):
+    """Save a file into the run directory.
+
+    data can be a dict (saved as JSON) or a str (saved as-is).
+    """
+    path = run_dir / filename
+    if isinstance(data, dict):
+        path.write_text(json.dumps(data, indent=2) + "\n")
+    else:
+        path.write_text(data)
+
+
+def copy_to_run(run_dir: Path, source_path: str, dest_filename: str = "source.png"):
+    """Copy a file into the run directory."""
+    shutil.copy2(source_path, run_dir / dest_filename)
