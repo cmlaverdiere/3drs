@@ -1,0 +1,3 @@
+# Keep startup alive briefly for native focus and visibility inspection.
+wait 180
+screenshot startup_focus

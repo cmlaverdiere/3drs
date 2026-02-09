@@ -13,16 +13,18 @@
 #include <cstring>
 
 void InitGameWindow(int* screenWidth, int* screenHeight) {
-    // Get monitor size first
+    // Keep the same native window alive while querying the monitor size.
     InitWindow(1, 1, "3D RuneScape-style Game");
     int monitorWidth = GetMonitorWidth(0);
     int monitorHeight = GetMonitorHeight(0);
-    CloseWindow();
 
     *screenWidth = monitorWidth;
     *screenHeight = monitorHeight - 80;
-    InitWindow(*screenWidth, *screenHeight, "3D RuneScape-style Game");
+    SetWindowSize(*screenWidth, *screenHeight);
     SetWindowPosition(0, 25);
+    if (!IsWindowHidden()) {
+        SetWindowFocused();
+    }
     SetExitKey(0);  // Disable default ESC-to-close, handle manually
 
     InitAudioDevice();

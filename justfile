@@ -3,10 +3,10 @@ build:
     cmake --build build
 
 run *ARGS: build
-    ./build/game {{ARGS}}
+    sh scripts/run.sh {{ARGS}}
 
 winter: build
-    ./build/game --winter
+    sh scripts/run.sh --winter
 
 commit:
     ./jj-commit.sh

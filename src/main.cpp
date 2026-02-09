@@ -47,7 +47,12 @@ int main(int argc, char* argv[]) {
     bool headlessMode = false;
     const char* scriptFile = nullptr;
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--test") == 0) {
+        if (strcmp(argv[i], "--working-directory") == 0) {
+            if (i + 1 >= argc || !ChangeDirectory(argv[++i])) {
+                fprintf(stderr, "Could not set game working directory\n");
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--test") == 0) {
             testMode = true;
         } else if (strcmp(argv[i], "--screenshot") == 0) {
             screenshotMode = true;

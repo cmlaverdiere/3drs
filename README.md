@@ -12,8 +12,14 @@ cmake --build build
 ## Run
 
 ```bash
-./build/game
+just run
 ```
+
+On macOS this launches `build/3DRS.app` through Launch Services so the game
+receives application activation and keyboard focus. Assets and saves still use
+the project directory. `just winter` uses the same launcher.
+The direct executable `./build/game` remains available for automated tests;
+`just run --test`, `--headless`, `--script`, and `--screenshot` also run directly.
 
 ## Test Mode
 

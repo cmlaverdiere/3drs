@@ -58,3 +58,15 @@ set_target_properties(game PROPERTIES
     BUILD_RPATH "${PIPER_LIB_DIR};${ONNX_LIB_DIR}"
     INSTALL_RPATH "${PIPER_LIB_DIR};${ONNX_LIB_DIR}"
 )
+
+if(APPLE)
+    # Keep build/game for CLI tests, and give Launch Services a native app to activate.
+    set(GAME_APP_DIR "${CMAKE_CURRENT_BINARY_DIR}/3DRS.app")
+    file(MAKE_DIRECTORY "${GAME_APP_DIR}/Contents/MacOS")
+    configure_file(cmake/Info.plist "${GAME_APP_DIR}/Contents/Info.plist" COPYONLY)
+    add_custom_target(game_app ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:game>" "${GAME_APP_DIR}/Contents/MacOS/game"
+        DEPENDS game
+        VERBATIM
+    )
+endif()
