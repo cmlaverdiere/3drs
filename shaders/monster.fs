@@ -12,18 +12,7 @@ uniform vec4 colDiffuse;
 uniform int materialType;   // 0=flat, 1=scales, 2=stone, 3=fur, 4=striped, 5=spotted
 uniform float monsterSeed;
 
-// Lighting uniforms
-uniform vec3 sunDirection;
-uniform vec3 sunColor;
-uniform vec3 ambientColor;
-uniform vec3 fogColor;
-uniform float fogDensity;
-uniform vec3 viewPos;
-
-#define MAX_POINT_LIGHTS 16
-uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
-uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
-uniform int pointLightCount;
+#include "common/lighting.glsl"
 
 out vec4 finalColor;
 
@@ -31,9 +20,7 @@ out vec4 finalColor;
 // Noise functions
 // ============================================================
 
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
+
 
 vec2 hash2(vec2 p) {
     return vec2(
@@ -42,27 +29,9 @@ vec2 hash2(vec2 p) {
     );
 }
 
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-}
 
-float fbm(vec2 p, int octaves) {
-    float value = 0.0;
-    float amplitude = 0.5;
-    for (int i = 0; i < octaves; i++) {
-        value += amplitude * noise(p);
-        p *= 2.0;
-        amplitude *= 0.5;
-    }
-    return value;
-}
+
+
 
 // ============================================================
 // Tri-planar projection
@@ -106,7 +75,7 @@ void scales(vec2 uv, float seed, vec3 baseColor, out vec3 color, out vec3 normal
     float dist = length(d);
 
     // Scale edge detection
-    float edge = smoothstep(0.5, 0.35, dist);
+    float edge = (1.0 - smoothstep(0.35, 0.5, dist));
     float rim = smoothstep(0.35, 0.45, dist) * 0.6;
 
     // Per-scale color variation
@@ -116,7 +85,7 @@ void scales(vec2 uv, float seed, vec3 baseColor, out vec3 color, out vec3 normal
     // Each scale is like a dome - normal points outward from center
     // Stronger effect = more obvious 3D
     vec2 scaleNormalXY = -d * 2.5;  // Point away from center
-    scaleNormalXY *= smoothstep(0.5, 0.2, dist);  // Fade at edges
+    scaleNormalXY *= (1.0 - smoothstep(0.2, 0.5, dist));  // Fade at edges
 
     // Add rim highlight normal (edges catch light)
     float rimStrength = smoothstep(0.3, 0.45, dist) * (1.0 - smoothstep(0.45, 0.5, dist));
@@ -173,7 +142,7 @@ void stone(vec2 uv, float seed, vec3 baseColor, out vec3 color, out vec3 normalO
     chunkNormalXY *= smoothstep(0.0, 0.3, crack);  // Flatten near cracks
 
     // Crack edges - sharp normal change
-    float crackEdge = smoothstep(0.05, 0.0, crack);
+    float crackEdge = (1.0 - smoothstep(0.0, 0.05, crack));
     chunkNormalXY += normalize(nearestPoint + 0.001) * crackEdge * 2.0;
 
     // Surface roughness bumps
@@ -304,7 +273,7 @@ void spots(vec2 uv, float seed, vec3 baseColor, out vec3 color, out vec3 normalO
                     // Each spot is a dome - normal points outward from center
                     vec2 spotNormalXY = -diff / (dist + 0.001) * spot * 2.0;
                     // Smooth falloff
-                    spotNormalXY *= smoothstep(spotRadius + 0.05, spotRadius - 0.1, dist);
+                    spotNormalXY *= (1.0 - smoothstep(spotRadius - 0.1, spotRadius + 0.05, dist));
                     totalNormal.xy += spotNormalXY;
                 }
 
@@ -373,11 +342,11 @@ vec3 perturbNormal(vec3 N, vec3 pos, vec2 uv, vec3 normalOffset) {
 vec3 calcPointLight(vec3 lightPos, vec3 lightColor, vec3 fragPos, vec3 normal, vec3 viewDir) {
     vec3 lightDir = lightPos - fragPos;
     float distance = length(lightDir);
-    lightDir = normalize(lightDir);
+    lightDir /= max(distance, 0.0001);
     float radius = 12.0;
     float intensity = 1.2;
     float attenuation = intensity / (1.0 + 0.15 * distance + 0.03 * distance * distance);
-    attenuation *= smoothstep(radius, radius * 0.1, distance);
+    attenuation *= (1.0 - smoothstep(radius * 0.1, radius, distance));
     float diff = max(dot(normal, lightDir), 0.0);
     vec3 halfDir = normalize(lightDir + viewDir);
     float spec = pow(max(dot(normal, halfDir), 0.0), 32.0) * 0.3;
@@ -427,20 +396,21 @@ void main() {
 
     // Diffuse
     float NdotL = max(dot(N, L), 0.0);
-    vec3 diffuse = sunColor * NdotL;
+    float shadow = calcShadow(fragWorldPos, normalize(fragNormal));
+    vec3 diffuse = sunColor * NdotL * shadow;
 
     // Specular (Blinn-Phong) - stronger for textured materials
     float specPower = (materialType == 1) ? 64.0 : 32.0;  // Shinier scales
     float specStrength = (materialType == 1) ? 0.8 : 0.5;  // More specular on scales
     float NdotH = max(dot(N, H), 0.0);
     float spec = pow(NdotH, specPower) * specStrength * NdotL;
-    vec3 specular = sunColor * spec;
+    vec3 specular = sunColor * spec * shadow;
 
     // Rim lighting - enhanced for textured materials
     float NdotV = max(dot(N, V), 0.0);
     float rim = pow(1.0 - NdotV, 3.0) * 0.3;
     float rimLight = max(0.0, dot(N, -L) * 0.5 + 0.5);
-    vec3 rimColor = sunColor * rim * rimLight;
+    vec3 rimColor = sunColor * rim * rimLight * shadow;
 
     // Point lights
     vec3 pointLighting = vec3(0.0);

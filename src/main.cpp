@@ -150,6 +150,13 @@ int main(int argc, char* argv[]) {
     // Initialize post-processing system (bloom, SSAO)
     PostProcessSystem postProcess = {};
     InitPostProcessSystem(&postProcess, screenWidth, screenHeight);
+    if (!postProcess.initialized) {
+        UnloadPostProcessSystem(&postProcess);
+        UnloadLightingSystem(&lighting);
+        CleanupGameResources(&resources);
+        CloseWindow();
+        return 1;
+    }
 
     // Apply saved time of day
     lighting.timeOfDay = playerState.timeOfDay;
@@ -212,7 +219,9 @@ int main(int argc, char* argv[]) {
     int lampCount = 0;
     for (int i = 0; i < lightCount; i++) {
         if (lights[i].type == LIGHT_LAMP) {
-            lampPositions[lampCount++] = lights[i].position;
+            lampPositions[lampCount] = lights[i].position;
+            lampPositions[lampCount].y = GetTerrainHeight(lights[i].position.x, lights[i].position.z);
+            lampCount++;
         }
     }
     SetLampPositions(&lighting, lampPositions, lampCount);
@@ -222,7 +231,9 @@ int main(int argc, char* argv[]) {
     int campfireCount = 0;
     for (int i = 0; i < lightCount; i++) {
         if (lights[i].type == LIGHT_CAMPFIRE) {
-            campfirePositions[campfireCount++] = lights[i].position;
+            campfirePositions[campfireCount] = lights[i].position;
+            campfirePositions[campfireCount].y = GetTerrainHeight(lights[i].position.x, lights[i].position.z);
+            campfireCount++;
         }
     }
     SetCampfirePositions(&lighting, campfirePositions, campfireCount);
@@ -1131,60 +1142,60 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        if (postProcess.screenWidth != screenWidth || postProcess.screenHeight != screenHeight) {
+            screenWidth = GetScreenWidth();
+            screenHeight = GetScreenHeight();
+            ResizePostProcessBuffers(&postProcess, screenWidth, screenHeight);
+        }
+
         // ========== FRUSTUM CULLING SETUP ==========
         // Extract frustum planes for culling (main pass only - shadow pass needs wider culling)
         Matrix view = GetCameraMatrix(camera);
         Matrix proj = MatrixPerspective(camera.fovy * DEG2RAD,
-                                        (float)screenWidth / (float)screenHeight, 0.1f, 1000.0f);
+                                        (float)screenWidth / (float)screenHeight, rlGetCullDistanceNear(), rlGetCullDistanceFar());
         Matrix viewProj = MatrixMultiply(view, proj);
         Frustum frustum;
         ExtractFrustumPlanes(&frustum, viewProj);
 
         // ========== SHADOW PASS ==========
-        BeginShadowPass(&lighting, camera.position, resources.depthShader);
+        if (BeginShadowPass(&lighting, camera.position, resources.depthShader)) {
+            resources.entityModels.pass = RenderPass::Shadow;
             // Draw shadow-casting geometry
-            DrawModel(resources.groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
+            DrawModelForPass(resources.groundModel, {0, 0, 0}, {1, 1, 1}, WHITE, RenderPass::Shadow, resources.depthShader);
 
             // Walls cast shadows
             for (int i = 0; i < resources.wallCount; i++) {
                 Vector3 pos = walls[i].position;
                 pos.y += GetTerrainHeight(pos.x, pos.z) + walls[i].height / 2.0f;
-                DrawModel(resources.wallModels[i], pos, 1.0f, WHITE);
+                DrawModelForPass(resources.wallModels[i], pos, {1, 1, 1}, WHITE, RenderPass::Shadow, resources.depthShader);
             }
 
-            // Trees cast shadows (distance culled - shadows beyond ~100 units aren't visible)
-            const float SHADOW_CULL_DIST_SQ = 100.0f * 100.0f;
+            // Cull against the light volume, including offscreen shadow casters.
             for (int i = 0; i < treeCount; i++) {
                 if (trees[i].alive) {
                     Vector3 treePos = trees[i].position;
-                    float dx = treePos.x - camera.position.x;
-                    float dz = treePos.z - camera.position.z;
-                    if (dx*dx + dz*dz > SHADOW_CULL_DIST_SQ) continue;
                     treePos.y = GetTerrainHeight(treePos.x, treePos.z);
+                    if (!IsShadowCasterVisible(&lighting, Vector3Add(treePos, {0, 12, 0}), 24)) continue;
                     DrawTree(&resources.entityModels, treePos, trees[i].type, false);
                 }
             }
 
-            // Rocks cast shadows (distance culled)
+            // Rocks cast shadows (light-volume culled)
             for (int i = 0; i < rockCount; i++) {
                 if (rocks[i].alive) {
                     Vector3 rockPos = rocks[i].position;
-                    float dx = rockPos.x - camera.position.x;
-                    float dz = rockPos.z - camera.position.z;
-                    if (dx*dx + dz*dz > SHADOW_CULL_DIST_SQ) continue;
                     rockPos.y = GetTerrainHeight(rockPos.x, rockPos.z);
+                    if (!IsShadowCasterVisible(&lighting, Vector3Add(rockPos, {0, 4, 0}), 8)) continue;
                     DrawRock(&resources.entityModels, rockPos, rocks[i].type, false);
                 }
             }
 
-            // Enemies cast shadows (distance culled)
+            // Enemies cast shadows (light-volume culled)
             for (int i = 0; i < enemyCount; i++) {
                 if (enemies[i].alive) {
                     Vector3 enemyPos = enemies[i].position;
-                    float dx = enemyPos.x - camera.position.x;
-                    float dz = enemyPos.z - camera.position.z;
-                    if (dx*dx + dz*dz > SHADOW_CULL_DIST_SQ) continue;
                     enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
+                    if (!IsShadowCasterVisible(&lighting, Vector3Add(enemyPos, {0, 10, 0}), 30)) continue;
                     Enemy adjustedEnemy = enemies[i];
                     adjustedEnemy.position = enemyPos;
                     DrawEnemy(&resources.entityModels, adjustedEnemy, false, customMonsters, customMonsterCount);
@@ -1210,7 +1221,9 @@ int main(int argc, char* argv[]) {
                 adjustedLight.position = lightPos;
                 DrawLightSource(&resources.entityModels, adjustedLight, lighting.lampsOn);
             }
-        EndShadowPass(&lighting);
+            EndShadowPass(&lighting);
+            resources.entityModels.pass = RenderPass::Scene;
+        }
 
         // ========== MAIN PASS ==========
         // Set lighting uniforms for all shaders
@@ -1227,6 +1240,7 @@ int main(int argc, char* argv[]) {
 
         // Bind shadow map to all shaders
         BindShadowMapToShader(&lighting, resources.grassShader);
+        BindShadowMapToShader(&lighting, resources.grass.bladeShader);
         BindShadowMapToShader(&lighting, resources.waterShader);
         BindShadowMapToShader(&lighting, resources.entityShader);
         BindShadowMapToShader(&lighting, resources.entityModels.monsterShader);
@@ -1242,6 +1256,7 @@ int main(int argc, char* argv[]) {
         ClearBackground(skyColor);
 
         BeginMode3D(camera);
+        Matrix sceneProjection = rlGetMatrixProjection();
             // Draw sky (disable depth write and backface culling since we're inside the sphere)
             SetSkyShaderUniforms(&lighting, resources.skyShader);
             rlDisableDepthMask();
@@ -1394,10 +1409,7 @@ int main(int argc, char* argv[]) {
 
         // ========== POST-PROCESSING ==========
         // Get projection matrix for SSAO
-        Matrix projMatrix = MatrixPerspective(camera.fovy * DEG2RAD,
-                                               (float)screenWidth / (float)screenHeight,
-                                               0.1f, 1000.0f);
-        RenderSSAO(&postProcess, camera, projMatrix);
+        RenderSSAO(&postProcess, sceneProjection);
         RenderBloom(&postProcess);
 
         // ========== FINAL COMPOSITE + HUD ==========
@@ -1546,6 +1558,7 @@ int main(int argc, char* argv[]) {
                 // Cleanup and exit
                 ShutdownHelpSystem(&helpSystem);
                 ShutdownMonsterGenerator(&monsterGenerator);
+                UnloadPostProcessSystem(&postProcess);
                 UnloadLightingSystem(&lighting);
                 UnloadBackgroundMusic();
                 CleanupLeafSystem(&leafSystem);

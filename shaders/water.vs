@@ -5,6 +5,7 @@ in vec2 vertexTexCoord;
 
 uniform mat4 mvp;
 uniform mat4 matModel;
+uniform mat4 matNormal;
 uniform float time;
 
 out vec2 fragTexCoord;
@@ -45,6 +46,6 @@ void main() {
 
     fragTexCoord = vertexTexCoord;
     fragWorldPos = (matModel * vec4(displacedPos, 1.0)).xyz;
-    fragNormal = normalize(mat3(matModel) * normal);
+    fragNormal = normalize(mat3(matNormal) * normal);
     gl_Position = mvp * vec4(displacedPos, 1.0);
 }

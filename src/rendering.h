@@ -7,6 +7,10 @@
 // Forward declare EntityModels (defined in game_init.h)
 struct EntityModels;
 
+enum class RenderPass { Scene, Shadow };
+void DrawModelForPass(Model model, Vector3 position, Vector3 scale, Color color,
+                      RenderPass pass, Shader depthShader);
+
 // Draw primitives using models (proper normals for lighting)
 void DrawModelCube(const EntityModels* models, Vector3 pos, float width, float height, float depth, Color color);
 void DrawModelSphere(const EntityModels* models, Vector3 pos, float radius, Color color);

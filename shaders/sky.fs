@@ -80,7 +80,7 @@ void main() {
     skyColor += horizonGlow * sunColor;
 
     // Procedural clouds (only during day, above horizon)
-    float dayFactor = smoothstep(0.1, 0.3, timeOfDay) * smoothstep(0.9, 0.7, timeOfDay);
+    float dayFactor = smoothstep(0.1, 0.3, timeOfDay) * (1.0 - smoothstep(0.7, 0.9, timeOfDay));
     if (height > 0.05 && dayFactor > 0.0) {
         // Project view direction onto a plane for cloud coordinates
         vec2 cloudCoord = viewDir.xz / (viewDir.y + 0.1) * 0.3;
@@ -93,7 +93,7 @@ void main() {
         float cloudDensity = smoothstep(0.4, 0.7, cloudNoise);
 
         // Fade clouds near horizon and zenith
-        float cloudMask = smoothstep(0.05, 0.2, height) * smoothstep(0.9, 0.5, height);
+        float cloudMask = smoothstep(0.05, 0.2, height) * (1.0 - smoothstep(0.5, 0.9, height));
         cloudDensity *= cloudMask * dayFactor * 0.6;
 
         // Cloud color (white with slight sun tinting)

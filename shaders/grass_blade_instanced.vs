@@ -37,7 +37,7 @@ void main() {
     worldPos.z += windZ;
 
     fragWorldPos = worldPos.xyz;
-    fragNormal = normalize(mat3(instanceTransform) * vertexNormal);
+    fragNormal = normalize(transpose(inverse(mat3(instanceTransform))) * vertexNormal);
     fragTexCoord = vertexTexCoord;
     bladeHeight = heightFactor;
 

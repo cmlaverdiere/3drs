@@ -3,15 +3,37 @@
 #include "math_utils.h"
 #include "rlgl.h"
 #include <cmath>
+#include <vector>
+
+void DrawModelForPass(Model model, Vector3 position, Vector3 scale, Color color,
+                      RenderPass pass, Shader depthShader) {
+    if (pass == RenderPass::Scene) {
+        DrawModelEx(model, position, {0, 1, 0}, 0.0f, scale, color);
+        return;
+    }
+    // DrawMesh chooses its material shader, independently of BeginShaderMode.
+    // Copies keep the shared scene materials intact, including custom monsters.
+    if (model.materialCount == 1) {
+        Material material = model.materials[0];
+        material.shader = depthShader;
+        model.materials = &material;
+        DrawModelEx(model, position, {0, 1, 0}, 0.0f, scale, WHITE);
+        return;
+    }
+    std::vector<Material> materials(model.materials, model.materials + model.materialCount);
+    for (Material& material : materials) material.shader = depthShader;
+    model.materials = materials.data();
+    DrawModelEx(model, position, {0, 1, 0}, 0.0f, scale, WHITE);
+}
 
 // Helper: Draw a cube using the model (proper normals)
 void DrawModelCube(const EntityModels* models, Vector3 pos, float width, float height, float depth, Color color) {
-    DrawModelEx(models->cube, pos, (Vector3){0, 1, 0}, 0.0f, (Vector3){width, height, depth}, color);
+    DrawModelForPass(models->cube, pos, (Vector3){width, height, depth}, color, models->pass, models->depthShader);
 }
 
 // Helper: Draw a sphere using the model (proper normals)
 void DrawModelSphere(const EntityModels* models, Vector3 pos, float radius, Color color) {
-    DrawModelEx(models->sphere, pos, (Vector3){0, 1, 0}, 0.0f, (Vector3){radius, radius, radius}, color);
+    DrawModelForPass(models->sphere, pos, (Vector3){radius, radius, radius}, color, models->pass, models->depthShader);
 }
 
 // Helper: Draw a cylinder using the model (proper normals)
@@ -19,18 +41,18 @@ void DrawModelSphere(const EntityModels* models, Vector3 pos, float radius, Colo
 void DrawModelCylinder(const EntityModels* models, Vector3 pos, float radiusBottom, float radiusTop, float height, Color color) {
     // Average radius for scaling (GenMeshCylinder doesn't support different top/bottom)
     float radius = (radiusBottom + radiusTop) * 0.5f;
-    DrawModelEx(models->cylinder, pos, (Vector3){0, 1, 0}, 0.0f, (Vector3){radius, height, radius}, color);
+    DrawModelForPass(models->cylinder, pos, (Vector3){radius, height, radius}, color, models->pass, models->depthShader);
 }
 
 // Helper: Draw a foliage sphere (tree canopy) with procedural leaf shader
 void DrawFoliageSphere(const EntityModels* models, Vector3 pos, float radius, Color color) {
-    DrawModelEx(models->foliageSphere, pos, (Vector3){0, 1, 0}, 0.0f, (Vector3){radius, radius, radius}, color);
+    DrawModelForPass(models->foliageSphere, pos, (Vector3){radius, radius, radius}, color, models->pass, models->depthShader);
 }
 
 // Helper: Draw a wood cylinder (tree trunk) with procedural bark shader
 void DrawWoodCylinder(const EntityModels* models, Vector3 pos, float radiusBottom, float radiusTop, float height, Color color) {
     float radius = (radiusBottom + radiusTop) * 0.5f;
-    DrawModelEx(models->woodCylinder, pos, (Vector3){0, 1, 0}, 0.0f, (Vector3){radius, height, radius}, color);
+    DrawModelForPass(models->woodCylinder, pos, (Vector3){radius, height, radius}, color, models->pass, models->depthShader);
 }
 
 void DrawSword(const EntityModels* models, Vector3 pos, Color bladeColor, Color handleColor) {
@@ -471,7 +493,7 @@ void DrawCustomMonster(EntityModels* models, const CustomMonster* monster,
     rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
 
     // Check if we need procedural texturing
-    bool useMonsterShader = (monster->material != MAT_FLAT);
+    bool useMonsterShader = models->pass == RenderPass::Scene && (monster->material != MAT_FLAT);
 
     if (useMonsterShader) {
         // Set monster shader uniforms
@@ -1024,6 +1046,8 @@ void DrawLamp(const EntityModels* models, Vector3 pos, bool lit) {
     DrawModelCube(models, (Vector3){pos.x, lampY + 0.25f, pos.z}, 0.35f, 0.08f, 0.35f, metalDark);  // Top cap
     DrawModelCube(models, (Vector3){pos.x, lampY - 0.05f, pos.z}, 0.30f, 0.06f, 0.30f, metalDark);  // Bottom rim
 
+    if (models->pass == RenderPass::Shadow) return;
+
     // Glass housing (4 panels)
     float glassY = lampY + 0.1f;
     DrawModelCube(models, (Vector3){pos.x + 0.13f, glassY, pos.z}, 0.02f, 0.25f, 0.24f, glassColor);
@@ -1084,6 +1108,8 @@ void DrawCampfire(const EntityModels* models, Vector3 pos) {
     rlRotatef(30.0f, 0, 1, 0);
     DrawModelCylinder(models, (Vector3){0, 0, 0}, 0.05f, 0.03f, 0.4f, woodColor);
     rlPopMatrix();
+
+    if (models->pass == RenderPass::Shadow) return;
 
     // Draw fire using shader - two crossed planes for visibility from all angles
     float gameTime = (float)GetTime();

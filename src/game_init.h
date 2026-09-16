@@ -4,9 +4,12 @@
 #include "raylib.h"
 #include "types.h"
 #include "spatial_hash.h"
+#include "rendering.h"
 
 // Primitive models for entity rendering (with proper normals)
 struct EntityModels {
+    RenderPass pass = RenderPass::Scene;
+    Shader depthShader = {};
     Model cube;
     Model sphere;
     Model cylinder;

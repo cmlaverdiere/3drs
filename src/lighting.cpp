@@ -1,5 +1,8 @@
 #include "lighting.h"
+#include "external/glad.h"
 #include <cmath>
+#include <algorithm>
+#include <random>
 
 // Color presets for different times
 struct TimeColors {
@@ -108,21 +111,45 @@ static TimeColors InterpolateTimeColors(float timeOfDay) {
     return result;
 }
 
-// Create shadow map render texture (uses color texture to store depth)
-static RenderTexture2D LoadShadowmapRenderTexture(int width, int height) {
-    // Use standard render texture - we'll write depth to color in the shader
-    RenderTexture2D target = LoadRenderTexture(width, height);
-    TraceLog(LOG_INFO, "Shadow map render texture created (%dx%d)", width, height);
+// Raylib's ordinary render target uses a renderbuffer, which cannot be sampled.
+// Keep a color attachment for portable framebuffer completeness, but sample depth.
+static RenderTexture2D LoadDepthTextureTarget(int width, int height) {
+    RenderTexture2D target = {};
+    target.id = rlLoadFramebuffer();
+    if (!target.id) return target;
+    target.texture = {rlLoadTexture(nullptr, width, height, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8, 1),
+                      width, height, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+    target.depth = {rlLoadTextureDepth(width, height, false), width, height, 1, 19};
+    // Unsized GL_DEPTH_COMPONENT can resolve to 16 bits on macOS. Explicit
+    // floating-point depth avoids quantized SSAO normals and shadow banding.
+    glBindTexture(GL_TEXTURE_2D, target.depth.id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, height, 0,
+                 GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    rlFramebufferAttach(target.id, target.texture.id, RL_ATTACHMENT_COLOR_CHANNEL0, RL_ATTACHMENT_TEXTURE2D, 0);
+    rlFramebufferAttach(target.id, target.depth.id, RL_ATTACHMENT_DEPTH, RL_ATTACHMENT_TEXTURE2D, 0);
+    bool complete = rlFramebufferComplete(target.id);
+    rlDisableFramebuffer();
+    if (!complete || !target.texture.id || !target.depth.id) {
+        TraceLog(LOG_WARNING, "LIGHTING: Incomplete depth framebuffer (%dx%d)", width, height);
+        UnloadRenderTexture(target);
+        return {};
+    }
+    SetTextureWrap(target.texture, TEXTURE_WRAP_CLAMP);
+    SetTextureWrap(target.depth, TEXTURE_WRAP_CLAMP);
+    SetTextureFilter(target.depth, TEXTURE_FILTER_POINT);
     return target;
 }
 
 void InitLightingSystem(LightingSystem* lighting) {
     // Create shadow map
-    lighting->shadowMap = LoadShadowmapRenderTexture(SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION);
+    lighting->shadowMap = LoadDepthTextureTarget(SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION);
 
     // Start at midday
     lighting->timeOfDay = 0.5f;
     lighting->cyclePaused = false;
+    lighting->lightViewProj = MatrixIdentity();
+    if (!lighting->shadowMap.id) TraceLog(LOG_WARNING, "LIGHTING: Shadows disabled (framebuffer unavailable)");
 
     // Initialize light camera
     lighting->lightCamera.projection = CAMERA_ORTHOGRAPHIC;
@@ -171,6 +198,9 @@ void UpdateLightingSystem(LightingSystem* lighting, float dt, Vector3 playerPos)
         sinf(sunAngle) * cosf(elevation)
     };
     lighting->sunDirection = Vector3Normalize(lighting->sunDirection);
+    float daylight = Clamp(-lighting->sunDirection.y / 0.12f, 0.0f, 1.0f);
+    daylight = daylight * daylight * (3.0f - 2.0f * daylight);
+    lighting->sunColor = Vector3Scale(colors.sunColor, daylight);
 
     // Update light camera to follow player (for shadow mapping)
     float shadowDistance = SHADOW_ORTHO_SIZE * 0.5f;
@@ -224,25 +254,28 @@ void SetShaderLightingUniforms(LightingSystem* lighting, Shader shader, Vector3 
     int pointLightColLoc = GetShaderLocation(shader, "pointLightColors");
     int pointLightCountLoc = GetShaderLocation(shader, "pointLightCount");
 
-    // Build combined light array
+    struct NearbyLight { Vector3 position; Vector3 color; float distance; };
+    std::vector<NearbyLight> candidates;
+    candidates.reserve(lighting->campfireCount + lighting->lampCount);
+    for (int i = 0; i < lighting->campfireCount; i++) {
+        candidates.push_back({lighting->campfirePositions[i], lighting->campfireColors[i],
+                             Vector3DistanceSqr(viewPos, lighting->campfirePositions[i])});
+    }
+    if (lighting->lampsOn) {
+        for (int i = 0; i < lighting->lampCount; i++) {
+            candidates.push_back({lighting->lampPositions[i], lighting->lampColors[i],
+                                 Vector3DistanceSqr(viewPos, lighting->lampPositions[i])});
+        }
+    }
+    std::stable_sort(candidates.begin(), candidates.end(), [](const NearbyLight& a, const NearbyLight& b) {
+        return a.distance < b.distance;
+    });
     Vector3 combinedPositions[MAX_POINT_LIGHTS];
     Vector3 combinedColors[MAX_POINT_LIGHTS];
-    int totalLights = 0;
-
-    // Add campfire lights (always on)
-    for (int i = 0; i < lighting->campfireCount && totalLights < MAX_POINT_LIGHTS; i++) {
-        combinedPositions[totalLights] = lighting->campfirePositions[i];
-        combinedColors[totalLights] = lighting->campfireColors[i];
-        totalLights++;
-    }
-
-    // Add lamp lights (only when lamps are on)
-    if (lighting->lampsOn) {
-        for (int i = 0; i < lighting->lampCount && totalLights < MAX_POINT_LIGHTS; i++) {
-            combinedPositions[totalLights] = lighting->lampPositions[i];
-            combinedColors[totalLights] = lighting->lampColors[i];
-            totalLights++;
-        }
+    int totalLights = std::min((int)candidates.size(), MAX_POINT_LIGHTS);
+    for (int i = 0; i < totalLights; i++) {
+        combinedPositions[i] = candidates[i].position;
+        combinedColors[i] = candidates[i].color;
     }
 
     if (totalLights > 0) {
@@ -255,110 +288,59 @@ void SetShaderLightingUniforms(LightingSystem* lighting, Shader shader, Vector3 
     }
 }
 
-void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos, Shader depthShader) {
-    // Update light camera
-    float shadowDistance = SHADOW_ORTHO_SIZE * 0.5f;
-    float halfSize = SHADOW_ORTHO_SIZE * 0.5f;
-
-    // === Shadow Map Stabilization ===
-    // Snap the light camera to texel boundaries to prevent shadow shimmer when moving.
-    // Without this, sub-texel camera movements cause shadows to flicker/shift.
-
-    // Build initial light view matrix to transform centerPos into light space
-    Vector3 lightPos = Vector3Add(centerPos, Vector3Scale(lighting->sunDirection, -shadowDistance));
-    Matrix lightView = MatrixLookAt(lightPos, centerPos, lighting->lightCamera.up);
-
-    // Transform center position to light space
-    Vector4 centerInLightSpace = {
-        lightView.m0 * centerPos.x + lightView.m4 * centerPos.y + lightView.m8 * centerPos.z + lightView.m12,
-        lightView.m1 * centerPos.x + lightView.m5 * centerPos.y + lightView.m9 * centerPos.z + lightView.m13,
-        lightView.m2 * centerPos.x + lightView.m6 * centerPos.y + lightView.m10 * centerPos.z + lightView.m14,
-        1.0f
-    };
-
-    // Calculate texel size in world units
-    float texelSize = SHADOW_ORTHO_SIZE / (float)SHADOW_MAP_RESOLUTION;
-
-    // Snap to texel boundaries in light space (X and Y only, not depth)
-    centerInLightSpace.x = floorf(centerInLightSpace.x / texelSize) * texelSize;
-    centerInLightSpace.y = floorf(centerInLightSpace.y / texelSize) * texelSize;
-
-    // Transform back to world space using inverse of lightView
-    // For orthogonal matrices, inverse = transpose, but we'll use the proper inverse
-    Matrix invLightView = MatrixInvert(lightView);
-    Vector3 snappedCenter = {
-        invLightView.m0 * centerInLightSpace.x + invLightView.m4 * centerInLightSpace.y + invLightView.m8 * centerInLightSpace.z + invLightView.m12,
-        invLightView.m1 * centerInLightSpace.x + invLightView.m5 * centerInLightSpace.y + invLightView.m9 * centerInLightSpace.z + invLightView.m13,
-        invLightView.m2 * centerInLightSpace.x + invLightView.m6 * centerInLightSpace.y + invLightView.m10 * centerInLightSpace.z + invLightView.m14
-    };
-
-    // Rebuild light camera with snapped position
-    lighting->lightCamera.position = Vector3Add(
-        snappedCenter,
-        Vector3Scale(lighting->sunDirection, -shadowDistance)
-    );
-    lighting->lightCamera.target = snappedCenter;
-
-    // Compute final light view matrix with stabilized position
-    lightView = MatrixLookAt(
-        lighting->lightCamera.position,
-        lighting->lightCamera.target,
-        lighting->lightCamera.up
-    );
-
-    // Compute orthographic projection for directional light
-    Matrix lightProj = MatrixOrtho(-halfSize, halfSize, -halfSize, halfSize, 0.1f, shadowDistance * 2.0f);
-
-    // Store combined matrix for shader use
-    lighting->lightViewProj = MatrixMultiply(lightView, lightProj);
-
-    // Begin rendering to shadow map
-    BeginTextureMode(lighting->shadowMap);
-    ClearBackground(WHITE);  // Clear to white (max depth = 1.0)
-
-    // Set up 3D mode with light's view
+bool BeginShadowPass(LightingSystem* lighting, Vector3 centerPos, Shader depthShader) {
+    if (!lighting->shadowMap.id || Vector3LengthSqr(lighting->sunColor) < 0.000001f) return false;
+    ShadowMatrices matrices = CalculateShadowMatrices(centerPos, lighting->sunDirection);
+    lighting->lightViewProj = matrices.viewProjection;
+    // Unit 10 is reserved for directional shadows, outside our scene material maps.
     rlDrawRenderBatchActive();
-    rlMatrixMode(RL_PROJECTION);
-    rlPushMatrix();
-    rlLoadIdentity();
-    rlMultMatrixf(MatrixToFloat(lightProj));
-    rlMatrixMode(RL_MODELVIEW);
-    rlLoadIdentity();
-    rlMultMatrixf(MatrixToFloat(lightView));
-
-    // Enable front-face culling to reduce shadow acne
+    rlActiveTextureSlot(10);
+    rlDisableTexture();
+    rlActiveTextureSlot(0);
+    BeginTextureMode(lighting->shadowMap);
+    rlEnableDepthMask();
+    ClearBackground(WHITE);
+    BeginMode3D(lighting->lightCamera);
+    rlSetMatrixProjection(matrices.projection);
+    rlSetMatrixModelview(matrices.view);
     rlEnableBackfaceCulling();
-    rlSetCullFace(RL_CULL_FACE_FRONT);
-
-    // Set depth shader AFTER matrix setup
+    rlSetCullFace(RL_CULL_FACE_BACK);
     BeginShaderMode(depthShader);
+    return true;
+}
+
+bool IsShadowCasterVisible(const LightingSystem* lighting, Vector3 center, float radius) {
+    Vector3 clip = Vector3Transform(center, lighting->lightViewProj);
+    float xyRadius = radius * 2.0f / SHADOW_ORTHO_SIZE;
+    float zRadius = radius * 2.0f / (SHADOW_FAR - SHADOW_NEAR);
+    return fabsf(clip.x) <= 1.0f + xyRadius && fabsf(clip.y) <= 1.0f + xyRadius &&
+           fabsf(clip.z) <= 1.0f + zRadius;
 }
 
 void EndShadowPass(LightingSystem* lighting) {
-    // End depth shader
+    (void)lighting;
     EndShaderMode();
-
-    // Reset culling
+    EndMode3D();
     rlSetCullFace(RL_CULL_FACE_BACK);
-
-    // Pop matrix state
-    rlDrawRenderBatchActive();
-    rlMatrixMode(RL_PROJECTION);
-    rlPopMatrix();
-    rlMatrixMode(RL_MODELVIEW);
-
+    rlEnableBackfaceCulling();
+    rlEnableDepthMask();
+    rlActiveTextureSlot(0);
     EndTextureMode();
 }
 
 void BindShadowMapToShader(LightingSystem* lighting, Shader shader) {
-    int shadowMapLoc = GetShaderLocation(shader, "shadowMap");
-    int shadowResLoc = GetShaderLocation(shader, "shadowMapResolution");
-
-    // Bind shadow map color texture to texture slot 1
-    rlActiveTextureSlot(1);
-    rlEnableTexture(lighting->shadowMap.texture.id);
-    SetShaderValue(shader, shadowMapLoc, (int[]){1}, SHADER_UNIFORM_INT);
-    SetShaderValue(shader, shadowResLoc, (int[]){SHADOW_MAP_RESOLUTION}, SHADER_UNIFORM_INT);
+    int enabled = lighting->shadowMap.id != 0 && Vector3LengthSqr(lighting->sunColor) >= 0.000001f;
+    SetShaderValue(shader, GetShaderLocation(shader, "shadowEnabled"), &enabled, SHADER_UNIFORM_INT);
+    if (!enabled) return;
+    int slot = 10;
+    int resolution = SHADOW_MAP_RESOLUTION;
+    rlActiveTextureSlot(slot);
+    rlEnableTexture(lighting->shadowMap.depth.id);
+    rlActiveTextureSlot(0);
+    SetShaderValue(shader, GetShaderLocation(shader, "shadowMap"), &slot, SHADER_UNIFORM_INT);
+    SetShaderValue(shader, GetShaderLocation(shader, "shadowMapResolution"), &resolution, SHADER_UNIFORM_INT);
+    float depthRange = SHADOW_FAR - SHADOW_NEAR;
+    SetShaderValue(shader, GetShaderLocation(shader, "shadowDepthRange"), &depthRange, SHADER_UNIFORM_FLOAT);
 }
 
 Color GetSkyColor(float timeOfDay) {
@@ -421,7 +403,9 @@ bool AreLampsOn(float timeOfDay) {
 }
 
 void SetLampPositions(LightingSystem* lighting, const Vector3* positions, int count) {
-    lighting->lampCount = (count > MAX_POINT_LIGHTS) ? MAX_POINT_LIGHTS : count;
+    lighting->lampCount = std::max(0, count);
+    lighting->lampPositions.resize(lighting->lampCount);
+    lighting->lampColors.resize(lighting->lampCount);
 
     // Soft warm lamp color
     Vector3 lampColor = {0.9f, 0.7f, 0.4f};  // Warm yellow-orange
@@ -440,7 +424,9 @@ void SetLampPositions(LightingSystem* lighting, const Vector3* positions, int co
 }
 
 void SetCampfirePositions(LightingSystem* lighting, const Vector3* positions, int count) {
-    lighting->campfireCount = (count > MAX_POINT_LIGHTS) ? MAX_POINT_LIGHTS : count;
+    lighting->campfireCount = std::max(0, count);
+    lighting->campfirePositions.resize(lighting->campfireCount);
+    lighting->campfireColors.resize(lighting->campfireCount);
 
     // Warm campfire color (softer glow)
     Vector3 campfireColor = {1.2f, 0.7f, 0.3f};  // Warm orange fire color
@@ -464,12 +450,14 @@ void SetCampfirePositions(LightingSystem* lighting, const Vector3* positions, in
 
 // Generate hemisphere sample kernel for SSAO
 static void GenerateSSAOKernel(Vector3* kernel, int sampleCount) {
+    std::mt19937 random(0x3d25);
+    std::uniform_real_distribution<float> uniform(-1.0f, 1.0f);
     for (int i = 0; i < sampleCount; i++) {
         // Random point in hemisphere (z >= 0)
         Vector3 sample = {
-            (float)GetRandomValue(-1000, 1000) / 1000.0f,
-            (float)GetRandomValue(-1000, 1000) / 1000.0f,
-            (float)GetRandomValue(0, 1000) / 1000.0f
+            uniform(random),
+            uniform(random),
+            fabsf(uniform(random))
         };
 
         // Normalize
@@ -497,7 +485,7 @@ static Texture2D GenerateSSAONoiseTexture() {
 
     for (int i = 0; i < 16; i++) {
         // Random rotation vector in XY plane
-        float angle = (float)GetRandomValue(0, 3141) / 500.0f;  // 0 to ~2*PI
+        float angle = fmodf((float)i * 2.39996323f, 2.0f * PI);  // 0 to ~2*PI
         noiseData[i * 4 + 0] = (unsigned char)((cosf(angle) * 0.5f + 0.5f) * 255);
         noiseData[i * 4 + 1] = (unsigned char)((sinf(angle) * 0.5f + 0.5f) * 255);
         noiseData[i * 4 + 2] = 0;  // Z = 0
@@ -519,269 +507,160 @@ static Texture2D GenerateSSAONoiseTexture() {
     return texture;
 }
 
-void InitPostProcessSystem(PostProcessSystem* pp, int screenWidth, int screenHeight) {
-    pp->screenWidth = screenWidth;
-    pp->screenHeight = screenHeight;
+static bool EffectShaderReady(Shader shader) {
+    return shader.id != 0 && shader.id != rlGetShaderIdDefault();
+}
 
-    // Create scene render texture (full resolution)
-    pp->sceneTexture = LoadRenderTexture(screenWidth, screenHeight);
+static void DrawFullscreenTexture(Texture2D texture, int width, int height) {
+    DrawTexturePro(texture, {0, 0, (float)texture.width, -(float)texture.height},
+                   {0, 0, (float)width, (float)height}, {0, 0}, 0.0f, WHITE);
+}
 
-    // Create bloom textures (half resolution for performance)
-    int halfWidth = screenWidth / 2;
-    int halfHeight = screenHeight / 2;
+static void AllocatePostProcessBuffers(PostProcessSystem* pp, int width, int height) {
+    pp->screenWidth = std::max(1, width);
+    pp->screenHeight = std::max(1, height);
+    pp->sceneTexture = LoadDepthTextureTarget(pp->screenWidth, pp->screenHeight);
+    bool sampleableDepth = pp->sceneTexture.id != 0;
+    if (!sampleableDepth) {
+        TraceLog(LOG_WARNING, "LIGHTING: SSAO disabled; falling back to ordinary scene target");
+        pp->sceneTexture = LoadRenderTexture(pp->screenWidth, pp->screenHeight);
+    }
+    int halfWidth = std::max(1, pp->screenWidth / 2);
+    int halfHeight = std::max(1, pp->screenHeight / 2);
     pp->bloomBright = LoadRenderTexture(halfWidth, halfHeight);
     pp->bloomBlur[0] = LoadRenderTexture(halfWidth, halfHeight);
     pp->bloomBlur[1] = LoadRenderTexture(halfWidth, halfHeight);
+    pp->ssaoTexture = LoadRenderTexture(pp->screenWidth, pp->screenHeight);
+    pp->ssaoBlurTexture = LoadRenderTexture(pp->screenWidth, pp->screenHeight);
+    for (RenderTexture2D* target : {&pp->bloomBright, &pp->bloomBlur[0], &pp->bloomBlur[1],
+                                    &pp->ssaoTexture, &pp->ssaoBlurTexture}) {
+        SetTextureWrap(target->texture, TEXTURE_WRAP_CLAMP);
+        SetTextureFilter(target->texture, TEXTURE_FILTER_BILINEAR);
+    }
+    pp->bloomEnabled = pp->bloomBright.id && pp->bloomBlur[0].id && pp->bloomBlur[1].id &&
+        EffectShaderReady(pp->bloomExtractShader) && EffectShaderReady(pp->bloomBlurShader) &&
+        EffectShaderReady(pp->compositeShader);
+    pp->ssaoEnabled = sampleableDepth && pp->ssaoTexture.id && pp->ssaoBlurTexture.id &&
+        EffectShaderReady(pp->ssaoShader) && EffectShaderReady(pp->ssaoBlurShader) &&
+        EffectShaderReady(pp->compositeShader);
+    if (!pp->bloomEnabled) TraceLog(LOG_WARNING, "LIGHTING: Bloom disabled (shader or target unavailable)");
+    if (!pp->ssaoEnabled) TraceLog(LOG_WARNING, "LIGHTING: SSAO disabled (shader or target unavailable)");
+    pp->initialized = pp->sceneTexture.id != 0;
+    if (!pp->initialized) TraceLog(LOG_ERROR, "LIGHTING: Scene framebuffer unavailable");
+}
 
-    // Load bloom shaders
+static void FreePostProcessBuffers(PostProcessSystem* pp) {
+    for (RenderTexture2D* target : {&pp->sceneTexture, &pp->bloomBright, &pp->bloomBlur[0],
+                                    &pp->bloomBlur[1], &pp->ssaoTexture, &pp->ssaoBlurTexture}) {
+        if (target->id) UnloadRenderTexture(*target);
+        *target = {};
+    }
+}
+
+void InitPostProcessSystem(PostProcessSystem* pp, int screenWidth, int screenHeight) {
     pp->bloomExtractShader = LoadShader("shaders/fullscreen.vs", "shaders/bloom_extract.fs");
     pp->bloomBlurShader = LoadShader("shaders/fullscreen.vs", "shaders/bloom_blur.fs");
     pp->compositeShader = LoadShader("shaders/fullscreen.vs", "shaders/composite.fs");
-
-    // Set default bloom parameters
-    pp->bloomThreshold = 0.7f;
-    pp->bloomIntensity = 1.2f;
-    pp->bloomEnabled = true;
-
-    // Initialize SSAO
-    pp->ssaoTexture = LoadRenderTexture(screenWidth, screenHeight);
-    pp->ssaoBlurTexture = LoadRenderTexture(screenWidth, screenHeight);
     pp->ssaoShader = LoadShader("shaders/fullscreen.vs", "shaders/ssao.fs");
     pp->ssaoBlurShader = LoadShader("shaders/fullscreen.vs", "shaders/ssao_blur.fs");
-
-    // Generate SSAO kernel and noise
+    pp->bloomThreshold = 0.85f;
+    pp->bloomIntensity = 0.35f;
+    pp->ssaoRadius = 0.5f;
+    pp->ssaoBias = 0.025f;
     GenerateSSAOKernel(pp->ssaoKernel, 32);
     pp->noiseTexture = GenerateSSAONoiseTexture();
-
-    // Set SSAO parameters
-    pp->ssaoRadius = 0.3f;   // Smaller radius = less spread
-    pp->ssaoBias = 0.03f;    // Higher bias = less self-occlusion
-    pp->ssaoEnabled = true;
-
-    pp->initialized = true;
-
-    TraceLog(LOG_INFO, "Post-processing system initialized (%dx%d, bloom half-res: %dx%d, SSAO enabled)",
-             screenWidth, screenHeight, halfWidth, halfHeight);
+    AllocatePostProcessBuffers(pp, screenWidth, screenHeight);
 }
 
 void ResizePostProcessBuffers(PostProcessSystem* pp, int width, int height) {
-    if (!pp->initialized) return;
-
-    // Unload existing textures
-    UnloadRenderTexture(pp->sceneTexture);
-    UnloadRenderTexture(pp->bloomBright);
-    UnloadRenderTexture(pp->bloomBlur[0]);
-    UnloadRenderTexture(pp->bloomBlur[1]);
-
-    // Recreate at new size
-    pp->screenWidth = width;
-    pp->screenHeight = height;
-    pp->sceneTexture = LoadRenderTexture(width, height);
-
-    int halfWidth = width / 2;
-    int halfHeight = height / 2;
-    pp->bloomBright = LoadRenderTexture(halfWidth, halfHeight);
-    pp->bloomBlur[0] = LoadRenderTexture(halfWidth, halfHeight);
-    pp->bloomBlur[1] = LoadRenderTexture(halfWidth, halfHeight);
+    if (width <= 0 || height <= 0) return;
+    FreePostProcessBuffers(pp);
+    AllocatePostProcessBuffers(pp, width, height);
 }
 
 void RenderBloom(PostProcessSystem* pp) {
     if (!pp->bloomEnabled || !pp->initialized) return;
-
-    int halfWidth = pp->screenWidth / 2;
-    int halfHeight = pp->screenHeight / 2;
-
-    // Pass 1: Extract bright pixels
+    int width = pp->bloomBright.texture.width;
+    int height = pp->bloomBright.texture.height;
     BeginTextureMode(pp->bloomBright);
     ClearBackground(BLACK);
     BeginShaderMode(pp->bloomExtractShader);
-        int thresholdLoc = GetShaderLocation(pp->bloomExtractShader, "threshold");
-        SetShaderValue(pp->bloomExtractShader, thresholdLoc, &pp->bloomThreshold, SHADER_UNIFORM_FLOAT);
-        // Draw scene texture to extract bright areas (flip Y for render texture)
-        DrawTextureRec(pp->sceneTexture.texture,
-                       (Rectangle){0, 0, (float)pp->screenWidth, (float)-pp->screenHeight},
-                       (Vector2){0, 0}, WHITE);
+    SetShaderValue(pp->bloomExtractShader, GetShaderLocation(pp->bloomExtractShader, "threshold"),
+                   &pp->bloomThreshold, SHADER_UNIFORM_FLOAT);
+    DrawFullscreenTexture(pp->sceneTexture.texture, width, height);
     EndShaderMode();
     EndTextureMode();
 
-    // Pass 2: Horizontal blur
-    BeginTextureMode(pp->bloomBlur[0]);
-    ClearBackground(BLACK);
-    BeginShaderMode(pp->bloomBlurShader);
-        float direction[2] = {1.0f, 0.0f};
-        float texelSize[2] = {1.0f / halfWidth, 1.0f / halfHeight};
-        int dirLoc = GetShaderLocation(pp->bloomBlurShader, "direction");
-        int texelLoc = GetShaderLocation(pp->bloomBlurShader, "texelSize");
-        SetShaderValue(pp->bloomBlurShader, dirLoc, direction, SHADER_UNIFORM_VEC2);
-        SetShaderValue(pp->bloomBlurShader, texelLoc, texelSize, SHADER_UNIFORM_VEC2);
-        DrawTextureRec(pp->bloomBright.texture,
-                       (Rectangle){0, 0, (float)halfWidth, (float)-halfHeight},
-                       (Vector2){0, 0}, WHITE);
-    EndShaderMode();
-    EndTextureMode();
-
-    // Pass 3: Vertical blur
-    BeginTextureMode(pp->bloomBlur[1]);
-    ClearBackground(BLACK);
-    BeginShaderMode(pp->bloomBlurShader);
-        direction[0] = 0.0f;
-        direction[1] = 1.0f;
-        SetShaderValue(pp->bloomBlurShader, dirLoc, direction, SHADER_UNIFORM_VEC2);
-        DrawTextureRec(pp->bloomBlur[0].texture,
-                       (Rectangle){0, 0, (float)halfWidth, (float)-halfHeight},
-                       (Vector2){0, 0}, WHITE);
-    EndShaderMode();
-    EndTextureMode();
-
-    // Additional blur passes for smoother result
-    for (int i = 0; i < 2; i++) {
-        // Horizontal
-        BeginTextureMode(pp->bloomBlur[0]);
+    Texture2D input = pp->bloomBright.texture;
+    for (int pass = 0; pass < 6; pass++) {
+        int target = pass % 2;
+        BeginTextureMode(pp->bloomBlur[target]);
+        ClearBackground(BLACK);
         BeginShaderMode(pp->bloomBlurShader);
-            direction[0] = 1.0f;
-            direction[1] = 0.0f;
-            SetShaderValue(pp->bloomBlurShader, dirLoc, direction, SHADER_UNIFORM_VEC2);
-            DrawTextureRec(pp->bloomBlur[1].texture,
-                           (Rectangle){0, 0, (float)halfWidth, (float)-halfHeight},
-                           (Vector2){0, 0}, WHITE);
+        float direction[2] = {target == 0 ? 1.0f : 0.0f, target == 1 ? 1.0f : 0.0f};
+        float texel[2] = {1.0f / width, 1.0f / height};
+        SetShaderValue(pp->bloomBlurShader, GetShaderLocation(pp->bloomBlurShader, "direction"), direction, SHADER_UNIFORM_VEC2);
+        SetShaderValue(pp->bloomBlurShader, GetShaderLocation(pp->bloomBlurShader, "texelSize"), texel, SHADER_UNIFORM_VEC2);
+        DrawFullscreenTexture(input, width, height);
         EndShaderMode();
         EndTextureMode();
-
-        // Vertical
-        BeginTextureMode(pp->bloomBlur[1]);
-        BeginShaderMode(pp->bloomBlurShader);
-            direction[0] = 0.0f;
-            direction[1] = 1.0f;
-            SetShaderValue(pp->bloomBlurShader, dirLoc, direction, SHADER_UNIFORM_VEC2);
-            DrawTextureRec(pp->bloomBlur[0].texture,
-                           (Rectangle){0, 0, (float)halfWidth, (float)-halfHeight},
-                           (Vector2){0, 0}, WHITE);
-        EndShaderMode();
-        EndTextureMode();
+        input = pp->bloomBlur[target].texture;
     }
 }
 
-void RenderSSAO(PostProcessSystem* pp, Camera3D camera, Matrix projection) {
+void RenderSSAO(PostProcessSystem* pp, Matrix projection) {
     if (!pp->ssaoEnabled || !pp->initialized) return;
-
-    (void)camera;  // May use later for view matrix
-
-    // Pass 1: Render SSAO
+    Matrix inverseProjection = MatrixInvert(projection);
     BeginTextureMode(pp->ssaoTexture);
-    ClearBackground(WHITE);  // Default to no occlusion
+    ClearBackground(WHITE);
     BeginShaderMode(pp->ssaoShader);
-
-        // Set uniforms
-        int samplesLoc = GetShaderLocation(pp->ssaoShader, "samples");
-        int projLoc = GetShaderLocation(pp->ssaoShader, "projection");
-        int screenSizeLoc = GetShaderLocation(pp->ssaoShader, "screenSize");
-        int radiusLoc = GetShaderLocation(pp->ssaoShader, "radius");
-        int biasLoc = GetShaderLocation(pp->ssaoShader, "bias");
-        int nearLoc = GetShaderLocation(pp->ssaoShader, "near");
-        int farLoc = GetShaderLocation(pp->ssaoShader, "far");
-        int depthTexLoc = GetShaderLocation(pp->ssaoShader, "depthTexture");
-        int noiseTexLoc = GetShaderLocation(pp->ssaoShader, "noiseTexture");
-
-        // Upload kernel samples
-        SetShaderValueV(pp->ssaoShader, samplesLoc, pp->ssaoKernel, SHADER_UNIFORM_VEC3, 32);
-
-        // Upload projection matrix
-        SetShaderValueMatrix(pp->ssaoShader, projLoc, projection);
-
-        // Upload other uniforms
-        float screenSize[2] = {(float)pp->screenWidth, (float)pp->screenHeight};
-        SetShaderValue(pp->ssaoShader, screenSizeLoc, screenSize, SHADER_UNIFORM_VEC2);
-        SetShaderValue(pp->ssaoShader, radiusLoc, &pp->ssaoRadius, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(pp->ssaoShader, biasLoc, &pp->ssaoBias, SHADER_UNIFORM_FLOAT);
-
-        float nearPlane = 0.1f;
-        float farPlane = 1000.0f;
-        SetShaderValue(pp->ssaoShader, nearLoc, &nearPlane, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(pp->ssaoShader, farLoc, &farPlane, SHADER_UNIFORM_FLOAT);
-
-        // Bind depth texture (from scene render)
-        rlActiveTextureSlot(1);
-        rlEnableTexture(pp->sceneTexture.depth.id);
-        SetShaderValue(pp->ssaoShader, depthTexLoc, (int[]){1}, SHADER_UNIFORM_INT);
-
-        // Bind noise texture
-        rlActiveTextureSlot(2);
-        rlEnableTexture(pp->noiseTexture.id);
-        SetShaderValue(pp->ssaoShader, noiseTexLoc, (int[]){2}, SHADER_UNIFORM_INT);
-
-        rlActiveTextureSlot(0);
-
-        // Draw fullscreen quad (just draw a texture to trigger the shader)
-        DrawRectangle(0, 0, pp->screenWidth, pp->screenHeight, WHITE);
-
+    SetShaderValueV(pp->ssaoShader, GetShaderLocation(pp->ssaoShader, "samples"), pp->ssaoKernel, SHADER_UNIFORM_VEC3, 32);
+    SetShaderValueMatrix(pp->ssaoShader, GetShaderLocation(pp->ssaoShader, "projection"), projection);
+    SetShaderValueMatrix(pp->ssaoShader, GetShaderLocation(pp->ssaoShader, "inverseProjection"), inverseProjection);
+    float size[2] = {(float)pp->screenWidth, (float)pp->screenHeight};
+    SetShaderValue(pp->ssaoShader, GetShaderLocation(pp->ssaoShader, "screenSize"), size, SHADER_UNIFORM_VEC2);
+    SetShaderValue(pp->ssaoShader, GetShaderLocation(pp->ssaoShader, "radius"), &pp->ssaoRadius, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(pp->ssaoShader, GetShaderLocation(pp->ssaoShader, "bias"), &pp->ssaoBias, SHADER_UNIFORM_FLOAT);
+    SetShaderValueTexture(pp->ssaoShader, GetShaderLocation(pp->ssaoShader, "noiseTexture"), pp->noiseTexture);
+    DrawFullscreenTexture(pp->sceneTexture.depth, pp->screenWidth, pp->screenHeight);
     EndShaderMode();
     EndTextureMode();
 
-    // Pass 2: Blur SSAO
     BeginTextureMode(pp->ssaoBlurTexture);
     ClearBackground(WHITE);
     BeginShaderMode(pp->ssaoBlurShader);
-
-        int texelSizeLoc = GetShaderLocation(pp->ssaoBlurShader, "texelSize");
-        float texelSize[2] = {1.0f / pp->screenWidth, 1.0f / pp->screenHeight};
-        SetShaderValue(pp->ssaoBlurShader, texelSizeLoc, texelSize, SHADER_UNIFORM_VEC2);
-
-        DrawTextureRec(pp->ssaoTexture.texture,
-                       (Rectangle){0, 0, (float)pp->screenWidth, (float)-pp->screenHeight},
-                       (Vector2){0, 0}, WHITE);
-
+    float texel[2] = {1.0f / pp->screenWidth, 1.0f / pp->screenHeight};
+    SetShaderValue(pp->ssaoBlurShader, GetShaderLocation(pp->ssaoBlurShader, "texelSize"), texel, SHADER_UNIFORM_VEC2);
+    SetShaderValueMatrix(pp->ssaoBlurShader, GetShaderLocation(pp->ssaoBlurShader, "inverseProjection"), inverseProjection);
+    SetShaderValueTexture(pp->ssaoBlurShader, GetShaderLocation(pp->ssaoBlurShader, "depthTexture"), pp->sceneTexture.depth);
+    DrawFullscreenTexture(pp->ssaoTexture.texture, pp->screenWidth, pp->screenHeight);
     EndShaderMode();
     EndTextureMode();
 }
 
 void CompositeScene(PostProcessSystem* pp) {
     if (!pp->initialized) return;
-
-    // Draw scene (flip Y for render texture)
-    DrawTextureRec(pp->sceneTexture.texture,
-                   (Rectangle){0, 0, (float)pp->screenWidth, (float)-pp->screenHeight},
-                   (Vector2){0, 0}, WHITE);
-
-    // Apply SSAO as multiplicative darkening
-    if (pp->ssaoEnabled) {
-        BeginBlendMode(BLEND_MULTIPLIED);
-        DrawTextureRec(pp->ssaoBlurTexture.texture,
-                       (Rectangle){0, 0, (float)pp->screenWidth, (float)-pp->screenHeight},
-                       (Vector2){0, 0}, WHITE);
-        EndBlendMode();
+    if (!EffectShaderReady(pp->compositeShader)) {
+        DrawFullscreenTexture(pp->sceneTexture.texture, pp->screenWidth, pp->screenHeight);
+        return;
     }
-
-    if (pp->bloomEnabled) {
-        // Draw bloom as additive overlay (scale up from half-res)
-        BeginBlendMode(BLEND_ADDITIVE);
-        DrawTexturePro(pp->bloomBlur[1].texture,
-                       (Rectangle){0, 0, (float)(pp->screenWidth/2), (float)-(pp->screenHeight/2)},
-                       (Rectangle){0, 0, (float)pp->screenWidth, (float)pp->screenHeight},
-                       (Vector2){0, 0}, 0.0f,
-                       (Color){255, 255, 255, (unsigned char)(pp->bloomIntensity * 200)});
-        EndBlendMode();
-    }
+    BeginShaderMode(pp->compositeShader);
+    int bloom = pp->bloomEnabled, ssao = pp->ssaoEnabled;
+    SetShaderValue(pp->compositeShader, GetShaderLocation(pp->compositeShader, "bloomEnabled"), &bloom, SHADER_UNIFORM_INT);
+    SetShaderValue(pp->compositeShader, GetShaderLocation(pp->compositeShader, "ssaoEnabled"), &ssao, SHADER_UNIFORM_INT);
+    SetShaderValue(pp->compositeShader, GetShaderLocation(pp->compositeShader, "bloomIntensity"), &pp->bloomIntensity, SHADER_UNIFORM_FLOAT);
+    if (bloom) SetShaderValueTexture(pp->compositeShader, GetShaderLocation(pp->compositeShader, "bloomTexture"), pp->bloomBlur[1].texture);
+    if (ssao) SetShaderValueTexture(pp->compositeShader, GetShaderLocation(pp->compositeShader, "aoTexture"), pp->ssaoBlurTexture.texture);
+    DrawFullscreenTexture(pp->sceneTexture.texture, pp->screenWidth, pp->screenHeight);
+    EndShaderMode();
 }
 
 void UnloadPostProcessSystem(PostProcessSystem* pp) {
-    if (!pp->initialized) return;
-
-    UnloadRenderTexture(pp->sceneTexture);
-    UnloadRenderTexture(pp->bloomBright);
-    UnloadRenderTexture(pp->bloomBlur[0]);
-    UnloadRenderTexture(pp->bloomBlur[1]);
-
-    UnloadShader(pp->bloomExtractShader);
-    UnloadShader(pp->bloomBlurShader);
-    UnloadShader(pp->compositeShader);
-
-    if (pp->ssaoEnabled) {
-        UnloadRenderTexture(pp->ssaoTexture);
-        UnloadRenderTexture(pp->ssaoBlurTexture);
-        UnloadTexture(pp->noiseTexture);
-        UnloadShader(pp->ssaoShader);
-        UnloadShader(pp->ssaoBlurShader);
+    FreePostProcessBuffers(pp);
+    for (Shader shader : {pp->bloomExtractShader, pp->bloomBlurShader, pp->compositeShader,
+                           pp->ssaoShader, pp->ssaoBlurShader}) {
+        if (EffectShaderReady(shader)) UnloadShader(shader);
     }
-
-    pp->initialized = false;
+    if (pp->noiseTexture.id) UnloadTexture(pp->noiseTexture);
+    *pp = {};
 }

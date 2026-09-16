@@ -53,6 +53,13 @@ target_include_directories(game PRIVATE ${PIPER_INCLUDE_DIR})
 target_link_directories(game PRIVATE ${PIPER_LIB_DIR} ${ONNX_LIB_DIR})
 target_link_libraries(game raylib piper onnxruntime curl)
 
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(lighting_math_test tests/lighting_math_test.cpp)
+    target_include_directories(lighting_math_test PRIVATE src "${raylib_SOURCE_DIR}/src")
+    add_test(NAME lighting_math COMMAND lighting_math_test)
+endif()
+
 # Set RPATH so the game can find the dynamic libraries at runtime
 set_target_properties(game PROPERTIES
     BUILD_RPATH "${PIPER_LIB_DIR};${ONNX_LIB_DIR}"

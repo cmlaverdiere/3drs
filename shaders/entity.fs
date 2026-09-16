@@ -9,19 +9,7 @@ in vec3 fragLocalPos;
 // Immediate-mode functions use vertex color (fragColor)
 uniform vec4 colDiffuse;
 
-// Lighting uniforms
-uniform vec3 sunDirection;
-uniform vec3 sunColor;
-uniform vec3 ambientColor;
-uniform vec3 fogColor;
-uniform float fogDensity;
-uniform vec3 viewPos;
-
-// Point lights (lamps)
-#define MAX_POINT_LIGHTS 16
-uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
-uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
-uniform int pointLightCount;
+#include "common/lighting.glsl"
 
 out vec4 finalColor;
 
@@ -29,7 +17,7 @@ out vec4 finalColor;
 vec3 calcPointLight(vec3 lightPos, vec3 lightColor, vec3 fragPos, vec3 normal, vec3 viewDir) {
     vec3 lightDir = lightPos - fragPos;
     float distance = length(lightDir);
-    lightDir = normalize(lightDir);
+    lightDir /= max(distance, 0.0001);
 
     // Soft point light settings
     float radius = 12.0;
@@ -37,7 +25,7 @@ vec3 calcPointLight(vec3 lightPos, vec3 lightColor, vec3 fragPos, vec3 normal, v
 
     // Inverse square falloff
     float attenuation = intensity / (1.0 + 0.15 * distance + 0.03 * distance * distance);
-    attenuation *= smoothstep(radius, radius * 0.1, distance);
+    attenuation *= (1.0 - smoothstep(radius * 0.1, radius, distance));
 
     // Diffuse
     float diff = max(dot(normal, lightDir), 0.0);
@@ -62,14 +50,15 @@ void main() {
 
     // Diffuse lighting (sun)
     float NdotL = max(dot(N, L), 0.0);
-    vec3 diffuse = sunColor * NdotL;
+    float shadow = calcShadow(fragWorldPos, normalize(fragNormal));
+    vec3 diffuse = sunColor * NdotL * shadow;
 
     // Specular lighting (Blinn-Phong)
     float NdotH = max(dot(N, H), 0.0);
     float specularPower = 32.0;
     float specularStrength = 0.4;
     float spec = pow(NdotH, specularPower) * specularStrength * NdotL;
-    vec3 specular = sunColor * spec;
+    vec3 specular = sunColor * spec * shadow;
 
     // Rim lighting (Fresnel-based backlight)
     float NdotV = max(dot(N, V), 0.0);
@@ -78,7 +67,7 @@ void main() {
     float rim = pow(1.0 - NdotV, rimPower) * rimStrength;
     // Rim is stronger when lit from behind
     float rimLight = max(0.0, dot(N, -L) * 0.5 + 0.5);
-    vec3 rimColor = sunColor * rim * rimLight;
+    vec3 rimColor = sunColor * rim * rimLight * shadow;
 
     // Point lights contribution
     vec3 pointLighting = vec3(0.0);

@@ -3,7 +3,6 @@
 out vec4 fragColor;
 
 void main() {
-    // Write depth to color channel (for shadow map sampling)
-    float depth = gl_FragCoord.z;
-    fragColor = vec4(depth, depth, depth, 1.0);
+    // The framebuffer depth attachment stores the hardware depth, at full precision.
+    fragColor = vec4(1.0);
 }

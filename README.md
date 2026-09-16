@@ -112,20 +112,20 @@ Scripts support commands like `warp`, `face`, `press`, `click`, `set_time`, `set
 
 ### Rendering Pipeline
 
-Multi-pass deferred-style rendering:
+Forward rendering with a shadow pass and screen-space post-processing:
 
-1. **Shadow Pass** - Depth-only rendering to 2048x2048 shadow map from sun's perspective
+1. **Shadow Pass** - Explicit depth materials rendered to a 4096x4096 floating-point depth texture
 2. **Main Pass** - Render scene to off-screen texture with lighting and shadows
 3. **Post-Processing** - Apply SSAO and bloom effects
-4. **Composite** - Combine scene, bloom, and AO; output to screen
+4. **Composite** - Combine scene, restrained bloom, and AO; draw the HUD afterward
 
 ### Shadow Mapping
 
 - Orthographic projection from sun position (200 unit coverage)
-- PCF (Percentage Closer Filtering) with 3x3 kernel for soft shadows
+- Stable 16-tap PCF with receiver-plane depth correction for soft shadows
 - Shadow edge fade to prevent hard cutoffs
-- Per-material shadow bias to reduce shadow acne
-- Distance-based shadow culling (100 units) for performance
+- World-anchored texel snapping and bounded depth bias to reduce artifacts
+- Conservative light-volume culling retains offscreen shadow casters
 
 ### Post-Processing Effects
 
@@ -133,15 +133,27 @@ Multi-pass deferred-style rendering:
 - Bright pixel extraction (threshold-based)
 - Two-pass Gaussian blur (horizontal + vertical) at half resolution
 - Ping-pong blur buffers for multi-pass smoothing
-- Additive blend with scene in composite pass
+- Floating-point intensity control and screen blending to preserve highlight detail
 
 **SSAO (Screen-Space Ambient Occlusion):**
 - 32-sample hemisphere kernel
 - 4x4 noise texture for sample rotation (reduces banding)
-- Depth-based position reconstruction
+- Position reconstruction from sampleable 32-bit depth and the actual scene projection
 - Normal reconstruction from depth derivatives
 - Bilateral blur pass to smooth result
 - Multiplicative blend in composite
+
+Lighting math checks run without a window:
+
+```bash
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+`scripts/ingame/lighting_audit.script` and `lighting_audit_winter.script` provide
+fixed viewpoints for before/after visual checks. Run them in an isolated working
+directory with a copied save; scripted runs save game state on exit. Initialize
+the winter run from a winter save so terrain and grass uniforms match the season.
 
 ### Procedural Shaders
 
@@ -172,7 +184,7 @@ All textures are generated procedurally in fragment shaders (no image files):
 **Distance Culling:**
 - Trees: 150 units
 - Rocks/Enemies: 120 units
-- Shadow pass: 100 units (shadows beyond this aren't visible anyway)
+- Shadow pass: light-volume intersection rather than camera-distance rejection
 
 **Spatial Hashing:**
 - Grid-based spatial partitioning for O(1) neighbor queries

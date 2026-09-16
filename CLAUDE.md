@@ -1,5 +1,11 @@
 # 3DRS Development Context
 
+## Commits
+
+Use Jujutsu (`jj`) for commits in this repository, not `git commit`.
+Review changes with `jj status` and `jj diff`, then commit with
+`jj commit -m "Describe the change"`. Include only changes relevant to the task.
+
 ## Raylib Documentation
 
 Use Context7 MCP to look up Raylib docs:

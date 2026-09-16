@@ -4,10 +4,8 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
-
-// Shadow map configuration
-const int SHADOW_MAP_RESOLUTION = 2048;
-const float SHADOW_ORTHO_SIZE = 200.0f;  // Coverage area for orthographic projection
+#include "lighting_math.h"
+#include <vector>
 
 // Day/night cycle configuration
 const float DAY_CYCLE_DURATION = 1200.0f;  // 20 minutes for full cycle
@@ -45,14 +43,14 @@ struct LightingSystem {
     bool cyclePaused;
 
     // Lamp lights - only active at dusk/night
-    Vector3 lampPositions[MAX_POINT_LIGHTS];
-    Vector3 lampColors[MAX_POINT_LIGHTS];
+    std::vector<Vector3> lampPositions;
+    std::vector<Vector3> lampColors;
     int lampCount;
     bool lampsOn;  // True when lamps should be lit
 
     // Campfire lights - always active
-    Vector3 campfirePositions[MAX_POINT_LIGHTS];
-    Vector3 campfireColors[MAX_POINT_LIGHTS];
+    std::vector<Vector3> campfirePositions;
+    std::vector<Vector3> campfireColors;
     int campfireCount;
 
     // Light camera for shadow rendering
@@ -82,7 +80,8 @@ void CacheShaderLightingLocs(LightingSystem* lighting, Shader shader);
 void SetShaderLightingUniforms(LightingSystem* lighting, Shader shader, Vector3 viewPos);
 
 // Begin shadow map render pass (pass depth shader to use)
-void BeginShadowPass(LightingSystem* lighting, Vector3 centerPos, Shader depthShader);
+bool BeginShadowPass(LightingSystem* lighting, Vector3 centerPos, Shader depthShader);
+bool IsShadowCasterVisible(const LightingSystem* lighting, Vector3 center, float radius);
 
 // End shadow map render pass
 void EndShadowPass(LightingSystem* lighting);
@@ -125,8 +124,8 @@ struct PostProcessSystem {
     Shader bloomExtractShader;
     Shader bloomBlurShader;
     Shader compositeShader;
-    float bloomThreshold;            // Brightness cutoff (default: 0.8)
-    float bloomIntensity;            // Bloom strength (default: 1.0)
+    float bloomThreshold;            // Brightness cutoff
+    float bloomIntensity;            // Floating-point bloom strength
     bool bloomEnabled;
 
     // SSAO
@@ -139,9 +138,6 @@ struct PostProcessSystem {
     float ssaoRadius;                // World-space sample radius
     float ssaoBias;                  // Depth bias
     bool ssaoEnabled;
-
-    // Shared fullscreen vertex shader
-    Shader fullscreenVS;             // Not actually used - we use default
 
     // Screen dimensions
     int screenWidth;
@@ -160,7 +156,7 @@ void ResizePostProcessBuffers(PostProcessSystem* pp, int width, int height);
 void RenderBloom(PostProcessSystem* pp);
 
 // Render SSAO (call after scene, before bloom)
-void RenderSSAO(PostProcessSystem* pp, Camera3D camera, Matrix projection);
+void RenderSSAO(PostProcessSystem* pp, Matrix projection);
 
 // Draw final composite to screen
 void CompositeScene(PostProcessSystem* pp);

@@ -5,12 +5,7 @@ in vec3 fragWorldPos;
 in vec3 fragNormal;
 in float bladeHeight;
 
-uniform vec3 sunDirection;
-uniform vec3 sunColor;
-uniform vec3 ambientColor;
-uniform vec3 fogColor;
-uniform float fogDensity;
-uniform vec3 viewPos;
+#include "common/lighting.glsl"
 uniform int season;  // 0=Spring, 1=Summer, 2=Autumn, 3=Winter
 
 out vec4 finalColor;
@@ -80,8 +75,9 @@ void main() {
     // Add some fake subsurface scattering for grass
     float backlight = max(dot(normal, sunDirection), 0.0) * 0.3;
 
-    vec3 diffuse = sunColor * (NdotL + backlight);
-    vec3 litColor = bladeColor * (ambientColor + diffuse);
+    float shadow = calcShadow(fragWorldPos, normal);
+    vec3 diffuse = sunColor * (NdotL + backlight) * shadow;
+    vec3 litColor = bladeColor * (ambientColor + diffuse + calcAllPointLights(fragWorldPos, normal));
 
     // Distance fog
     float dist = length(viewPos - fragWorldPos);

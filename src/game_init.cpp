@@ -22,6 +22,7 @@ void InitGameWindow(int* screenWidth, int* screenHeight) {
     *screenHeight = monitorHeight - 80;
     SetWindowSize(*screenWidth, *screenHeight);
     SetWindowPosition(0, 25);
+    rlSetClipPlanes(0.1, 1000.0);
     if (!IsWindowHidden()) {
         SetWindowFocused();
     }
@@ -109,7 +110,7 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     res.wallShaders[WALL_BRICK] = LoadShaderWithIncludes("shaders/wall.vs", "shaders/brick.fs");
 
     // Water shader
-    res.waterShader = LoadShader("shaders/water.vs", "shaders/water.fs");
+    res.waterShader = LoadShaderWithIncludes("shaders/water.vs", "shaders/water.fs");
     res.waterTimeLoc = GetShaderLocation(res.waterShader, "time");
 
     // Entity shader for lit enemies/trees/items
@@ -127,6 +128,7 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     // Create primitive models for entity rendering (with proper normals)
     // Store entity shader reference in EntityModels for restoration after monster shader
     res.entityModels.entityShader = res.entityShader;
+    res.entityModels.depthShader = res.depthShader;
 
     // Unit cube (1x1x1), will be scaled per draw call
     Mesh cubeMesh = GenMeshCube(1.0f, 1.0f, 1.0f);
@@ -544,7 +546,7 @@ static GrassChunk* GetOrGenerateChunk(GrassSystem* grass, int chunkX, int chunkZ
 
 void InitGrassSystem(GrassSystem* grass, Sand* sandZones, int sandCount, Water* waterBodies, int waterCount) {
     // Load instanced grass blade shader
-    grass->bladeShader = LoadShader("shaders/grass_blade_instanced.vs", "shaders/grass_blade.fs");
+    grass->bladeShader = LoadShaderWithIncludes("shaders/grass_blade_instanced.vs", "shaders/grass_blade.fs");
 
     // CRITICAL: Bind instanceTransform as a vertex attribute for instancing
     grass->bladeShader.locs[SHADER_LOC_MATRIX_MODEL] = GetShaderLocationAttrib(grass->bladeShader, "instanceTransform");

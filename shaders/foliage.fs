@@ -59,11 +59,12 @@ void main() {
 
     // Diffuse lighting
     float NdotL = max(dot(N, L), 0.0);
-    vec3 diffuse = sunColor * NdotL;
+    float shadow = calcShadow(fragWorldPos, N);
+    vec3 diffuse = sunColor * NdotL * shadow;
 
     // Subsurface scattering - light through leaves
     float scatter = subsurfaceScatter(V, -sunDirection, N);
-    vec3 subsurface = sunColor * scatter * baseColor;
+    vec3 subsurface = sunColor * scatter * baseColor * shadow;
 
     // Ambient occlusion based on leaf pattern (gaps are darker)
     float ao = 0.7 + 0.3 * leafPattern;
@@ -73,11 +74,6 @@ void main() {
 
     // Combine lighting
     vec3 litColor = leafColor * (ambientColor * ao + diffuse + pointLighting) + subsurface;
-
-    // Softer shadows on foliage (self-shadowing looks bad)
-    float shadow = calcShadow(fragWorldPos, N);
-    shadow = 0.4 + shadow * 0.6;  // Never fully shadowed
-    litColor *= shadow;
 
     // Apply fog
     litColor = applyFog(litColor, fragWorldPos);
