@@ -14,7 +14,6 @@ uniform float monsterSeed;
 
 #include "common/lighting.glsl"
 
-out vec4 finalColor;
 
 // ============================================================
 // Noise functions
@@ -339,20 +338,6 @@ vec3 perturbNormal(vec3 N, vec3 pos, vec2 uv, vec3 normalOffset) {
 // Lighting
 // ============================================================
 
-vec3 calcPointLight(vec3 lightPos, vec3 lightColor, vec3 fragPos, vec3 normal, vec3 viewDir) {
-    vec3 lightDir = lightPos - fragPos;
-    float distance = length(lightDir);
-    lightDir /= max(distance, 0.0001);
-    float radius = 12.0;
-    float intensity = 1.2;
-    float attenuation = intensity / (1.0 + 0.15 * distance + 0.03 * distance * distance);
-    attenuation *= (1.0 - smoothstep(radius * 0.1, radius, distance));
-    float diff = max(dot(normal, lightDir), 0.0);
-    vec3 halfDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(normal, halfDir), 0.0), 32.0) * 0.3;
-    return (diff + spec) * lightColor * attenuation;
-}
-
 // ============================================================
 // Main
 // ============================================================
@@ -389,43 +374,8 @@ void main() {
         N = perturbNormal(N, fragWorldPos, uv, normalOffset);
     }
 
-    // Lighting calculations with perturbed normal
-    vec3 L = normalize(-sunDirection);
-    vec3 V = normalize(viewPos - fragWorldPos);
-    vec3 H = normalize(L + V);
-
-    // Diffuse
-    float NdotL = max(dot(N, L), 0.0);
-    float shadow = calcShadow(fragWorldPos, normalize(fragNormal));
-    vec3 diffuse = sunColor * NdotL * shadow;
-
-    // Specular (Blinn-Phong) - stronger for textured materials
-    float specPower = (materialType == 1) ? 64.0 : 32.0;  // Shinier scales
-    float specStrength = (materialType == 1) ? 0.8 : 0.5;  // More specular on scales
-    float NdotH = max(dot(N, H), 0.0);
-    float spec = pow(NdotH, specPower) * specStrength * NdotL;
-    vec3 specular = sunColor * spec * shadow;
-
-    // Rim lighting - enhanced for textured materials
-    float NdotV = max(dot(N, V), 0.0);
-    float rim = pow(1.0 - NdotV, 3.0) * 0.3;
-    float rimLight = max(0.0, dot(N, -L) * 0.5 + 0.5);
-    vec3 rimColor = sunColor * rim * rimLight * shadow;
-
-    // Point lights
-    vec3 pointLighting = vec3(0.0);
-    for (int i = 0; i < pointLightCount && i < MAX_POINT_LIGHTS; i++) {
-        pointLighting += calcPointLight(pointLightPositions[i], pointLightColors[i], fragWorldPos, N, V);
-    }
-
-    // Combine lighting
-    vec3 litColor = patternedColor * (ambientColor + diffuse + pointLighting) + specular + rimColor;
-
-    // Fog
-    float dist = length(viewPos - fragWorldPos);
-    float fogFactor = exp(-pow(dist * fogDensity, 2.0));
-    fogFactor = clamp(fogFactor, 0.0, 1.0);
-    litColor = mix(fogColor, litColor, fogFactor);
-
-    finalColor = vec4(litColor, alpha);
+    Surface s = defaultSurface(srgbToLinear(saturate(patternedColor)), N);
+    s.roughness = materialType == 1 ? 0.35 : (materialType == 3 ? 0.85 : 0.6);
+    s.wrap = materialType == 3 ? 0.35 : 0.0;
+    writeSurface(s, fragWorldPos, normalize(fragNormal), alpha);
 }

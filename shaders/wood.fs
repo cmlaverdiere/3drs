@@ -1,86 +1,48 @@
 #version 330
 
-in vec3 fragWorldPos;
-in vec3 fragNormal;
-in vec4 fragColor;
-in vec3 fragLocalPos;
-
-uniform vec4 colDiffuse;
-
-out vec4 finalColor;
-
-#include "common/lighting.glsl"
-
-// Wood grain pattern - uses local position for consistent look
-float woodGrain(vec3 pos) {
-    // Radial rings from center of trunk
-    float dist = length(pos.xz * 0.5);
-    float rings = sin(dist * 25.0 + noise(pos.xz * 2.0) * 3.0) * 0.5 + 0.5;
-
-    // Vertical grain lines
-    float grain = noise(vec2(pos.y * 20.0, dist * 8.0)) * 0.3;
-
-    // Knots (occasional dark spots) - use 2D slice of position
-    float knotNoise = noise(pos.xy * 3.0 + pos.z);
-    float knots = smoothstep(0.7, 0.75, knotNoise) * 0.4;
-
-    return rings * 0.6 + grain - knots;
-}
-
-// Bark texture for outer surface
-float barkPattern(vec3 pos, vec3 normal) {
-    // Detect if we're on the outside (horizontal normal)
-    float outer = abs(normal.x) + abs(normal.z);
-
-    // Vertical striations
-    float stripes = sin(pos.y * 30.0 + noise(pos.xz * 5.0) * 4.0) * 0.5 + 0.5;
-
-    // Rough texture
-    float rough = fbm(vec2(pos.y * 8.0, atan(pos.x, pos.z) * 10.0), 3);
-
-    return mix(0.5, stripes * 0.7 + rough * 0.3, outer);
-}
+// Weathered vertical planks: grain, knots, dark gaps and iron nails
+#include "common/walls.glsl"
 
 void main() {
-    // Base wood color (tinted by colDiffuse for variety)
-    vec3 baseTint = colDiffuse.rgb;
+    vec3 N = normalize(fragNormal);
+    vec2 uv = wallUV(N, fragWorldPos);
+    const float plankW = 0.24;
+    float px = uv.x / plankW;
+    float plank = floor(px);
+    float id = hash(vec2(plank, 1.7));
+    float local = fract(px);
+    // Plank boards are cut into lengths with staggered joints
+    float boardLen = 1.6 + id * 1.2;
+    float vy = uv.y / boardLen + id * 3.0;
+    float board = floor(vy);
+    float bid = hash(vec2(plank, board));
+    float gapX = 1.0 - smoothstep(0.0, 0.035, min(local, 1.0 - local));
+    float gapY = 1.0 - smoothstep(0.0, 0.01, min(fract(vy), 1.0 - fract(vy)) * boardLen);
+    float gap = max(gapX, gapY);
 
-    // Wood color palette - darker for bark
-    vec3 darkBark = vec3(0.25, 0.15, 0.08) * baseTint * 2.0;
-    vec3 midBark = vec3(0.4, 0.25, 0.12) * baseTint * 2.0;
-    vec3 lightBark = vec3(0.5, 0.32, 0.15) * baseTint * 2.0;
+    float grain = fbm(vec2(uv.x * 26.0 + bid * 9.0, uv.y * 1.8), 4);
+    float rings = sin((uv.x * 60.0 + grain * 9.0 + bid * 20.0)) * 0.5 + 0.5;
+    vec2 knotC = vec2(plank + 0.5, (board + 0.3 + bid * 0.4) * boardLen);
+    float knot = 1.0 - smoothstep(0.02, 0.06, length((vec2(px, uv.y) - knotC) * vec2(plankW, 1.0)));
+    knot *= step(0.6, bid);
 
-    vec3 normal = normalize(fragNormal);
+    vec3 wood = mix(vec3(0.19, 0.11, 0.055), vec3(0.32, 0.2, 0.1), id * 0.6 + rings * 0.25 + grain * 0.3);
+    wood = mix(wood, vec3(0.22, 0.21, 0.19), smoothstep(0.4, 0.9, fbm(uv * 3.0 + 5.0, 3)) * 0.55); // silvered
+    wood *= 1.0 - knot * 0.55;
+    // Nails near board ends
+    vec2 nailC = vec2(plank + 0.5, (board + 0.06) * boardLen);
+    float nail = 1.0 - smoothstep(0.006, 0.012, length((vec2(px, uv.y) - nailC) * vec2(plankW, 1.0)));
+    vec3 albedo = mix(wood, vec3(0.03, 0.025, 0.02), gap);
+    albedo = mix(albedo, vec3(0.08, 0.07, 0.065), nail);
 
-    // Calculate bark pattern (outer surface)
-    float pattern = barkPattern(fragLocalPos, normal);
+    float rough;
+    albedo = weatherWall(albedo, N, fragWorldPos, rough);
+    float height = (1.0 - gap) * 0.006 + grain * 0.002 + rings * 0.0008 - knot * 0.001;
+    vec3 n = bumpNormal(N, fragWorldPos, height, 1.0);
 
-    // Add wood grain influence
-    float grain = woodGrain(fragLocalPos);
-    pattern = pattern * 0.7 + grain * 0.3;
-
-    // Add noise variation
-    float n = noise(fragLocalPos.xz * 6.0 + fragLocalPos.y * 3.0);
-    pattern = pattern * 0.85 + n * 0.15;
-
-    // Blend colors based on pattern
-    vec3 woodColor;
-    if (pattern < 0.4) {
-        woodColor = mix(darkBark, midBark, pattern / 0.4);
-    } else {
-        woodColor = mix(midBark, lightBark, (pattern - 0.4) / 0.6);
-    }
-
-    // Lighting
-    float shadow = calcShadow(fragWorldPos, normal);
-
-    float NdotL = max(dot(normal, -sunDirection), 0.0);
-    vec3 diffuse = sunColor * NdotL * shadow;
-
-    vec3 pointLighting = calcAllPointLights(fragWorldPos, normal);
-
-    vec3 litColor = woodColor * (ambientColor + diffuse + pointLighting);
-    litColor = applyFog(litColor, fragWorldPos);
-
-    finalColor = vec4(litColor, 1.0);
+    Surface s = defaultSurface(albedo, n);
+    s.roughness = mix(0.8, 0.45, nail) + rough;
+    s.metallic = nail * 0.8;
+    s.occlusion = mix(1.0, 0.35, gap);
+    writeSurface(s, fragWorldPos, N, 1.0);
 }

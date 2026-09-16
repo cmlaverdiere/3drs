@@ -4,10 +4,10 @@ in vec2 fragTexCoord;
 in vec3 fragWorldPos;
 
 uniform vec4 colDiffuse;  // Material color from raylib
-uniform vec3 viewPos;
 uniform float stretch;    // How stretched the droplet is (based on velocity)
 
-out vec4 finalColor;
+#include "common/lighting.glsl"
+
 
 void main() {
     // Simple circular splat shape
@@ -38,5 +38,8 @@ void main() {
     // Soft alpha falloff at edges
     float alpha = colDiffuse.a * smoothstep(0.4, 0.25, dist);
 
-    finalColor = vec4(color, alpha);
+    vec3 N = normalize(uCamera.xyz - fragWorldPos);
+    Surface s = defaultSurface(srgbToLinear(saturate(color)), N);
+    s.roughness = 0.25;
+    writeSurface(s, fragWorldPos, N, alpha);
 }

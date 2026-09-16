@@ -7,7 +7,7 @@
 
 void DrawModelForPass(Model model, Vector3 position, Vector3 scale, Color color,
                       RenderPass pass, Shader depthShader) {
-    if (pass == RenderPass::Scene) {
+    if (pass != RenderPass::Shadow) {
         DrawModelEx(model, position, {0, 1, 0}, 0.0f, scale, color);
         return;
     }
@@ -26,6 +26,13 @@ void DrawModelForPass(Model model, Vector3 position, Vector3 scale, Color color,
     DrawModelEx(model, position, {0, 1, 0}, 0.0f, scale, WHITE);
 }
 
+// Glow for flames, lamp glass and eyes (scene passes only)
+static void SetEmissive(const EntityModels* models, float value) {
+    if (models->pass == RenderPass::Shadow) return;
+    SetShaderValue(models->entityShader, models->entityEmissiveLoc, &value, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(models->entityBevelShader, models->entityBevelEmissiveLoc, &value, SHADER_UNIFORM_FLOAT);
+}
+
 // Helper: Draw a cube using the model (proper normals)
 void DrawModelCube(const EntityModels* models, Vector3 pos, float width, float height, float depth, Color color) {
     DrawModelForPass(models->cube, pos, (Vector3){width, height, depth}, color, models->pass, models->depthShader);
@@ -42,17 +49,6 @@ void DrawModelCylinder(const EntityModels* models, Vector3 pos, float radiusBott
     // Average radius for scaling (GenMeshCylinder doesn't support different top/bottom)
     float radius = (radiusBottom + radiusTop) * 0.5f;
     DrawModelForPass(models->cylinder, pos, (Vector3){radius, height, radius}, color, models->pass, models->depthShader);
-}
-
-// Helper: Draw a foliage sphere (tree canopy) with procedural leaf shader
-void DrawFoliageSphere(const EntityModels* models, Vector3 pos, float radius, Color color) {
-    DrawModelForPass(models->foliageSphere, pos, (Vector3){radius, radius, radius}, color, models->pass, models->depthShader);
-}
-
-// Helper: Draw a wood cylinder (tree trunk) with procedural bark shader
-void DrawWoodCylinder(const EntityModels* models, Vector3 pos, float radiusBottom, float radiusTop, float height, Color color) {
-    float radius = (radiusBottom + radiusTop) * 0.5f;
-    DrawModelForPass(models->woodCylinder, pos, (Vector3){radius, height, radius}, color, models->pass, models->depthShader);
 }
 
 void DrawSword(const EntityModels* models, Vector3 pos, Color bladeColor, Color handleColor) {
@@ -343,8 +339,10 @@ void DrawSandGolem(const EntityModels* models, Vector3 pos, float facingAngle, b
 
     // Glowing eyes
     float faceZ = 0.2f;
+    SetEmissive(models, 6.0f);
     DrawModelSphere(models, (Vector3){-0.12f, headY + 0.05f, faceZ}, 0.07f, eyeGlow);
     DrawModelSphere(models, (Vector3){0.12f, headY + 0.05f, faceZ}, 0.07f, eyeGlow);
+    SetEmissive(models, 0.0f);
 
     // Rough surface details
     DrawModelCube(models, (Vector3){0.3f, torsoBottom + 0.3f, 0.2f}, 0.15f, 0.15f, 0.1f, sandDeep);
@@ -390,8 +388,10 @@ void DrawDemon(const EntityModels* models, Vector3 pos, float facingAngle, bool 
 
     // Glowing eyes
     float faceZ = 0.2f * scale;
+    SetEmissive(models, 8.0f);
     DrawModelSphere(models, (Vector3){-0.06f * scale, 1.62f * scale, faceZ}, 0.04f * scale, eyeGlow);
     DrawModelSphere(models, (Vector3){0.06f * scale, 1.62f * scale, faceZ}, 0.04f * scale, eyeGlow);
+    SetEmissive(models, 0.0f);
 
     // Wings (bat-like, behind body)
     // Wing bones
@@ -457,8 +457,10 @@ void DrawDragon(const EntityModels* models, Vector3 pos, float facingAngle, bool
     DrawModelCube(models, (Vector3){0, 1.75f * scale, 1.7f * scale}, 0.25f * scale, 0.2f * scale, 0.3f * scale, dragonScales);
 
     // Eyes
+    SetEmissive(models, 4.0f);
     DrawModelSphere(models, (Vector3){-0.15f * scale, 1.9f * scale, 1.5f * scale}, 0.08f * scale, eyeColor);
     DrawModelSphere(models, (Vector3){0.15f * scale, 1.9f * scale, 1.5f * scale}, 0.08f * scale, eyeColor);
+    SetEmissive(models, 0.0f);
 
     // Horns (back of head)
     DrawModelCube(models, (Vector3){-0.15f * scale, 2.05f * scale, 1.2f * scale}, 0.05f * scale, 0.25f * scale, 0.08f * scale, hornColor);
@@ -531,8 +533,8 @@ void DrawCustomMonster(EntityModels* models, const CustomMonster* monster,
     }
 
     if (useMonsterShader) {
-        // Restore entity shader
-        models->cube.materials[0].shader = models->entityShader;
+        // Restore entity shaders
+        models->cube.materials[0].shader = models->entityBevelShader;
         models->sphere.materials[0].shader = models->entityShader;
         models->cylinder.materials[0].shader = models->entityShader;
     }
@@ -681,7 +683,9 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
             DrawModelCube(models, (Vector3){pos.x, pos.y + 0.12f, pos.z}, 0.18f, 0.08f, 0.18f, gold);
             DrawModelCube(models, (Vector3){pos.x, pos.y + 0.18f, pos.z}, 0.1f, 0.06f, 0.1f, gold);
             // Glowing orb on top
+            SetEmissive(models, 5.0f);
             DrawModelSphere(models, (Vector3){pos.x, pos.y + 0.25f, pos.z}, 0.06f, glow);
+            SetEmissive(models, 0.0f);
             break;
         }
         case ITEM_SILK: {
@@ -787,158 +791,6 @@ void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos) {
     }
 }
 
-// Draw an evergreen/pine tree (for winter mode)
-void DrawEvergreenTree(const EntityModels* models, Vector3 pos, TreeType type, bool highlighted) {
-    // Darker trunk, snow-dusted pine needles
-    Color trunkColor = { 60, 40, 25, 255 };
-    Color pineGreen = { 20, 60, 35, 255 };
-    Color pineSnow = { 180, 200, 210, 255 };  // Snow on branches
-
-    float scale = (type == TREE_OAK) ? 1.3f : 1.0f;
-
-    // Trunk - taller and thinner for evergreen (with bark shader)
-    float trunkHeight = 2.0f * scale;
-    DrawWoodCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.2f * scale, 0.25f * scale, trunkHeight, trunkColor);
-
-    // Conical layers of branches (bottom to top)
-    float baseY = pos.y + trunkHeight * 0.5f;
-
-    // Bottom layer - widest
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 0.5f * scale, pos.z}, 1.8f * scale, 0.0f, 1.2f * scale, pineGreen);
-    // Snow on bottom branches
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 0.85f * scale, pos.z}, 1.4f * scale, 0.0f, 0.15f * scale, pineSnow);
-
-    // Middle layer
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.5f * scale, pos.z}, 1.4f * scale, 0.0f, 1.0f * scale, pineGreen);
-    // Snow on middle branches
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 1.8f * scale, pos.z}, 1.1f * scale, 0.0f, 0.12f * scale, pineSnow);
-
-    // Upper layer
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.3f * scale, pos.z}, 1.0f * scale, 0.0f, 0.9f * scale, pineGreen);
-    // Snow on upper branches
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 2.55f * scale, pos.z}, 0.75f * scale, 0.0f, 0.1f * scale, pineSnow);
-
-    // Top layer - pointed
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.0f * scale, pos.z}, 0.6f * scale, 0.0f, 0.8f * scale, pineGreen);
-    // Snow cap
-    DrawModelCylinder(models, (Vector3){pos.x, baseY + 3.25f * scale, pos.z}, 0.4f * scale, 0.0f, 0.08f * scale, pineSnow);
-
-    // Snow accumulation at base
-    DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.05f, pos.z}, 0.8f * scale, 0.8f * scale, 0.1f, pineSnow);
-
-    (void)highlighted;  // Unused - wireframe removed
-}
-
-void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highlighted) {
-    // Winter mode - draw evergreen trees instead
-    if (IsWinterMode()) {
-        DrawEvergreenTree(models, pos, type, highlighted);
-        return;
-    }
-
-    // Determine leaf colors based on season
-    Color leavesColor, leavesDark;
-    Color oakLeaves, oakLeavesDark;
-
-    // Use position-based variation for autumn colors
-    float treeHash = fmodf(fabsf(pos.x * 12.9898f + pos.z * 78.233f), 1.0f);
-
-    if (g_currentSeason == SEASON_SPRING) {
-        // Spring - fresh bright green with some yellow-green
-        leavesColor = { 60, 180, 60, 255 };
-        leavesDark = { 45, 150, 45, 255 };
-        oakLeaves = { 50, 160, 50, 255 };
-        oakLeavesDark = { 35, 130, 35, 255 };
-    } else if (g_currentSeason == SEASON_AUTUMN) {
-        // Autumn - varied fall colors based on tree position
-        if (treeHash > 0.7f) {
-            // Red/crimson tree
-            leavesColor = { 180, 45, 30, 255 };
-            leavesDark = { 140, 30, 20, 255 };
-            oakLeaves = { 160, 40, 25, 255 };
-            oakLeavesDark = { 120, 25, 15, 255 };
-        } else if (treeHash > 0.4f) {
-            // Orange tree
-            leavesColor = { 210, 120, 40, 255 };
-            leavesDark = { 180, 90, 30, 255 };
-            oakLeaves = { 200, 110, 35, 255 };
-            oakLeavesDark = { 170, 80, 25, 255 };
-        } else {
-            // Golden/yellow tree
-            leavesColor = { 200, 170, 50, 255 };
-            leavesDark = { 170, 140, 40, 255 };
-            oakLeaves = { 190, 160, 45, 255 };
-            oakLeavesDark = { 160, 130, 35, 255 };
-        }
-    } else {
-        // Summer - deep vibrant green (default)
-        leavesColor = { 34, 139, 34, 255 };
-        leavesDark = { 20, 100, 20, 255 };
-        oakLeaves = { 25, 100, 25, 255 };
-        oakLeavesDark = { 15, 75, 15, 255 };
-    }
-
-    if (type == TREE_OAK) {
-        // Oak tree - larger and darker
-        Color oakTrunk = { 70, 45, 20, 255 };
-
-        // Thicker trunk with bark shader
-        DrawWoodCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.5f, 0.6f, 3.5f, oakTrunk);
-
-        // Larger, more layered canopy with foliage shader
-        DrawFoliageSphere(models, (Vector3){pos.x, pos.y + 5.0f, pos.z}, 2.2f, oakLeaves);
-        DrawFoliageSphere(models, (Vector3){pos.x - 1.0f, pos.y + 4.2f, pos.z + 0.8f}, 1.6f, oakLeavesDark);
-        DrawFoliageSphere(models, (Vector3){pos.x + 1.0f, pos.y + 4.2f, pos.z - 0.8f}, 1.6f, oakLeavesDark);
-        DrawFoliageSphere(models, (Vector3){pos.x + 0.5f, pos.y + 4.5f, pos.z + 1.0f}, 1.3f, oakLeaves);
-        DrawFoliageSphere(models, (Vector3){pos.x - 0.5f, pos.y + 4.5f, pos.z - 1.0f}, 1.3f, oakLeaves);
-        DrawFoliageSphere(models, (Vector3){pos.x, pos.y + 6.0f, pos.z}, 1.2f, oakLeaves);
-    } else {
-        // Normal tree
-        Color trunkColor = { 101, 67, 33, 255 };
-
-        // Trunk with bark shader
-        DrawWoodCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.3f, 0.4f, 2.5f, trunkColor);
-
-        // Leaves (layered spheres) with foliage shader
-        DrawFoliageSphere(models, (Vector3){pos.x, pos.y + 3.5f, pos.z}, 1.5f, leavesColor);
-        DrawFoliageSphere(models, (Vector3){pos.x - 0.5f, pos.y + 3.0f, pos.z + 0.5f}, 1.0f, leavesDark);
-        DrawFoliageSphere(models, (Vector3){pos.x + 0.5f, pos.y + 3.0f, pos.z - 0.5f}, 1.0f, leavesDark);
-        DrawFoliageSphere(models, (Vector3){pos.x, pos.y + 4.2f, pos.z}, 0.8f, leavesColor);
-    }
-
-    (void)highlighted;  // Unused - wireframe removed
-}
-
-void DrawRock(const EntityModels* models, Vector3 pos, RockType type, bool highlighted) {
-    // Colors vary by ore type
-    Color baseColor, oreColor;
-    if (type == ROCK_COPPER) {
-        baseColor = (Color){ 100, 90, 80, 255 };     // Gray stone
-        oreColor = (Color){ 180, 100, 50, 255 };     // Copper orange/brown
-    } else {  // ROCK_TIN
-        baseColor = (Color){ 90, 85, 80, 255 };      // Slightly different gray
-        oreColor = (Color){ 150, 150, 140, 255 };    // Tin silver/gray
-    }
-    Color shadowColor = { (unsigned char)(baseColor.r - 30), (unsigned char)(baseColor.g - 30), (unsigned char)(baseColor.b - 30), 255 };
-
-    // Main rock body (irregular boulder shape using multiple cubes)
-    DrawModelCube(models, (Vector3){pos.x, pos.y + 0.5f, pos.z}, 1.2f, 0.9f, 1.0f, baseColor);
-    DrawModelCube(models, (Vector3){pos.x + 0.3f, pos.y + 0.35f, pos.z - 0.2f}, 0.7f, 0.7f, 0.8f, shadowColor);
-    DrawModelCube(models, (Vector3){pos.x - 0.25f, pos.y + 0.4f, pos.z + 0.3f}, 0.6f, 0.6f, 0.7f, baseColor);
-
-    // Top boulder
-    DrawModelSphere(models, (Vector3){pos.x, pos.y + 1.0f, pos.z}, 0.5f, shadowColor);
-    DrawModelCube(models, (Vector3){pos.x + 0.2f, pos.y + 0.9f, pos.z - 0.1f}, 0.4f, 0.3f, 0.4f, baseColor);
-
-    // Ore veins (visible ore spots on the rock)
-    DrawModelSphere(models, (Vector3){pos.x + 0.4f, pos.y + 0.6f, pos.z + 0.35f}, 0.18f, oreColor);
-    DrawModelSphere(models, (Vector3){pos.x - 0.3f, pos.y + 0.5f, pos.z - 0.3f}, 0.15f, oreColor);
-    DrawModelSphere(models, (Vector3){pos.x + 0.1f, pos.y + 0.9f, pos.z + 0.2f}, 0.12f, oreColor);
-    DrawModelCube(models, (Vector3){pos.x - 0.35f, pos.y + 0.7f, pos.z + 0.1f}, 0.15f, 0.2f, 0.1f, oreColor);
-
-    (void)highlighted;  // Unused - no wireframe highlight for rocks
-}
-
 void DrawHumanoid(const EntityModels* models, Vector3 pos, float facingAngle,
                   Color skinColor, Color shirtColor, Color pantsColor, float heightScale) {
     // Humanoid proportions (scaled by heightScale) - total height ~1.7 units
@@ -1032,8 +884,25 @@ void DrawLamp(const EntityModels* models, Vector3 pos, bool lit) {
     Color metalMid = { 70, 70, 75, 255 };
 
     // Glass color depends on whether lamp is lit
-    Color glassColor = lit ? (Color){ 255, 220, 150, 220 } : (Color){ 150, 150, 150, 180 };
+    Color glassColor = lit ? (Color){ 255, 220, 150, 200 } : (Color){ 150, 160, 165, 150 };
     Color flameColor = { 255, 200, 100, 255 };  // Warm flame glow
+    float lampY = pos.y + 2.2f;
+    float glassY = lampY + 0.1f;
+
+    if (models->pass == RenderPass::Transparent) {
+        // Flame and glass after the opaque scene so they blend correctly
+        if (lit) {
+            SetEmissive(models, 14.0f);
+            DrawModelSphere(models, (Vector3){pos.x, glassY, pos.z}, 0.07f, flameColor);
+        }
+        SetEmissive(models, lit ? 1.6f : 0.0f);
+        DrawModelCube(models, (Vector3){pos.x + 0.13f, glassY, pos.z}, 0.02f, 0.25f, 0.24f, glassColor);
+        DrawModelCube(models, (Vector3){pos.x - 0.13f, glassY, pos.z}, 0.02f, 0.25f, 0.24f, glassColor);
+        DrawModelCube(models, (Vector3){pos.x, glassY, pos.z + 0.13f}, 0.24f, 0.25f, 0.02f, glassColor);
+        DrawModelCube(models, (Vector3){pos.x, glassY, pos.z - 0.13f}, 0.24f, 0.25f, 0.02f, glassColor);
+        SetEmissive(models, 0.0f);
+        return;
+    }
 
     // Post base (wider at bottom)
     DrawModelCube(models, (Vector3){pos.x, pos.y + 0.1f, pos.z}, 0.25f, 0.2f, 0.25f, metalDark);
@@ -1042,26 +911,20 @@ void DrawLamp(const EntityModels* models, Vector3 pos, bool lit) {
     DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.2f, pos.z}, 0.06f, 0.06f, 2.0f, metalMid);
 
     // Lamp housing frame (top)
-    float lampY = pos.y + 2.2f;
     DrawModelCube(models, (Vector3){pos.x, lampY + 0.25f, pos.z}, 0.35f, 0.08f, 0.35f, metalDark);  // Top cap
     DrawModelCube(models, (Vector3){pos.x, lampY - 0.05f, pos.z}, 0.30f, 0.06f, 0.30f, metalDark);  // Bottom rim
-
-    if (models->pass == RenderPass::Shadow) return;
-
-    // Glass housing (4 panels)
-    float glassY = lampY + 0.1f;
-    DrawModelCube(models, (Vector3){pos.x + 0.13f, glassY, pos.z}, 0.02f, 0.25f, 0.24f, glassColor);
-    DrawModelCube(models, (Vector3){pos.x - 0.13f, glassY, pos.z}, 0.02f, 0.25f, 0.24f, glassColor);
-    DrawModelCube(models, (Vector3){pos.x, glassY, pos.z + 0.13f}, 0.24f, 0.25f, 0.02f, glassColor);
-    DrawModelCube(models, (Vector3){pos.x, glassY, pos.z - 0.13f}, 0.24f, 0.25f, 0.02f, glassColor);
-
-    // Flame inside (only when lit)
-    if (lit) {
-        DrawModelSphere(models, (Vector3){pos.x, glassY, pos.z}, 0.08f, flameColor);
+    // Corner posts of the housing
+    for (int i = 0; i < 4; i++) {
+        float sx = (i & 1) ? 0.13f : -0.13f, sz = (i & 2) ? 0.13f : -0.13f;
+        DrawModelCube(models, (Vector3){pos.x + sx, glassY, pos.z + sz}, 0.03f, 0.27f, 0.03f, metalDark);
     }
 }
 
 void DrawCampfire(const EntityModels* models, Vector3 pos) {
+    if (models->pass == RenderPass::Transparent) {
+        DrawCampfireFlames(models, pos);
+        return;
+    }
     // Stone ring colors
     Color stoneColor = { 100, 90, 80, 255 };
     Color stoneDark = { 70, 65, 60, 255 };
@@ -1084,61 +947,44 @@ void DrawCampfire(const EntityModels* models, Vector3 pos) {
     // Charred ground
     DrawModelCylinder(models, (Vector3){pos.x, pos.y, pos.z}, 0.35f, 0.35f, 0.02f, charColor);
 
-    // Logs arranged in a teepee/cross pattern
-    // Log 1 - angled
-    rlPushMatrix();
-    rlTranslatef(pos.x + 0.1f, pos.y + 0.15f, pos.z);
-    rlRotatef(25.0f, 0, 0, 1);
-    rlRotatef(15.0f, 0, 1, 0);
-    DrawModelCylinder(models, (Vector3){0, 0, 0}, 0.06f, 0.04f, 0.45f, woodColor);
-    rlPopMatrix();
+    // Glowing embers in the fire bed
+    SetEmissive(models, 3.0f);
+    DrawModelCylinder(models, (Vector3){pos.x, pos.y + 0.02f, pos.z}, 0.22f, 0.22f, 0.03f, (Color){255, 90, 20, 255});
+    SetEmissive(models, 0.0f);
 
-    // Log 2 - opposite angle
-    rlPushMatrix();
-    rlTranslatef(pos.x - 0.1f, pos.y + 0.15f, pos.z);
-    rlRotatef(-25.0f, 0, 0, 1);
-    rlRotatef(-20.0f, 0, 1, 0);
-    DrawModelCylinder(models, (Vector3){0, 0, 0}, 0.06f, 0.04f, 0.45f, woodDark);
-    rlPopMatrix();
+    // Two logs lying crossed in the embers
+    for (int i = 0; i < 2; i++) {
+        rlPushMatrix();
+        rlTranslatef(pos.x, pos.y + 0.07f, pos.z);
+        rlRotatef(35.0f + i * 80.0f, 0, 1, 0);
+        rlRotatef(90.0f, 0, 0, 1);
+        DrawModelCylinder(models, (Vector3){0, -0.3f, 0}, 0.055f, 0.055f, 0.6f, i ? woodDark : woodColor);
+        rlPopMatrix();
+    }
+    // Teepee of sticks leaning in over them
+    for (int i = 0; i < 5; i++) {
+        float a = i * 72.0f + 15.0f;
+        float rad = a * DEG2RAD;
+        rlPushMatrix();
+        rlTranslatef(pos.x + cosf(rad) * 0.32f, pos.y + 0.02f, pos.z + sinf(rad) * 0.32f);
+        rlRotatef(-a, 0, 1, 0);
+        rlRotatef(38.0f + (i % 2) * 6.0f, 0, 0, 1);
+        DrawModelCylinder(models, (Vector3){0, 0, 0}, 0.04f, 0.03f, 0.55f, (i % 2) ? woodDark : charColor);
+        rlPopMatrix();
+    }
+}
 
-    // Log 3 - third angle
-    rlPushMatrix();
-    rlTranslatef(pos.x, pos.y + 0.15f, pos.z + 0.1f);
-    rlRotatef(20.0f, 1, 0, 0);
-    rlRotatef(30.0f, 0, 1, 0);
-    DrawModelCylinder(models, (Vector3){0, 0, 0}, 0.05f, 0.03f, 0.4f, woodColor);
-    rlPopMatrix();
-
-    if (models->pass == RenderPass::Shadow) return;
-
-    // Draw fire using shader - two crossed planes for visibility from all angles
-    float gameTime = (float)GetTime();
-    SetShaderValue(models->fireShader, models->fireTimeLoc, &gameTime, SHADER_UNIFORM_FLOAT);
-
-    float fireHeight = 1.0f;
-    float fireWidth = 0.7f;
-
-    // Disable backface culling so fire is visible from both sides
+void DrawCampfireFlames(const EntityModels* models, Vector3 pos) {
+    // Camera-facing flame billboard (fire.vs), blended additively as HDR emission
+    float seed = fabsf(fmodf(pos.x * 12.9898f + pos.z * 78.233f, 1.0f));
+    float fire[4] = {pos.x, pos.y + 0.02f, pos.z, seed};
+    SetShaderValue(models->fireShader, models->fireParamsLoc, fire, SHADER_UNIFORM_VEC4);
     rlDisableBackfaceCulling();
-
-    // Fire plane 1 - facing Z axis (rotated to be vertical)
-    rlPushMatrix();
-    rlTranslatef(pos.x, pos.y + fireHeight * 0.5f + 0.1f, pos.z);
-    rlRotatef(90.0f, 1, 0, 0);  // Rotate to be vertical
-    rlScalef(fireWidth, 1.0f, fireHeight);
-    DrawModel(models->firePlane, (Vector3){0, 0, 0}, 1.0f, WHITE);
-    rlPopMatrix();
-
-    // Fire plane 2 - rotated 90 degrees (cross pattern)
-    rlPushMatrix();
-    rlTranslatef(pos.x, pos.y + fireHeight * 0.5f + 0.1f, pos.z);
-    rlRotatef(90.0f, 1, 0, 0);  // Rotate to be vertical
-    rlRotatef(90.0f, 0, 0, 1);  // Rotate around up axis
-    rlScalef(fireWidth, 1.0f, fireHeight);
-    DrawModel(models->firePlane, (Vector3){0, 0, 0}, 1.0f, WHITE);
-    rlPopMatrix();
-
-    // Restore backface culling
+    rlDisableDepthMask();
+    BeginBlendMode(BLEND_ADDITIVE);
+    DrawMesh(models->firePlane.meshes[0], models->firePlane.materials[0], MatrixIdentity());
+    EndBlendMode();
+    rlEnableDepthMask();
     rlEnableBackfaceCulling();
 }
 
@@ -1207,7 +1053,7 @@ void DrawLadder(const EntityModels* models, const Ladder& ladder, bool highlight
         rlPushMatrix();
         rlTranslatef(rungPos.x, rungPos.y, rungPos.z);
         rlRotatef(ladder.facingAngle, 0, 1, 0);
-        DrawCube((Vector3){0, 0, 0}, rungWidth, rungThickness, rungDepth, woodDark);
+        DrawModelCube(models, (Vector3){0, 0, 0}, rungWidth, rungThickness, rungDepth, woodDark);
         rlPopMatrix();
     }
 }

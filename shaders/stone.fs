@@ -1,71 +1,47 @@
 #version 330
 
-in vec2 fragTexCoord;
-in vec3 fragWorldPos;
-in vec3 fragNormal;
-
-out vec4 finalColor;
-
-#include "common/lighting.glsl"
-
-// Voronoi for stone block pattern
-float voronoi(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-
-    float minDist = 1.0;
-    for (int y = -1; y <= 1; y++) {
-        for (int x = -1; x <= 1; x++) {
-            vec2 neighbor = vec2(float(x), float(y));
-            vec2 point = hash(i + neighbor) * vec2(0.8) + vec2(0.1);
-            vec2 diff = neighbor + point - f;
-            float dist = length(diff);
-            minDist = min(minDist, dist);
-        }
-    }
-    return minDist;
-}
+// Castle ashlar: courses of irregular dressed blocks with lichen and chipped arrises
+#include "common/walls.glsl"
 
 void main() {
-    // Stone color palette
-    vec3 darkStone = vec3(0.3, 0.3, 0.32);
-    vec3 midStone = vec3(0.5, 0.5, 0.52);
-    vec3 lightStone = vec3(0.65, 0.63, 0.6);
+    vec3 N = normalize(fragNormal);
+    vec2 uv = wallUV(N, fragWorldPos);
+    // Courses of varying height
+    float course = floor(uv.y / 0.55);
+    float courseH = 0.55;
+    float y = uv.y - course * courseH;
+    float offset = hash(vec2(course, 3.1)) * 2.0;
+    float blockW = 0.7 + hash(vec2(course, 7.7)) * 0.5;
+    float bx = (uv.x + offset) / blockW;
+    float block = floor(bx);
+    float jitter = (hash(vec2(block, course)) - 0.5) * 0.25;
+    bx = (uv.x + offset) / blockW + jitter * step(0.5, fract(bx));
+    vec2 f = vec2(fract(bx) - 0.5, y / courseH - 0.5) * vec2(blockW, courseH);
+    vec2 halfSize = vec2(blockW, courseH) * 0.5 - 0.02;
+    float chip = (fbm(uv * 14.0, 2) - 0.5) * 0.03;
+    vec2 d = abs(f) - halfSize + chip;
+    float edgeDist = -max(d.x, d.y);
+    float mask = smoothstep(0.0, 0.01, edgeDist);
+    vec2 id2 = vec2(floor(bx), course);
+    float id = hash(id2);
 
-    // Use world position for consistent texturing
-    vec2 uv = fragWorldPos.xz + fragWorldPos.y * 0.3;
+    vec3 stone = mix(vec3(0.26, 0.25, 0.23), vec3(0.42, 0.41, 0.38), id);
+    stone *= 0.75 + 0.45 * fbm(uv * 4.0 + id * 17.0, 4);
+    float speck = noise(uv * 90.0);
+    stone *= 0.92 + 0.12 * speck;
+    float lichen = smoothstep(0.62, 0.78, fbm(uv * 2.3 + 40.0, 4));
+    stone = mix(stone, vec3(0.30, 0.31, 0.16), lichen * 0.45);
+    vec3 mortarColor = vec3(0.17, 0.16, 0.14);
+    vec3 albedo = mix(mortarColor, stone, mask);
 
-    // Create stone block pattern
-    float blocks = voronoi(uv * 1.5);
-    float roughness = fbm(uv * 8.0, 5) * 0.4;
-    float detail = noise(uv * 20.0) * 0.15;
-    float pattern = blocks * 0.5 + roughness + detail;
+    float rough;
+    albedo = weatherWall(albedo, N, fragWorldPos, rough);
+    float dome = smoothstep(0.0, 0.06, edgeDist);
+    float height = mask * (0.01 + dome * 0.012) + fbm(uv * 9.0, 3) * 0.006 * mask;
+    vec3 n = bumpNormal(N, fragWorldPos, height, 1.0);
 
-    // Add cracks in the stone
-    float cracks = 1.0 - smoothstep(0.02, 0.05, blocks);
-
-    // Blend colors
-    vec3 stoneColor;
-    if (pattern < 0.35) {
-        stoneColor = mix(darkStone, midStone, pattern / 0.35);
-    } else {
-        stoneColor = mix(midStone, lightStone, (pattern - 0.35) / 0.65);
-    }
-
-    // Darken cracks
-    stoneColor = mix(stoneColor, darkStone * 0.5, cracks * 0.7);
-
-    // Calculate lighting
-    vec3 normal = normalize(fragNormal);
-    float shadow = calcShadow(fragWorldPos, normal);
-
-    float NdotL = max(dot(normal, -sunDirection), 0.0);
-    vec3 diffuse = sunColor * NdotL * shadow;
-
-    vec3 pointLighting = calcAllPointLights(fragWorldPos, normal);
-
-    vec3 litColor = stoneColor * (ambientColor + diffuse + pointLighting);
-    litColor = applyFog(litColor, fragWorldPos);
-
-    finalColor = vec4(litColor, 1.0);
+    Surface s = defaultSurface(albedo, n);
+    s.roughness = 0.88 + rough;
+    s.occlusion = mix(0.5, 1.0, mask);
+    writeSurface(s, fragWorldPos, N, 1.0);
 }

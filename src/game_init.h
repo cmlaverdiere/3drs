@@ -5,6 +5,11 @@
 #include "types.h"
 #include "spatial_hash.h"
 #include "rendering.h"
+#include "terrain.h"
+#include "vegetation.h"
+#include "grass.h"
+#include "gfx.h"
+#include <vector>
 
 // Primitive models for entity rendering (with proper normals)
 struct EntityModels {
@@ -15,67 +20,18 @@ struct EntityModels {
     Model cylinder;
     Model firePlane;      // Billboard plane for fire shader
     Shader fireShader;    // Procedural fire shader
-    int fireTimeLoc;      // Time uniform location
+    int fireParamsLoc;    // uFire: base position + seed
 
-    // Entity shader (default for entities)
+    // Entity shaders (default for entities); cubes use the bevelled variant
     Shader entityShader;
+    Shader entityBevelShader;
+    int entityEmissiveLoc;
+    int entityBevelEmissiveLoc;
 
     // Monster shader for procedural textures
     Shader monsterShader;
     int monsterMaterialLoc;
     int monsterSeedLoc;
-
-    // Tree shaders and models
-    Shader foliageShader;    // Procedural leafy canopy shader
-    Shader woodShader;       // Procedural bark/wood shader
-    Model foliageSphere;     // Sphere with foliage shader
-    Model woodCylinder;      // Cylinder with wood shader
-
-    bool initialized;
-};
-
-// Grass blade system (instanced rendering with chunked streaming)
-static const int GRASS_CHUNK_SIZE = 32;           // Units per chunk
-static const int GRASS_CHUNKS_PER_SIDE = 16;      // 16x16 chunks = 512x512 world
-static const int GRASS_VISIBLE_RADIUS = 3;        // 3 chunks in each direction (96 units)
-static const int GRASS_BLADES_PER_CHUNK = 400;    // ~0.4 blades per sq unit
-static const int GRASS_MAX_VISIBLE_CHUNKS = 49;   // 7x7 grid
-static const int GRASS_MAX_BLADES = GRASS_MAX_VISIBLE_CHUNKS * GRASS_BLADES_PER_CHUNK;
-static const int GRASS_CHUNK_CACHE_CAPACITY = 100; // Cache more chunks than visible
-
-struct GrassChunk {
-    int chunkX, chunkZ;
-    Matrix* transforms;    // Per-blade transforms for this chunk
-    int bladeCount;
-    bool loaded;
-};
-
-struct GrassSystem {
-    // Single blade mesh (instanced)
-    Mesh bladeMesh;
-    Material bladeMaterial;
-    Shader bladeShader;
-
-    // Instance buffer for visible blades
-    Matrix* visibleTransforms;
-    int visibleBladeCount;
-
-    // Chunk cache
-    GrassChunk* chunkCache;
-    int chunkCacheSize;
-
-    // Exclusion zone data (copied from map)
-    Sand* sandZones;
-    int sandCount;
-    Water* waterBodies;
-    int waterCount;
-
-    // Shader locations
-    int timeLoc;
-
-    // Player tracking for chunk updates
-    int lastPlayerChunkX;
-    int lastPlayerChunkZ;
 
     bool initialized;
 };
@@ -83,19 +39,17 @@ struct GrassSystem {
 // All game resources that need cleanup
 struct GameResources {
     // Shaders
-    Shader grassShader;  // Also handles sand zones
+    Shader grassShader;  // Terrain shader (also handles sand zones)
     Shader wallShaders[WALL_MATERIAL_COUNT];
+    int wallBaseLocs[WALL_MATERIAL_COUNT];
     Shader waterShader;
     Shader entityShader;  // For lit entities (enemies, trees, items)
     Shader depthShader;   // For shadow map pass
-    Shader skyShader;     // For sky rendering
     int waterTimeLoc;
 
-    // Sky
-    Model skyModel;
-
     // Models
-    Model groundModel;
+    TerrainSystem terrain;
+    VegetationSystem vegetation;
     Model wallModels[MAX_WALLS];
     Model waterModels[MAX_WATER];
 
@@ -103,7 +57,7 @@ struct GameResources {
     EntityModels entityModels;
 
     // Grass blade system
-    GrassSystem grass;
+    GrassField grass;
 
     // Counts for cleanup
     int wallCount;
@@ -126,9 +80,6 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
 // Initialize heightmap with valleys from map data
 void InitializeHeightmap(const MapData& mapData);
 
-// Generate ground mesh from heightmap
-Mesh GenHeightmapMesh(float sizeX, float sizeZ, int resX, int resZ);
-
 // Initialize enemies from map data
 void InitEnemiesFromMap(Enemy* enemies, int* enemyCount, const MapData& mapData);
 
@@ -149,18 +100,6 @@ void PopulateSpatialHash(WorldSpatialData* spatial, const Wall* walls, int wallC
 // Cleanup all game resources
 void CleanupGameResources(GameResources* res);
 
-// Initialize grass blade system (pass sand/water zones for exclusion)
-void InitGrassSystem(GrassSystem* grass, Sand* sandZones, int sandCount, Water* waterBodies, int waterCount);
-
-// Update grass chunks based on player position (call each frame before drawing)
-void UpdateGrassSystem(GrassSystem* grass, Vector3 playerPos);
-
-// Draw grass blades (call after terrain, before transparent objects)
-void DrawGrassBlades(GrassSystem* grass, float time);
-
-// Cleanup grass system
-void CleanupGrassSystem(GrassSystem* grass);
-
 // Snow particle system (for winter mode)
 static const int SNOW_PARTICLE_COUNT = 2000;
 static const float SNOW_SPAWN_RADIUS = 40.0f;
@@ -174,6 +113,10 @@ struct SnowParticle {
 
 struct SnowSystem {
     SnowParticle particles[SNOW_PARTICLE_COUNT];
+    Mesh flakeMesh;           // unit quad, billboarded in snow.vs
+    Shader shader;
+    InstanceStream stream;
+    std::vector<float> instances;
     bool initialized;
 };
 
@@ -204,10 +147,8 @@ struct LeafSystem {
     LeafParticle particles[LEAF_PARTICLE_COUNT];
     Shader leafShader;
     Mesh leafMesh;
-    Material leafMaterial;
-    int viewPosLoc;
-    int fogColorLoc;
-    int fogDensityLoc;
+    InstanceStream stream;
+    std::vector<float> instances;   // 8 floats per leaf, see leaf.vs
     bool initialized;
 };
 
@@ -251,10 +192,8 @@ struct LeafBurstSystem {
     LeafBurst bursts[MAX_LEAF_BURSTS];
     Shader leafShader;
     Mesh leafMesh;
-    Material leafMaterial;
-    int viewPosLoc;
-    int fogColorLoc;
-    int fogDensityLoc;
+    InstanceStream stream;
+    std::vector<float> instances;   // 8 floats per leaf, see leaf.vs
     bool initialized;
 };
 

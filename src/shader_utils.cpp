@@ -1,139 +1,150 @@
 #include "shader_utils.h"
+#include "rlgl.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <set>
+#include <string>
 
-// Read entire file into dynamically allocated string
-static char* ReadFileContents(const char* fileName) {
-    FILE* file = fopen(fileName, "r");
+static int g_shaderFailures = 0;
+
+static bool ReadFileContents(const std::string& fileName, std::string* out) {
+    FILE* file = fopen(fileName.c_str(), "rb");
     if (!file) {
-        TraceLog(LOG_WARNING, "SHADER: Failed to open file: %s", fileName);
-        return nullptr;
+        TraceLog(LOG_WARNING, "SHADER: Failed to open file: %s", fileName.c_str());
+        return false;
     }
-
     fseek(file, 0, SEEK_END);
     long size = ftell(file);
     fseek(file, 0, SEEK_SET);
-
-    char* contents = (char*)malloc(size + 1);
-    if (!contents) {
-        fclose(file);
-        return nullptr;
-    }
-
-    size_t read = fread(contents, 1, size, file);
-    contents[read] = '\0';
+    out->resize(size > 0 ? (size_t)size : 0);
+    size_t read = size > 0 ? fread(&(*out)[0], 1, (size_t)size, file) : 0;
+    out->resize(read);
     fclose(file);
-
-    return contents;
+    return true;
 }
 
-// Get directory from file path (returns "shaders/" for "shaders/grass.fs")
-static void GetDirectory(const char* filePath, char* dir, int maxLen) {
-    const char* lastSlash = strrchr(filePath, '/');
-    if (lastSlash) {
-        int len = (int)(lastSlash - filePath + 1);
-        if (len >= maxLen) len = maxLen - 1;
-        strncpy(dir, filePath, len);
-        dir[len] = '\0';
-    } else {
-        dir[0] = '\0';
-    }
+static std::string DirectoryOf(const std::string& path) {
+    size_t slash = path.find_last_of('/');
+    return slash == std::string::npos ? std::string() : path.substr(0, slash + 1);
 }
 
-char* PreprocessShaderSource(const char* fileName) {
-    char* source = ReadFileContents(fileName);
-    if (!source) return nullptr;
-
-    // Get base directory for relative includes
-    char baseDir[256];
-    GetDirectory(fileName, baseDir, sizeof(baseDir));
-
-    // Allocate result buffer (start with 2x source size for includes)
-    size_t resultSize = strlen(source) * 4 + 1;
-    char* result = (char*)malloc(resultSize);
-    if (!result) {
-        free(source);
-        return nullptr;
-    }
-    result[0] = '\0';
-    size_t resultLen = 0;
-
-    // Process line by line
-    char* line = source;
-    while (line && *line) {
-        char* nextLine = strchr(line, '\n');
-        size_t lineLen = nextLine ? (size_t)(nextLine - line) : strlen(line);
-
-        // Check for #include directive
-        if (strncmp(line, "#include", 8) == 0) {
-            // Parse include path
-            const char* quote1 = strchr(line, '"');
-            const char* quote2 = quote1 ? strchr(quote1 + 1, '"') : nullptr;
-
-            if (quote1 && quote2) {
-                // Extract include path
-                int pathLen = (int)(quote2 - quote1 - 1);
-                char includePath[256];
-                snprintf(includePath, sizeof(includePath), "%s%.*s", baseDir, pathLen, quote1 + 1);
-
-                // Read and insert include file
-                char* includeContents = ReadFileContents(includePath);
-                if (includeContents) {
-                    size_t includeLen = strlen(includeContents);
-
-                    // Grow result buffer if needed
-                    while (resultLen + includeLen + 2 >= resultSize) {
-                        resultSize *= 2;
-                        result = (char*)realloc(result, resultSize);
-                    }
-
-                    // Add include contents with newline
-                    strcat(result, includeContents);
-                    strcat(result, "\n");
-                    resultLen += includeLen + 1;
-
-                    free(includeContents);
-                    TraceLog(LOG_INFO, "SHADER: Included %s", includePath);
-                } else {
-                    TraceLog(LOG_WARNING, "SHADER: Failed to include %s", includePath);
-                }
-            }
-        } else {
-            // Regular line - copy to result
-            while (resultLen + lineLen + 2 >= resultSize) {
-                resultSize *= 2;
-                result = (char*)realloc(result, resultSize);
-            }
-
-            strncat(result, line, lineLen);
-            strcat(result, "\n");
-            resultLen += lineLen + 1;
+// Normalizes "shaders/common/../common/x.glsl" style paths so include-once works.
+static std::string NormalizePath(const std::string& path) {
+    std::string result;
+    size_t start = 0;
+    std::string parts[64];
+    int count = 0;
+    while (start <= path.size()) {
+        size_t end = path.find('/', start);
+        if (end == std::string::npos) end = path.size();
+        std::string part = path.substr(start, end - start);
+        if (part == "..") {
+            if (count > 0) count--;
+        } else if (!part.empty() && part != "." && count < 64) {
+            parts[count++] = part;
         }
-
-        // Move to next line
-        line = nextLine ? nextLine + 1 : nullptr;
+        start = end + 1;
     }
-
-    free(source);
+    for (int i = 0; i < count; i++) {
+        if (i) result += '/';
+        result += parts[i];
+    }
     return result;
 }
 
-Shader LoadShaderWithIncludes(const char* vsFileName, const char* fsFileName) {
-    char* vsSource = nullptr;
-    char* fsSource = nullptr;
-
-    if (vsFileName) {
-        vsSource = PreprocessShaderSource(vsFileName);
+static bool ExpandIncludes(const std::string& fileName, std::set<std::string>& included,
+                           std::string* out, int depth) {
+    if (depth > 16) {
+        TraceLog(LOG_ERROR, "SHADER: Include depth exceeded at %s", fileName.c_str());
+        return false;
     }
-    if (fsFileName) {
-        fsSource = PreprocessShaderSource(fsFileName);
+    std::string source;
+    if (!ReadFileContents(fileName, &source)) return false;
+    std::string baseDir = DirectoryOf(fileName);
+
+    size_t pos = 0;
+    while (pos < source.size()) {
+        size_t eol = source.find('\n', pos);
+        if (eol == std::string::npos) eol = source.size();
+        std::string line = source.substr(pos, eol - pos);
+        pos = eol + 1;
+
+        size_t first = line.find_first_not_of(" \t");
+        if (first != std::string::npos && line.compare(first, 8, "#include") == 0) {
+            size_t q1 = line.find('"', first);
+            size_t q2 = q1 == std::string::npos ? q1 : line.find('"', q1 + 1);
+            if (q1 == std::string::npos || q2 == std::string::npos) {
+                TraceLog(LOG_ERROR, "SHADER: Malformed include in %s: %s", fileName.c_str(), line.c_str());
+                return false;
+            }
+            std::string includePath = NormalizePath(baseDir + line.substr(q1 + 1, q2 - q1 - 1));
+            if (included.count(includePath)) continue;
+            included.insert(includePath);
+            if (!ExpandIncludes(includePath, included, out, depth + 1)) {
+                TraceLog(LOG_ERROR, "SHADER: Failed to include %s from %s", includePath.c_str(), fileName.c_str());
+                return false;
+            }
+            continue;
+        }
+        *out += line;
+        *out += '\n';
     }
+    return true;
+}
 
-    Shader shader = LoadShaderFromMemory(vsSource, fsSource);
+// Defines go directly after #version, which must stay the first directive.
+static std::string InjectDefines(const std::string& source, const char* defines) {
+    if (!defines || !*defines) return source;
+    std::string block;
+    const char* p = defines;
+    while (*p) {
+        while (*p == ' ' || *p == ';') p++;
+        const char* end = p;
+        while (*end && *end != ';') end++;
+        if (end > p) block += "#define " + std::string(p, end - p) + "\n";
+        p = end;
+    }
+    size_t versionLine = source.find("#version");
+    if (versionLine == std::string::npos) return block + source;
+    size_t eol = source.find('\n', versionLine);
+    if (eol == std::string::npos) return source + "\n" + block;
+    return source.substr(0, eol + 1) + block + source.substr(eol + 1);
+}
 
+char* PreprocessShaderSource(const char* fileName, const char* defines) {
+    std::set<std::string> included;
+    std::string expanded;
+    std::string path = NormalizePath(fileName);
+    included.insert(path);
+    if (!ExpandIncludes(path, included, &expanded, 0)) return nullptr;
+    expanded = InjectDefines(expanded, defines);
+    char* result = (char*)malloc(expanded.size() + 1);
+    memcpy(result, expanded.c_str(), expanded.size() + 1);
+    return result;
+}
+
+Shader LoadShaderVariant(const char* vsFileName, const char* fsFileName, const char* defines) {
+    char* vsSource = vsFileName ? PreprocessShaderSource(vsFileName, defines) : nullptr;
+    char* fsSource = fsFileName ? PreprocessShaderSource(fsFileName, defines) : nullptr;
+    bool missing = (vsFileName && !vsSource) || (fsFileName && !fsSource);
+
+    Shader shader = missing ? Shader{} : LoadShaderFromMemory(vsSource, fsSource);
     if (vsSource) free(vsSource);
     if (fsSource) free(fsSource);
 
+    if (missing || shader.id == 0 || shader.id == rlGetShaderIdDefault()) {
+        g_shaderFailures++;
+        TraceLog(LOG_ERROR, "SHADER FAILED: %s + %s [%s]", vsFileName ? vsFileName : "(default)",
+                 fsFileName ? fsFileName : "(default)", defines ? defines : "");
+    }
     return shader;
+}
+
+Shader LoadShaderWithIncludes(const char* vsFileName, const char* fsFileName) {
+    return LoadShaderVariant(vsFileName, fsFileName, nullptr);
+}
+
+int GetShaderLoadFailures() {
+    return g_shaderFailures;
 }

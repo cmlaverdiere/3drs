@@ -103,45 +103,82 @@ Scripts support commands like `warp`, `face`, `press`, `click`, `set_time`, `set
 
 ### Rendering
 
-- **src/rendering.cpp** - 3D world rendering (terrain, walls, trees, water, enemies, items)
+- **src/rendering.cpp** - Entity, item, wall, lamp and campfire drawing (scene, shadow and transparent passes)
+- **src/lighting.cpp** - Day/night cycle, sun and moon, atmosphere-driven light and ambient, cascaded shadows, frame uniform buffer, point lights
+- **src/post_process.cpp** - HDR scene targets, SSAO, volumetric light, bloom, tonemapping, FXAA
+- **src/terrain.cpp** - Chunked terrain mesh with a far ring and skirts
+- **src/vegetation.cpp** - Instanced trees (leaf-card canopies, trunks, winter pines) and rocks
+- **src/grass.cpp** - Chunked instanced grass field following the terrain's ground cover
+- **src/gfx.cpp** - Thin OpenGL helpers: render targets, fullscreen passes, uniform buffers, instancing
+- **src/atmosphere.h** - CPU copy of the sky scattering model (sun colour, ambient, fog colour)
+- **src/ground_noise.h** - CPU copy of the terrain shader's noise, used to place grass
 - **src/hud.cpp** - 2D UI (health, energy, inventory, XP popups, damage numbers)
-- **src/lighting.cpp** - Day/night cycle, sun position, sky colors, post-processing
-- **src/frustum.cpp** - View frustum culling for performance
+- **src/frustum.cpp** - View frustum culling
 
 ## Graphics Techniques
 
+Everything is procedural: there are no textures or model files. Shared shader
+code lives in `shaders/common/` (`frame.glsl` holds the per-frame uniform block,
+noise and hashing; `lighting.glsl` the surface model).
+
 ### Rendering Pipeline
 
-Forward rendering with a shadow pass and screen-space post-processing:
+1. **Sky LUT** - Single-scattering Rayleigh/Mie/ozone sky rendered into a 256x128 sky-view table when the time of day changes
+2. **Shadow cascades** - Four 2048² cascades in one 4096² depth atlas
+3. **Scene pass** - Forward shading into two HDR targets: direct light (plus emissive and fog in-scatter) and ambient light, so SSAO darkens only the ambient term
+4. **Sky** - Drawn after opaque geometry at the far plane: atmosphere, sun and moon discs, stars, milky way and a lit cloud layer
+5. **Opaque copy** - Half-resolution colour and full depth copy for water refraction and soft particles
+6. **Transparent pass** - Water, campfire flames (additive), snow, leaves, blood
+7. **Post** - Half-res SSAO and volumetric light with depth-aware blurs, resolve, 6-level bloom mip chain, AgX tonemap and grade, FXAA, then the HUD
 
-1. **Shadow Pass** - Explicit depth materials rendered to a 4096x4096 floating-point depth texture
-2. **Main Pass** - Render scene to off-screen texture with lighting and shadows
-3. **Post-Processing** - Apply SSAO and bloom effects
-4. **Composite** - Combine scene, restrained bloom, and AO; draw the HUD afterward
+### Lighting
 
-### Shadow Mapping
+- **Atmosphere** - The same scattering model runs on the CPU (`atmosphere.h`) and GPU (`common/atmosphere.glsl`); sun colour comes from transmittance, sky ambient from L1 spherical harmonics with a seasonal ground bounce, and fog takes the sky colour behind it
+- **Day/night** - Sun and moon on keyframed arcs; the moon becomes the key light after sunset, with a scotopic blue shift and partial exposure adaptation so night stays dark but readable
+- **Surfaces** - GGX specular with Schlick Fresnel, wrap diffuse and translucency for foliage, rough sky reflections, derivative bump mapping
+- **Point lights** - Up to 16 lamps and campfires with windowed inverse-square falloff; campfires flicker
+- **Clouds** - One density function drives the sky clouds, their shadows on the ground and the light shafts
 
-- Orthographic projection from sun position (200 unit coverage)
-- Stable 16-tap PCF with receiver-plane depth correction for soft shadows
-- Shadow edge fade to prevent hard cutoffs
-- World-anchored texel snapping and bounded depth bias to reduce artifacts
-- Conservative light-volume culling retains offscreen shadow casters
+### Shadows
 
-### Post-Processing Effects
+- Four cascades split at 10 / 28 / 72 / 190 m, each fitted to a texel-snapped bounding sphere so shadows don't swim
+- Hardware PCF with a 12-tap Poisson disk of constant world-space softness, normal-offset bias, blended cascade transitions and a distance fade
+- Casters are culled per cascade against the light volume
 
-**Bloom:**
-- Bright pixel extraction (threshold-based)
-- Two-pass Gaussian blur (horizontal + vertical) at half resolution
-- Ping-pong blur buffers for multi-pass smoothing
-- Floating-point intensity control and screen blending to preserve highlight detail
+### Post-Processing
 
-**SSAO (Screen-Space Ambient Occlusion):**
-- 32-sample hemisphere kernel
-- 4x4 noise texture for sample rotation (reduces banding)
-- Position reconstruction from sampleable 32-bit depth and the actual scene projection
-- Normal reconstruction from depth derivatives
-- Bilateral blur pass to smooth result
-- Multiplicative blend in composite
+- **SSAO** - 14-sample normal-oriented hemisphere at half resolution, depth-aware blur
+- **Volumetric light** - 32-step half-resolution march through height fog using the shadow atlas (god rays), plus glow around point lights
+- **Bloom** - 13-tap downsample and tent upsample over 6 mips, blended at low strength
+- **Tonemap** - AgX with a slight saturation look, split toning, vignette and dithering
+- **FXAA** - Edge anti-aliasing on the LDR image
+
+### Procedural Materials
+
+- **Terrain** - Seasonal grass, worn dirt, shoreline, sand ripples, fallen leaves, spring flowers and snow with glints, blended by noise and map zones
+- **Walls** - Brick, stone and wood patterns with grime, rain streaks, moss or snow on top
+- **Water** - Ripple normals, refraction with depth absorption, Fresnel sky reflection, sun glints, shoreline foam and soft edges
+- **Trees** - Leaf cards alpha-tested to a 9-leaf cluster, seam-free bark with fissures and lichen, pine needles and patchy snow
+- **Rocks** - Noise-displaced meshes with strata, moss and metallic ore veins
+- **Fire** - Camera-facing flame billboard with domain-warped turbulence, blackbody colour, sparks and a soft depth fade
+- **Entities** - Bevelled cube edges, grain and emissive eyes, lamps and embers
+
+### Vegetation and Particles
+
+- **Grass** - 12 m chunks of about 58 blades/m², baked once into static instance buffers. Density and colour follow the terrain shader's ground cover, so paths, shores and sand stay bare. Distant chunks draw a thinned prefix. Blades bend with travelling wind gusts and away from the player.
+- **Trees and rocks** - Instanced with frustum and distance culling (trees to 340 m, leaf cards to 150 m, rocks to 170 m), with wind sway
+- **Snow** - 2000 instanced soft flakes that follow the player
+- **Falling leaves** - 800 instanced tumbling leaves in autumn, plus 250-leaf bursts when chopping trees
+
+### Debugging and Profiling
+
+| Variable | Effect |
+|---|---|
+| `GAME_PROFILE=1` | Print per-section CPU frame timings |
+| `GAME_PROFILE=2` | Also wait for the GPU in each section |
+| `GAME_UNCAPPED=1` | Disable the 60 FPS cap |
+| `GAME_RENDER_SCALE=0.75` | Render the 3D scene at a fraction of window resolution |
+| `GAME_DEBUG_VIEW=n` | Show an intermediate buffer: 1 raw HDR, 3 bloom, 6 sky LUT, 7 volumetric, 8 direct light, 9 SSAO, 10 shadow term, 11 cascade light-space position |
 
 Lighting math checks run without a window:
 
@@ -152,67 +189,8 @@ ctest --test-dir build --output-on-failure
 
 `scripts/ingame/lighting_audit.script` and `lighting_audit_winter.script` provide
 fixed viewpoints for before/after visual checks. Run them in an isolated working
-directory with a copied save; scripted runs save game state on exit. Initialize
-the winter run from a winter save so terrain and grass uniforms match the season.
-
-### Procedural Shaders
-
-All textures are generated procedurally in fragment shaders (no image files):
-
-- **Terrain** - Grass and sand with noise-based color variation
-- **Water** - Animated multi-octave noise, scrolling patterns, sparkle highlights
-- **Walls** - Brick, stone, and wood materials with procedural patterns
-- **Fire** - Animated procedural flames for campfires
-- **Sky** - Gradient based on time of day with sun/moon positioning
-- **Leaves** - SDF-based leaf shape with procedural vein patterns
-
-### Lighting System
-
-- **Day/Night Cycle** - 20-minute full cycle with dawn/day/dusk/night phases
-- **Directional Sun** - Position and color change throughout the day
-- **Point Lights** - Up to 16 dynamic lights (lamps turn on at dusk, campfires always on)
-- **Exponential Fog** - Distance-based fog with color matching sky
-- **Blinn-Phong Shading** - Diffuse + specular for water and shiny materials
-
-### Culling & Optimization
-
-**Frustum Culling:**
-- Gribb/Hartmann plane extraction from view-projection matrix
-- Sphere-based visibility tests for trees (radius 3.5), rocks (1.5), enemies (2-5)
-- Applied to main pass and selectively to shadow pass
-
-**Distance Culling:**
-- Trees: 150 units
-- Rocks/Enemies: 120 units
-- Shadow pass: light-volume intersection rather than camera-distance rejection
-
-**Spatial Hashing:**
-- Grid-based spatial partitioning for O(1) neighbor queries
-- Used for collision detection, NPC/enemy proximity checks
-
-### Particle Systems
-
-**Snow (Winter):**
-- 2000 particles falling with drift/wobble
-- Respawn at top when hitting ground
-- Follows player position
-
-**Falling Leaves (Autumn):**
-- 800 leaf particles with tumbling rotation
-- Procedural leaf shader with SDF shape
-- Color variation (red, orange, yellow)
-
-**Leaf Burst (Tree Chopping):**
-- 250 particles per burst, up to 8 simultaneous
-- Physics-based velocity with gravity
-- Triggered when chopping trees in autumn mode
-
-### Vegetation System
-
-**Grass Blades:**
-- 20,000 blades baked into single mesh (1 draw call)
-- Vertex shader wind animation
-- Height-based sway (tips move more than base)
+directory with a copied save (`--working-directory`); scripted runs save game
+state on exit. Initialize the winter run from a winter save.
 
 ### Utilities
 

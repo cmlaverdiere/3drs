@@ -3,12 +3,10 @@
 in vec2 fragTexCoord;
 in vec3 fragWorldPos;
 
-uniform vec4 colDiffuse;  // Material color from raylib
-uniform vec3 viewPos;
-uniform vec3 fogColor;
-uniform float fogDensity;
+in vec4 fragColor;        // sRGB leaf colour, alpha
 
-out vec4 finalColor;
+#include "common/lighting.glsl"
+
 
 // Procedural leaf shape using signed distance functions
 float leafShape(vec2 uv) {
@@ -67,7 +65,7 @@ void main() {
     }
 
     // Base color from material diffuse color
-    vec3 baseColor = colDiffuse.rgb;
+    vec3 baseColor = fragColor.rgb;
 
     // Darken edges slightly
     float edge = smoothstep(-0.02, -0.08, d);
@@ -87,14 +85,11 @@ void main() {
     float ao = smoothstep(-0.01, -0.15, d);
     baseColor *= 0.7 + 0.3 * ao;
 
-    // Distance fog
-    float dist = length(viewPos - fragWorldPos);
-    float fogFactor = exp(-pow(dist * fogDensity, 2.0));
-    fogFactor = clamp(fogFactor, 0.0, 1.0);
-    vec3 color = mix(fogColor, baseColor, fogFactor);
-
-    // Slight transparency for realism
-    float alpha = 0.92;
-
-    finalColor = vec4(color, alpha);
+    vec3 N = normalize(cross(dFdx(fragWorldPos), dFdy(fragWorldPos)));
+    if (dot(N, uCamera.xyz - fragWorldPos) < 0.0) N = -N;
+    Surface s = defaultSurface(srgbToLinear(saturate(baseColor)), N);
+    s.wrap = 0.6;
+    s.translucency = 0.8;
+    s.roughness = 0.6;
+    writeSurface(s, fragWorldPos, N, fragColor.a);
 }

@@ -1,148 +1,179 @@
-// Common lighting functions and uniforms
-// Include this in fragment shaders with: #include "common/lighting.glsl"
+// Scene lighting: cascaded shadows, sky ambient (SH), GGX, point lights,
+// height fog / aerial perspective and the two-target scene output.
+// Include in every lit fragment shader: #include "common/lighting.glsl"
 
-// Lighting uniforms
-uniform vec3 sunDirection;
-uniform vec3 sunColor;
-uniform vec3 ambientColor;
-uniform vec3 fogColor;
-uniform float fogDensity;
-uniform vec3 viewPos;
-uniform mat4 lightVP;
-uniform sampler2D shadowMap;
-uniform int shadowMapResolution;
-uniform int shadowEnabled;
-uniform float shadowDepthRange;
+#include "frame.glsl"
+#include "atmosphere.glsl"
+#include "clouds.glsl"
+#include "shadows.glsl"
 
-// Point lights
-#define MAX_POINT_LIGHTS 16
-uniform vec3 pointLightPositions[MAX_POINT_LIGHTS];
-uniform vec3 pointLightColors[MAX_POINT_LIGHTS];
-uniform int pointLightCount;
+layout(location = 0) out vec4 outDirect;   // direct + emissive + fog in-scatter
+layout(location = 1) out vec4 outAmbient;  // ambient (SSAO applies to this only)
 
-// Hash function for noise
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+// ---------------------------------------------------------------------------
+// Ambient and BRDF
+// ---------------------------------------------------------------------------
+vec3 ambientIrradiance(vec3 n) {
+    return max(uAmbientSH[0].rgb + uAmbientSH[1].rgb * n.x + uAmbientSH[2].rgb * n.y + uAmbientSH[3].rgb * n.z,
+               vec3(0.0));
 }
 
-// Value noise
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+float D_GGX(float NdotH, float a) {
+    float a2 = a * a;
+    float d = NdotH * NdotH * (a2 - 1.0) + 1.0;
+    return a2 / (PI * d * d);
 }
 
-// Fractal noise
-float fbm(vec2 p, int octaves) {
-    float value = 0.0;
-    float amplitude = 0.5;
-    for (int i = 0; i < octaves; i++) {
-        value += amplitude * noise(p);
-        p *= 2.0;
-        amplitude *= 0.5;
-    }
-    return value;
+float V_SmithGGX(float NdotV, float NdotL, float a) {
+    float k = a * 0.5;
+    return 0.25 / ((NdotV * (1.0 - k) + k) * (NdotL * (1.0 - k) + k));
 }
 
-// Poisson disk samples for soft shadow sampling
-const vec2 poissonDisk[16] = vec2[](
-    vec2(-0.94201624, -0.39906216), vec2(0.94558609, -0.76890725),
-    vec2(-0.094184101, -0.92938870), vec2(0.34495938, 0.29387760),
-    vec2(-0.91588581, 0.45771432), vec2(-0.81544232, -0.87912464),
-    vec2(-0.38277543, 0.27676845), vec2(0.97484398, 0.75648379),
-    vec2(0.44323325, -0.97511554), vec2(0.53742981, -0.47373420),
-    vec2(-0.26496911, -0.41893023), vec2(0.79197514, 0.19090188),
-    vec2(-0.24188840, 0.99706507), vec2(-0.81409955, 0.91437590),
-    vec2(0.19984126, 0.78641367), vec2(0.14383161, -0.14100790)
-);
-
-// Calculate point light contribution
-vec3 calcPointLight(vec3 lightPos, vec3 lightColor, vec3 fragPos, vec3 normal) {
-    vec3 lightDir = lightPos - fragPos;
-    float distance = length(lightDir);
-    lightDir /= max(distance, 0.0001);
-
-    // Soft point light settings
-    float radius = 12.0;
-    float intensity = 1.2;
-
-    float attenuation = intensity / (1.0 + 0.15 * distance + 0.03 * distance * distance);
-    attenuation *= (1.0 - smoothstep(radius * 0.1, radius, distance));
-
-    float diff = max(dot(normal, lightDir), 0.0);
-    return diff * lightColor * attenuation;
+vec3 F_Schlick(vec3 f0, float VdotH) {
+    return f0 + (1.0 - f0) * pow(1.0 - VdotH, 5.0);
 }
 
-// Calculate all point lights
-vec3 calcAllPointLights(vec3 fragPos, vec3 normal) {
-    vec3 pointLighting = vec3(0.0);
-    for (int i = 0; i < pointLightCount && i < MAX_POINT_LIGHTS; i++) {
-        pointLighting += calcPointLight(pointLightPositions[i], pointLightColors[i], fragPos, normal);
-    }
-    return pointLighting;
+vec3 F_SchlickRoughness(vec3 f0, float NdotV, float rough) {
+    return f0 + (max(vec3(1.0 - rough), f0) - f0) * pow(1.0 - NdotV, 5.0);
 }
 
-// Calculate shadow factor with Poisson disk PCF (0.0 = full shadow, 1.0 = no shadow)
-float calcShadow(vec3 fragPos, vec3 normal) {
-    if (shadowEnabled == 0) return 1.0;
-    vec4 fragPosLightSpace = lightVP * vec4(fragPos, 1.0);
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
+struct Surface {
+    vec3 albedo;        // linear
+    vec3 normal;        // shading normal
+    float roughness;
+    float metallic;
+    float specular;     // dielectric reflectance scale (1 = 4%)
+    float occlusion;    // material AO (cavities)
+    float wrap;         // diffuse wrap (foliage)
+    float translucency; // back-lit transmission
+    float shadowSoftness;
+    vec3 emissive;
+};
 
-    if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
-        projCoords.y < 0.0 || projCoords.y > 1.0 ||
-        projCoords.z < 0.0 || projCoords.z > 1.0) {
-        return 1.0;
-    }
+Surface defaultSurface(vec3 albedo, vec3 normal) {
+    Surface s;
+    s.albedo = albedo;
+    s.normal = normal;
+    s.roughness = 0.7;
+    s.metallic = 0.0;
+    s.specular = 1.0;
+    s.occlusion = 1.0;
+    s.wrap = 0.0;
+    s.translucency = 0.0;
+    s.shadowSoftness = 0.03;
+    s.emissive = vec3(0.0);
+    return s;
+}
 
-    float currentDepth = projCoords.z;
-    // Bias in world units, converted to the orthographic depth interval.
-    float slope = 1.0 - max(dot(normalize(normal), -sunDirection), 0.0);
-    float bias = (0.025 + 0.08 * slope) / shadowDepthRange;
-
-    // Compare each PCF tap against the receiver plane at that tap, rather than
-    // against the centre depth. Otherwise even a flat sloping surface shadows
-    // itself as the filter steps across neighbouring texels.
-    vec3 dx = dFdx(projCoords);
-    vec3 dy = dFdy(projCoords);
-    float determinant = dx.x * dy.y - dx.y * dy.x;
-    vec2 depthGradient = vec2(0.0);
-    if (abs(determinant) > 1e-12) {
-        depthGradient = vec2(dy.y * dx.z - dx.y * dy.z,
-                             dx.x * dy.z - dy.x * dx.z) / determinant;
-    }
-
-    // PCF with Poisson disk sampling for softer shadows
-    float shadow = 0.0;
-    float spread = 2.0 / float(shadowMapResolution);
-    // Fixed taps avoid per-fragment hash noise and remain stable as the camera moves.
+// ---------------------------------------------------------------------------
+// Point lights (lamps, campfires): smooth windowed inverse-square falloff
+// ---------------------------------------------------------------------------
+vec3 pointLighting(Surface s, vec3 worldPos, vec3 V, vec3 f0, float a) {
+    vec3 sum = vec3(0.0);
+    int count = int(uCounts.x);
     for (int i = 0; i < 16; i++) {
-        vec2 offset = poissonDisk[i] * spread;
-        float sampleDepth = texture(shadowMap, clamp(projCoords.xy + offset, vec2(0.0), vec2(1.0))).r;
-        float receiverDepth = currentDepth + clamp(dot(depthGradient, offset), -0.002, 0.002);
-        shadow += (receiverDepth - bias > sampleDepth) ? 1.0 : 0.0;
+        if (i >= count) break;
+        vec3 toLight = uPointPos[i].xyz - worldPos;
+        float dist2 = dot(toLight, toLight);
+        float radius = uPointPos[i].w;
+        if (dist2 > radius * radius) continue;
+        float dist = sqrt(dist2);
+        vec3 L = toLight / max(dist, 1e-4);
+        float window = pow(saturate(1.0 - pow(dist / radius, 4.0)), 2.0);
+        float atten = window / (dist2 + 0.35);
+        float NdotL = saturate((dot(s.normal, L) + s.wrap) / (1.0 + s.wrap));
+        vec3 H = normalize(L + V);
+        float NdotV = max(dot(s.normal, V), 1e-3);
+        float NdotLs = max(dot(s.normal, L), 0.0);
+        vec3 F = F_Schlick(f0, saturate(dot(V, H)));
+        vec3 spec = D_GGX(saturate(dot(s.normal, H)), a) * V_SmithGGX(NdotV, max(NdotLs, 1e-3), a) * F * PI * NdotLs;
+        vec3 diffuse = s.albedo * (1.0 - s.metallic) * NdotL;
+        sum += (diffuse + spec) * uPointColor[i].rgb * atten;
     }
-    shadow /= 16.0;
-
-    // Fade shadows at edge of shadow map
-    float fadeStart = 0.85;
-    float fadeEdge = max(abs(projCoords.x * 2.0 - 1.0), abs(projCoords.y * 2.0 - 1.0));
-    shadow *= 1.0 - smoothstep(fadeStart, 1.0, fadeEdge);
-
-    return 1.0 - shadow;
+    return sum;
 }
 
-// Apply fog to color
-vec3 applyFog(vec3 color, vec3 fragPos) {
-    float dist = length(viewPos - fragPos);
-    float fogFactor = exp(-pow(dist * fogDensity, 2.0));
-    fogFactor = clamp(fogFactor, 0.0, 1.0);
-    return mix(fogColor, color, fogFactor);
+// ---------------------------------------------------------------------------
+// Full surface shading. Returns direct (key light + point lights + emissive)
+// and ambient (sky irradiance + sky reflections) separately.
+// ---------------------------------------------------------------------------
+void shadeSurface(Surface s, vec3 worldPos, vec3 geomNormal, out vec3 direct, out vec3 ambient) {
+    vec3 V = normalize(uCamera.xyz - worldPos);
+    vec3 N = s.normal;
+    vec3 L = uLightDir.xyz;
+    float a = max(s.roughness * s.roughness, 0.002);
+    vec3 f0 = mix(vec3(0.04 * s.specular), s.albedo, s.metallic);
+    float NdotV = max(dot(N, V), 1e-3);
+
+    float shadow = shadowVisibility(worldPos, geomNormal, s.shadowSoftness);
+    shadow *= cloudShadow(worldPos, L);
+
+    // Key light
+    float NdotLraw = dot(N, L);
+    float NdotL = saturate(NdotLraw);
+    float diffuseTerm = saturate((NdotLraw + s.wrap) / ((1.0 + s.wrap) * (1.0 + s.wrap)));
+    vec3 H = normalize(L + V);
+    vec3 F = F_Schlick(f0, saturate(dot(V, H)));
+    vec3 spec = D_GGX(saturate(dot(N, H)), a) * V_SmithGGX(NdotV, max(NdotL, 1e-3), a) * F * PI * NdotL;
+    vec3 kd = (1.0 - F) * (1.0 - s.metallic);
+    vec3 keyDiffuse = s.albedo * kd * diffuseTerm;
+    float backlit = pow(saturate(dot(-V, L)), 3.0) * 0.8 + 0.2 * saturate(-NdotLraw);
+    vec3 transmitted = s.albedo * s.translucency * backlit;
+    direct = (keyDiffuse + spec + transmitted) * uLightColor.rgb * shadow;
+    direct += pointLighting(s, worldPos, V, f0, a);
+    direct += s.emissive;
+
+    // Ambient: diffuse sky irradiance plus a rough sky reflection
+    vec3 Fr = F_SchlickRoughness(f0, NdotV, s.roughness);
+    vec3 diffuseAmbient = s.albedo * (1.0 - Fr) * (1.0 - s.metallic) * ambientIrradiance(N);
+    vec3 R = reflect(-V, N);
+    vec3 envSpec = mix(ambientIrradiance(R), skyRadiance(R), (1.0 - s.roughness) * (1.0 - s.roughness));
+    float horizon = saturate(1.0 + dot(R, geomNormal));
+    ambient = (diffuseAmbient + envSpec * Fr * horizon * horizon) * s.occlusion;
+}
+
+// ---------------------------------------------------------------------------
+// Height fog / aerial perspective: fog takes the colour of the sky behind it
+// ---------------------------------------------------------------------------
+float fogOpticalDepth(vec3 worldPos) {
+    vec3 d = worldPos - uCamera.xyz;
+    float dist = length(d);
+    float h0 = uCamera.y - uFog.z;
+    float k = uFog.y * d.y;
+    float integral = abs(k) > 1e-4 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k;
+    return uFog.x * exp(-uFog.y * h0) * dist * integral;
+}
+
+void fogTerms(vec3 worldPos, out float transmittance, out vec3 inscatter) {
+    float od = fogOpticalDepth(worldPos);
+    transmittance = exp(-od);
+    vec3 dir = normalize(worldPos - uCamera.xyz);
+    inscatter = skyRadiance(dir) * (1.0 - transmittance) * uFog.w;
+}
+
+void writeScene(vec3 direct, vec3 ambient, vec3 worldPos, float alpha) {
+    float T; vec3 inscatter;
+    fogTerms(worldPos, T, inscatter);
+    outDirect = vec4(direct * T + inscatter, alpha);
+    outAmbient = vec4(ambient * T, alpha);
+}
+
+void writeSurface(Surface s, vec3 worldPos, vec3 geomNormal, float alpha) {
+    vec3 direct, ambient;
+    shadeSurface(s, worldPos, geomNormal, direct, ambient);
+    writeScene(direct, ambient, worldPos, alpha);
+}
+
+// Screen-derivative bump mapping: perturbs N by the gradient of a height field
+vec3 bumpNormal(vec3 N, vec3 worldPos, float height, float strength) {
+    vec3 dpdx = dFdx(worldPos);
+    vec3 dpdy = dFdy(worldPos);
+    float dhdx = dFdx(height);
+    float dhdy = dFdy(height);
+    vec3 r1 = cross(dpdy, N);
+    vec3 r2 = cross(N, dpdx);
+    float det = dot(dpdx, r1);
+    if (abs(det) < 1e-12) return N;
+    vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
+    return normalize(abs(det) * N - grad * strength);
 }

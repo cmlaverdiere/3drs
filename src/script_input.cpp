@@ -416,6 +416,8 @@ bool UpdateScript(ScriptState* state, Camera3D* camera, PlayerState* player,
                 ExportImage(screenshot, filename);
                 UnloadImage(screenshot);
                 printf("SCREENSHOT: %s\n", filename);
+                extern float g_frameTimeMsAvg;
+                printf("PERF: %s frame_ms=%.2f fps=%d\n", cmd.label, g_frameTimeMsAvg, GetFPS());
                 state->currentCommand++;
                 break;
             }

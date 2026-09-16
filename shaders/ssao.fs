@@ -1,64 +1,63 @@
 #version 330
 
+// Half-resolution normal-oriented hemisphere SSAO. Output: (ao, linear depth).
+#include "common/frame.glsl"
+
 in vec2 fragTexCoord;
-uniform sampler2D texture0; // Sampleable scene depth, with the same UVs as scene color.
-uniform sampler2D noiseTexture;
-uniform vec3 samples[32];
-uniform mat4 projection;
-uniform mat4 inverseProjection;
-uniform vec2 screenSize;
-uniform float radius;
-uniform float bias;
+uniform sampler2D uDepth;
+uniform mat4 uInvProj;
 out vec4 finalColor;
 
 vec3 viewPosition(vec2 uv) {
-    float depth = texture(texture0, uv).r;
-    vec4 p = inverseProjection * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    float depth = textureLod(uDepth, uv, 0.0).r;
+    vec4 p = uInvProj * vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     return p.xyz / p.w;
 }
 
 void main() {
-    if (texture(texture0, fragTexCoord).r >= 0.9999999) {
-        finalColor = vec4(1.0);
+    vec2 uv = fragTexCoord;
+    float depth = textureLod(uDepth, uv, 0.0).r;
+    if (depth >= 1.0) {
+        finalColor = vec4(1.0, 60000.0, 0.0, 1.0);
         return;
     }
-    vec3 position = viewPosition(fragTexCoord);
-    vec2 texel = 1.0 / screenSize;
-    // Choose the closer depth neighbour on each axis to avoid silhouette halos.
-    vec3 left = position - viewPosition(fragTexCoord - vec2(texel.x, 0));
-    vec3 right = viewPosition(fragTexCoord + vec2(texel.x, 0)) - position;
-    vec3 down = position - viewPosition(fragTexCoord - vec2(0, texel.y));
-    vec3 up = viewPosition(fragTexCoord + vec2(0, texel.y)) - position;
-    vec3 dx = abs(left.z) < abs(right.z) ? left : right;
-    vec3 dy = abs(down.z) < abs(up.z) ? down : up;
-    vec3 crossNormal = cross(dx, dy);
-    if (dot(crossNormal, crossNormal) < 1e-16) {
-        finalColor = vec4(1.0);
-        return;
-    }
-    vec3 normal = normalize(crossNormal);
-    if (dot(normal, -position) < 0.0) normal = -normal;
-    vec3 randomVector = texture(noiseTexture, fragTexCoord * screenSize / 4.0).xyz * 2.0 - 1.0;
-    randomVector.z = 0.0;
-    vec3 tangent = randomVector - normal * dot(randomVector, normal);
-    if (dot(tangent, tangent) < 1e-6) {
-        tangent = cross(normal, abs(normal.y) < 0.9 ? vec3(0, 1, 0) : vec3(1, 0, 0));
-    }
-    tangent = normalize(tangent);
-    mat3 basis = mat3(tangent, cross(normal, tangent), normal);
+    vec3 P = viewPosition(uv);
+    vec2 texel = uScreen.zw;
+    // Pick the closer neighbour on each axis to avoid silhouette halos
+    vec3 l = P - viewPosition(uv - vec2(texel.x, 0.0));
+    vec3 r = viewPosition(uv + vec2(texel.x, 0.0)) - P;
+    vec3 d = P - viewPosition(uv - vec2(0.0, texel.y));
+    vec3 u = viewPosition(uv + vec2(0.0, texel.y)) - P;
+    vec3 dx = abs(l.z) < abs(r.z) ? l : r;
+    vec3 dy = abs(d.z) < abs(u.z) ? d : u;
+    vec3 N = normalize(cross(dx, dy));
+    if (dot(N, -P) < 0.0) N = -N;
+
+    float dist = -P.z;
+    float radius = 0.55 + dist * 0.012;
+    float rotation = ign(gl_FragCoord.xy) * 6.2831853;
+    vec3 rv = vec3(cos(rotation), sin(rotation), 0.0);
+    vec3 T = normalize(rv - N * dot(rv, N) + vec3(1e-4, 0.0, 0.0));
+    vec3 B = cross(N, T);
+
+    const int SAMPLES = 14;
     float occlusion = 0.0;
-    for (int i = 0; i < 32; i++) {
-        vec3 samplePosition = position + basis * samples[i] * radius;
-        vec4 clip = projection * vec4(samplePosition, 1.0);
-        if (clip.w <= 0.0) continue;
-        vec2 uv = clip.xy / clip.w * 0.5 + 0.5;
-        if (any(lessThan(uv, vec2(0))) || any(greaterThan(uv, vec2(1)))) continue;
-        if (texture(texture0, uv).r >= 0.9999999) continue;
-        float sampleZ = viewPosition(uv).z;
-        float rangeWeight = smoothstep(0.0, 1.0, radius / max(abs(position.z - sampleZ), 0.0001));
-        occlusion += (sampleZ >= samplePosition.z + bias ? 1.0 : 0.0) * rangeWeight;
+    for (int i = 0; i < SAMPLES; i++) {
+        float u1 = (float(i) + 0.5) / float(SAMPLES);
+        float phi = float(i) * 2.39996323;
+        float rr = sqrt(u1);
+        vec3 h = vec3(rr * cos(phi), rr * sin(phi), sqrt(max(0.0, 1.0 - u1)));
+        float scale = mix(0.12, 1.0, fract(float(i) * 0.7548776662 + 0.31));
+        scale *= scale;
+        vec3 S = P + (T * h.x + B * h.y + N * h.z) * radius * scale;
+        vec4 clip = uProj * vec4(S, 1.0);
+        vec2 suv = clip.xy / clip.w * 0.5 + 0.5;
+        if (any(lessThan(suv, vec2(0.0))) || any(greaterThan(suv, vec2(1.0)))) continue;
+        float sceneZ = viewPosition(suv).z;
+        float range = smoothstep(0.0, 1.0, radius / max(abs(P.z - sceneZ), 1e-4));
+        occlusion += (sceneZ >= S.z + 0.02 + dist * 0.0008 ? 1.0 : 0.0) * range;
     }
-    // Contact definition without crushing the colorful ambient palette.
-    float ao = 1.0 - 0.35 * occlusion / 32.0;
-    finalColor = vec4(vec3(ao), 1.0);
+    float ao = 1.0 - occlusion / float(SAMPLES);
+    ao = mix(ao, 1.0, smoothstep(90.0, 160.0, dist));
+    finalColor = vec4(pow(saturate(ao), 1.6), dist, 0.0, 1.0);
 }

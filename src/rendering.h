@@ -7,7 +7,9 @@
 // Forward declare EntityModels (defined in game_init.h)
 struct EntityModels;
 
-enum class RenderPass { Scene, Shadow };
+// Scene draws opaque parts, Transparent draws glass/flames after the opaque
+// snapshot, Shadow draws casters with the depth shader.
+enum class RenderPass { Scene, Shadow, Transparent };
 void DrawModelForPass(Model model, Vector3 position, Vector3 scale, Color color,
                       RenderPass pass, Shader depthShader);
 
@@ -39,12 +41,6 @@ void DrawCustomMonster(EntityModels* models, const CustomMonster* monster,
 // Draw item on ground
 void DrawWorldItem(const EntityModels* models, ItemType type, Vector3 pos);
 
-// Draw a tree
-void DrawTree(const EntityModels* models, Vector3 pos, TreeType type, bool highlighted);
-
-// Draw a rock (ore deposit)
-void DrawRock(const EntityModels* models, Vector3 pos, RockType type, bool highlighted);
-
 // Draw a humanoid NPC
 void DrawHumanoid(const EntityModels* models, Vector3 pos, float facingAngle,
                   Color skinColor, Color shirtColor, Color pantsColor, float heightScale);
@@ -58,6 +54,7 @@ void DrawNPCs(const EntityModels* models, const NPC* npcs, int npcCount);
 // Draw light sources (lamps, campfires)
 void DrawLamp(const EntityModels* models, Vector3 pos, bool lit);
 void DrawCampfire(const EntityModels* models, Vector3 pos);
+void DrawCampfireFlames(const EntityModels* models, Vector3 pos);
 void DrawLightSource(const EntityModels* models, const LightSource& light, bool lampsOn);
 void DrawLightSources(const EntityModels* models, const LightSource* lights, int lightCount, bool lampsOn);
 

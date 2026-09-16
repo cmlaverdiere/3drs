@@ -47,6 +47,11 @@ add_executable(game
     src/monster_system.cpp
     src/monster_generator.cpp
     src/script_input.cpp
+    src/gfx.cpp
+    src/post_process.cpp
+    src/terrain.cpp
+    src/vegetation.cpp
+    src/grass.cpp
 )
 
 target_include_directories(game PRIVATE ${PIPER_INCLUDE_DIR})

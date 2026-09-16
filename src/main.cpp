@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <ctime>
 #include <cstring>
+#include <cstdlib>
 #include <sys/stat.h>
 
 #include "types.h"
@@ -19,6 +20,11 @@
 #include "game_init.h"
 #include "game_systems.h"
 #include "lighting.h"
+#include "post_process.h"
+#include "terrain.h"
+#include "shader_utils.h"
+#include "rlgl.h"
+#include "external/glad.h"
 #include "quest_system.h"
 #include "voice_system.h"
 #include "sound_system.h"
@@ -38,6 +44,9 @@ WorldSpatialData g_spatial;
 
 // Global current season
 Season g_currentSeason = SEASON_SUMMER;
+
+// Smoothed frame time, reported by scripted screenshots
+float g_frameTimeMsAvg = 0.0f;
 
 int main(int argc, char* argv[]) {
     // Check for command-line flags
@@ -147,9 +156,9 @@ int main(int argc, char* argv[]) {
     LightingSystem lighting = {};
     InitLightingSystem(&lighting);
 
-    // Initialize post-processing system (bloom, SSAO)
+    // Initialize post-processing system (HDR targets, SSAO, volumetrics, bloom)
     PostProcessSystem postProcess = {};
-    InitPostProcessSystem(&postProcess, screenWidth, screenHeight);
+    InitPostProcessSystem(&postProcess, &lighting, screenWidth, screenHeight);
     if (!postProcess.initialized) {
         UnloadPostProcessSystem(&postProcess);
         UnloadLightingSystem(&lighting);
@@ -254,12 +263,6 @@ int main(int argc, char* argv[]) {
         camera.target = (Vector3){ playerState.targetX, playerState.targetY, playerState.targetZ };
         lighting.timeOfDay = playerState.timeOfDay;
         g_currentSeason = (Season)playerState.season;
-        // Update shader uniforms for loaded season
-        int seasonVal = (int)g_currentSeason;
-        int grassSeasonLoc = GetShaderLocation(resources.grassShader, "season");
-        SetShaderValue(resources.grassShader, grassSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
-        int bladeSeasonLoc = GetShaderLocation(resources.grass.bladeShader, "season");
-        SetShaderValue(resources.grass.bladeShader, bladeSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
     }
 
     // Populate spatial hash
@@ -353,7 +356,10 @@ int main(int argc, char* argv[]) {
     InitMenuSystem(&menuSystem, &mouseMode, &dialogueState, &shopState, &timeSelectMenu, &helpSystem, &monsterGenerator);
 
     DisableCursor();
-    SetTargetFPS(60);
+    SetTargetFPS(getenv("GAME_UNCAPPED") ? 0 : 60);
+    if (GetShaderLoadFailures() > 0) {
+        TraceLog(LOG_ERROR, "RENDER: %d shader(s) failed to load", GetShaderLoadFailures());
+    }
 
     // Initialize background music for current season
     InitBackgroundMusic((int)g_currentSeason);
@@ -361,6 +367,7 @@ int main(int argc, char* argv[]) {
     // Main game loop
     while (!shouldQuit) {
         float dt = GetFrameTime();
+        g_frameTimeMsAvg = g_frameTimeMsAvg == 0.0f ? dt * 1000.0f : g_frameTimeMsAvg * 0.9f + dt * 100.0f;
         screenWidth = GetScreenWidth();
         screenHeight = GetScreenHeight();
 
@@ -1071,6 +1078,8 @@ int main(int argc, char* argv[]) {
             if (LoadMap("maps/world.map", newMapData)) {
                 mapData = newMapData;
                 InitializeHeightmap(mapData);
+                RebuildTerrain(&resources.terrain);
+                ResetGrassField(&resources.grass);
 
                 // Reinitialize enemies
                 enemyCount = 0;
@@ -1120,12 +1129,6 @@ int main(int argc, char* argv[]) {
                 camera.target = (Vector3){ playerState.targetX, playerState.targetY, playerState.targetZ };
                 lighting.timeOfDay = playerState.timeOfDay;
                 g_currentSeason = (Season)playerState.season;
-                // Update shader uniforms for loaded season
-                int seasonVal = (int)g_currentSeason;
-                int grassSeasonLoc = GetShaderLocation(resources.grassShader, "season");
-                SetShaderValue(resources.grassShader, grassSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
-                int bladeSeasonLoc = GetShaderLocation(resources.grass.bladeShader, "season");
-                SetShaderValue(resources.grass.bladeShader, bladeSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
 
                 // Repopulate spatial hash
                 PopulateSpatialHash(&g_spatial, walls, resources.wallCount, enemies, enemyCount, trees, treeCount);
@@ -1142,137 +1145,92 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (postProcess.screenWidth != screenWidth || postProcess.screenHeight != screenHeight) {
-            screenWidth = GetScreenWidth();
-            screenHeight = GetScreenHeight();
+        if (PostProcessNeedsResize(&postProcess, screenWidth, screenHeight)) {
             ResizePostProcessBuffers(&postProcess, screenWidth, screenHeight);
         }
 
-        // ========== FRUSTUM CULLING SETUP ==========
-        // Extract frustum planes for culling (main pass only - shadow pass needs wider culling)
-        Matrix view = GetCameraMatrix(camera);
-        Matrix proj = MatrixPerspective(camera.fovy * DEG2RAD,
-                                        (float)screenWidth / (float)screenHeight, rlGetCullDistanceNear(), rlGetCullDistanceFar());
-        Matrix viewProj = MatrixMultiply(view, proj);
+        // Optional section timing (GAME_PROFILE=1; GAME_PROFILE=2 also waits for the GPU)
+        static int profileMode = getenv("GAME_PROFILE") ? atoi(getenv("GAME_PROFILE")) : 0;
+        static double profileAccum[8] = {};
+        static int profileFrames = 0;
+        double profileT0 = GetTime();
+        auto profileMark = [&](int slot) {
+            if (!profileMode) return;
+            if (profileMode == 2) { rlDrawRenderBatchActive(); glFinish(); }
+            double now = GetTime();
+            profileAccum[slot] += now - profileT0;
+            profileT0 = now;
+        };
+
+        // ========== FRAME SETUP ==========
+        // Camera/cascade matrices and the shared uniform block for this frame
+        PrepareFrame(&lighting, camera, postProcess.renderWidth, postProcess.renderHeight);
+        RenderSkyLut(&lighting);
         Frustum frustum;
-        ExtractFrustumPlanes(&frustum, viewProj);
+        ExtractFrustumPlanes(&frustum, lighting.frame.viewProjection);
 
-        // ========== SHADOW PASS ==========
-        if (BeginShadowPass(&lighting, camera.position, resources.depthShader)) {
+        profileMark(0);
+        // ========== SHADOW PASS (cascades) ==========
+        if (BeginShadowPass(&lighting)) {
             resources.entityModels.pass = RenderPass::Shadow;
-            // Draw shadow-casting geometry
-            DrawModelForPass(resources.groundModel, {0, 0, 0}, {1, 1, 1}, WHITE, RenderPass::Shadow, resources.depthShader);
+            for (int c = 0; c < SHADOW_CASCADES; c++) {
+                BeginShadowCascade(&lighting, c);
+                struct CascadeCull { LightingSystem* lighting; int cascade; } cull = { &lighting, c };
+                DrawTerrainShadow(&resources.terrain, [](Vector3 center, float radius, void* user) {
+                    CascadeCull* cc = (CascadeCull*)user;
+                    return IsShadowCasterVisible(cc->lighting, cc->cascade, center, radius);
+                }, &cull);
 
-            // Walls cast shadows
-            for (int i = 0; i < resources.wallCount; i++) {
-                Vector3 pos = walls[i].position;
-                pos.y += GetTerrainHeight(pos.x, pos.z) + walls[i].height / 2.0f;
-                DrawModelForPass(resources.wallModels[i], pos, {1, 1, 1}, WHITE, RenderPass::Shadow, resources.depthShader);
-            }
-
-            // Cull against the light volume, including offscreen shadow casters.
-            for (int i = 0; i < treeCount; i++) {
-                if (trees[i].alive) {
-                    Vector3 treePos = trees[i].position;
-                    treePos.y = GetTerrainHeight(treePos.x, treePos.z);
-                    if (!IsShadowCasterVisible(&lighting, Vector3Add(treePos, {0, 12, 0}), 24)) continue;
-                    DrawTree(&resources.entityModels, treePos, trees[i].type, false);
+                for (int i = 0; i < resources.wallCount; i++) {
+                    Vector3 pos = walls[i].position;
+                    pos.y += GetTerrainHeight(pos.x, pos.z) + walls[i].height / 2.0f;
+                    float radius = 0.5f * sqrtf(walls[i].width * walls[i].width + walls[i].height * walls[i].height +
+                                                walls[i].depth * walls[i].depth);
+                    if (!IsShadowCasterVisible(&lighting, c, pos, radius)) continue;
+                    DrawModelForPass(resources.wallModels[i], pos, {1, 1, 1}, WHITE, RenderPass::Shadow, resources.depthShader);
                 }
-            }
-
-            // Rocks cast shadows (light-volume culled)
-            for (int i = 0; i < rockCount; i++) {
-                if (rocks[i].alive) {
-                    Vector3 rockPos = rocks[i].position;
-                    rockPos.y = GetTerrainHeight(rockPos.x, rockPos.z);
-                    if (!IsShadowCasterVisible(&lighting, Vector3Add(rockPos, {0, 4, 0}), 8)) continue;
-                    DrawRock(&resources.entityModels, rockPos, rocks[i].type, false);
-                }
-            }
-
-            // Enemies cast shadows (light-volume culled)
-            for (int i = 0; i < enemyCount; i++) {
-                if (enemies[i].alive) {
+                DrawVegetationShadows(&resources.vegetation, &lighting, c, trees, treeCount, rocks, rockCount);
+                for (int i = 0; i < enemyCount; i++) {
+                    if (!enemies[i].alive) continue;
                     Vector3 enemyPos = enemies[i].position;
                     enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
-                    if (!IsShadowCasterVisible(&lighting, Vector3Add(enemyPos, {0, 10, 0}), 30)) continue;
+                    float r = enemies[i].type == ENEMY_DRAGON ? 6.0f : 2.5f;
+                    if (!IsShadowCasterVisible(&lighting, c, Vector3Add(enemyPos, {0, 1, 0}), r)) continue;
                     Enemy adjustedEnemy = enemies[i];
                     adjustedEnemy.position = enemyPos;
                     DrawEnemy(&resources.entityModels, adjustedEnemy, false, customMonsters, customMonsterCount);
                 }
-            }
-
-            // NPCs cast shadows
-            for (int i = 0; i < npcCount; i++) {
-                if (npcs[i].active) {
+                for (int i = 0; i < npcCount; i++) {
+                    if (!npcs[i].active) continue;
                     Vector3 npcPos = npcs[i].position;
                     npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z);
+                    if (!IsShadowCasterVisible(&lighting, c, Vector3Add(npcPos, {0, 1, 0}), 1.2f)) continue;
                     NPC adjustedNPC = npcs[i];
                     adjustedNPC.position = npcPos;
                     DrawNPC(&resources.entityModels, adjustedNPC);
                 }
-            }
-
-            // Light sources cast shadows (lamps, campfires)
-            for (int i = 0; i < lightCount; i++) {
-                Vector3 lightPos = lights[i].position;
-                lightPos.y = GetTerrainHeight(lightPos.x, lightPos.z);
-                LightSource adjustedLight = lights[i];
-                adjustedLight.position = lightPos;
-                DrawLightSource(&resources.entityModels, adjustedLight, lighting.lampsOn);
+                for (int i = 0; i < lightCount; i++) {
+                    Vector3 lightPos = lights[i].position;
+                    lightPos.y = GetTerrainHeight(lightPos.x, lightPos.z);
+                    if (!IsShadowCasterVisible(&lighting, c, Vector3Add(lightPos, {0, 1.2f, 0}), 1.5f)) continue;
+                    LightSource adjustedLight = lights[i];
+                    adjustedLight.position = lightPos;
+                    DrawLightSource(&resources.entityModels, adjustedLight, lighting.lampsOn);
+                }
             }
             EndShadowPass(&lighting);
             resources.entityModels.pass = RenderPass::Scene;
         }
 
-        // ========== MAIN PASS ==========
-        // Set lighting uniforms for all shaders
-        SetShaderLightingUniforms(&lighting, resources.grassShader, camera.position);
-        SetShaderLightingUniforms(&lighting, resources.waterShader, camera.position);
-        SetShaderLightingUniforms(&lighting, resources.entityShader, camera.position);
-        SetShaderLightingUniforms(&lighting, resources.entityModels.monsterShader, camera.position);
-        SetShaderLightingUniforms(&lighting, resources.entityModels.foliageShader, camera.position);
-        SetShaderLightingUniforms(&lighting, resources.entityModels.woodShader, camera.position);
-        SetShaderLightingUniforms(&lighting, resources.grass.bladeShader, camera.position);
-        for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
-            SetShaderLightingUniforms(&lighting, resources.wallShaders[i], camera.position);
-        }
+        profileMark(1);
+        // ========== MAIN PASS (HDR, two targets) ==========
+        BindGlobalLightingTextures(&lighting);
+        BeginScenePass(&postProcess, camera);
+            DrawTerrain(&resources.terrain, &frustum, camera.position);
 
-        // Bind shadow map to all shaders
-        BindShadowMapToShader(&lighting, resources.grassShader);
-        BindShadowMapToShader(&lighting, resources.grass.bladeShader);
-        BindShadowMapToShader(&lighting, resources.waterShader);
-        BindShadowMapToShader(&lighting, resources.entityShader);
-        BindShadowMapToShader(&lighting, resources.entityModels.monsterShader);
-        BindShadowMapToShader(&lighting, resources.entityModels.foliageShader);
-        BindShadowMapToShader(&lighting, resources.entityModels.woodShader);
-        for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
-            BindShadowMapToShader(&lighting, resources.wallShaders[i]);
-        }
+            // Grass blades (baked chunks streaming around the player)
+            DrawGrassField(&resources.grass, &frustum, camera.position);
 
-        // ========== RENDER SCENE TO TEXTURE (for post-processing) ==========
-        BeginTextureMode(postProcess.sceneTexture);
-        Color skyColor = GetSkyColor(lighting.timeOfDay);
-        ClearBackground(skyColor);
-
-        BeginMode3D(camera);
-        Matrix sceneProjection = rlGetMatrixProjection();
-            // Draw sky (disable depth write and backface culling since we're inside the sphere)
-            SetSkyShaderUniforms(&lighting, resources.skyShader);
-            rlDisableDepthMask();
-            rlDisableBackfaceCulling();
-            DrawModel(resources.skyModel, camera.position, 1.0f, WHITE);
-            rlEnableBackfaceCulling();
-            rlEnableDepthMask();
-
-            // Draw terrain
-            DrawModel(resources.groundModel, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, WHITE);
-
-            // Update and draw grass blades (streaming around player)
-            UpdateGrassSystem(&resources.grass, camera.position);
-            DrawGrassBlades(&resources.grass, (float)GetTime());
-
-            // Draw entities (models have entity shader assigned)
             // World items
             for (int i = 0; i < worldItemCount; i++) {
                 if (!worldItems[i].pickedUp) {
@@ -1283,17 +1241,15 @@ int main(int argc, char* argv[]) {
             }
 
             // Enemies (with frustum + distance culling)
-            const float ENEMY_DRAW_DIST_SQ = 120.0f * 120.0f;
+            const float ENEMY_DRAW_DIST_SQ = 160.0f * 160.0f;
             for (int i = 0; i < enemyCount; i++) {
                 if (enemies[i].alive) {
                     Vector3 enemyPos = enemies[i].position;
-                    // Distance cull first
                     float dx = enemyPos.x - camera.position.x;
                     float dz = enemyPos.z - camera.position.z;
                     float distSq = dx*dx + dz*dz;
                     if (distSq > ENEMY_DRAW_DIST_SQ) continue;
                     enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
-                    // Frustum cull - dragons are larger
                     float cullRadius = (enemies[i].type == ENEMY_DRAGON) ? 5.0f : 2.5f;
                     if (!SphereInFrustum(&frustum, enemyPos, cullRadius)) continue;
                     float dist = sqrtf(distSq);
@@ -1315,53 +1271,17 @@ int main(int argc, char* argv[]) {
                 if (npcs[i].active) {
                     Vector3 npcPos = npcs[i].position;
                     npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z);
+                    if (!SphereInFrustum(&frustum, Vector3Add(npcPos, {0, 1, 0}), 1.2f)) continue;
                     NPC adjustedNPC = npcs[i];
                     adjustedNPC.position = npcPos;
                     DrawNPC(&resources.entityModels, adjustedNPC);
                 }
             }
 
-            // Trees (with frustum + distance culling)
-            const float TREE_DRAW_DIST_SQ = 250.0f * 250.0f;
-            for (int i = 0; i < treeCount; i++) {
-                if (trees[i].alive) {
-                    Vector3 treePos = trees[i].position;
-                    // Distance cull first (cheaper than frustum test)
-                    float dx = treePos.x - camera.position.x;
-                    float dz = treePos.z - camera.position.z;
-                    float distSq = dx*dx + dz*dz;
-                    if (distSq > TREE_DRAW_DIST_SQ) continue;
-                    treePos.y = GetTerrainHeight(treePos.x, treePos.z);
-                    // Frustum cull - trees have ~3.5 unit radius canopy
-                    if (!SphereInFrustum(&frustum, treePos, 3.5f)) continue;
-                    float dist = sqrtf(distSq);
-                    bool inRange = (dist <= CHOP_RANGE) && IsFacing(camera, treePos) &&
-                                   (playerState.equippedWeapon == ITEM_BRONZE_AXE);
-                    DrawTree(&resources.entityModels, treePos, trees[i].type, inRange);
-                }
-            }
+            // Trees and rocks (instanced, frustum + distance culled)
+            DrawVegetation(&resources.vegetation, trees, treeCount, rocks, rockCount, &frustum, camera.position);
 
-            // Rocks (with frustum + distance culling)
-            const float ROCK_DRAW_DIST_SQ = 120.0f * 120.0f;
-            for (int i = 0; i < rockCount; i++) {
-                if (rocks[i].alive) {
-                    Vector3 rockPos = rocks[i].position;
-                    // Distance cull first
-                    float dx = rockPos.x - camera.position.x;
-                    float dz = rockPos.z - camera.position.z;
-                    float distSq = dx*dx + dz*dz;
-                    if (distSq > ROCK_DRAW_DIST_SQ) continue;
-                    rockPos.y = GetTerrainHeight(rockPos.x, rockPos.z);
-                    // Frustum cull - rocks have ~1.5 unit radius
-                    if (!SphereInFrustum(&frustum, rockPos, 1.5f)) continue;
-                    float dist = sqrtf(distSq);
-                    bool inRange = (dist <= MINE_RANGE) && IsFacing(camera, rockPos) &&
-                                   (playerState.equippedWeapon == ITEM_BRONZE_PICKAXE);
-                    DrawRock(&resources.entityModels, rockPos, rocks[i].type, inRange);
-                }
-            }
-
-            // Light sources (lamps, campfires)
+            // Light sources (lamps, campfires) - opaque parts
             for (int i = 0; i < lightCount; i++) {
                 Vector3 lightPos = lights[i].position;
                 lightPos.y = GetTerrainHeight(lightPos.x, lightPos.z);
@@ -1376,16 +1296,41 @@ int main(int argc, char* argv[]) {
             // Walls (have their own shaders)
             for (int i = 0; i < resources.wallCount; i++) {
                 Vector3 pos = walls[i].position;
-                pos.y += GetTerrainHeight(pos.x, pos.z) + walls[i].height / 2.0f;
+                float baseY = pos.y + GetTerrainHeight(pos.x, pos.z);
+                pos.y = baseY + walls[i].height / 2.0f;
+                int material = walls[i].material;
+                SetShaderValue(resources.wallShaders[material], resources.wallBaseLocs[material], &baseY, SHADER_UNIFORM_FLOAT);
                 DrawModel(resources.wallModels[i], pos, 1.0f, WHITE);
             }
 
-            // Water
-            float gameTime = (float)GetTime();
-            SetShaderValue(resources.waterShader, resources.waterTimeLoc, &gameTime, SHADER_UNIFORM_FLOAT);
+            profileMark(2);
+            // Sky fills everything the opaque scene left uncovered
+            DrawSkyPass(&postProcess);
+
+            // ---- Transparent: after the opaque snapshot (water refraction) ----
+            CaptureOpaqueScene(&postProcess, camera);
+            int waterSizeLoc = GetShaderLocation(resources.waterShader, "uWaterSize");
             for (int i = 0; i < resources.waterCount; i++) {
+                float size[2] = {waterBodies[i].width, waterBodies[i].length};
+                SetShaderValue(resources.waterShader, waterSizeLoc, size, SHADER_UNIFORM_VEC2);
                 DrawModel(resources.waterModels[i], waterBodies[i].position, 1.0f, WHITE);
             }
+
+            resources.entityModels.pass = RenderPass::Transparent;
+            for (int i = 0; i < lightCount; i++) {
+                Vector3 lightPos = lights[i].position;
+                lightPos.y = GetTerrainHeight(lightPos.x, lightPos.z);
+                if (!SphereInFrustum(&frustum, Vector3Add(lightPos, {0, 1, 0}), 1.5f)) continue;
+                LightSource adjustedLight = lights[i];
+                adjustedLight.position = lightPos;
+                DrawLightSource(&resources.entityModels, adjustedLight, lighting.lampsOn);
+            }
+            resources.entityModels.pass = RenderPass::Scene;
+
+            // Seasonal particles start with the season, however it was set
+            if (IsWinterMode() && !snowSystem.initialized) InitSnowSystem(&snowSystem, camera.position);
+            if (g_currentSeason == SEASON_AUTUMN && !leafSystem.initialized) InitLeafSystem(&leafSystem, camera.position);
+            if (g_currentSeason == SEASON_AUTUMN && !leafBurstSystem.initialized) InitLeafBurstSystem(&leafBurstSystem);
 
             // Snow particles (winter mode only)
             if (IsWinterMode()) {
@@ -1404,18 +1349,17 @@ int main(int argc, char* argv[]) {
 
             // Blood splatter particles (combat hits)
             UpdateAndDrawBloodSplatters(&bloodSystem, camera.position, GetFrameTime());
-        EndMode3D();
-        EndTextureMode();
+        EndScenePass(&postProcess);
 
+        profileMark(3);
         // ========== POST-PROCESSING ==========
-        // Get projection matrix for SSAO
-        RenderSSAO(&postProcess, sceneProjection);
-        RenderBloom(&postProcess);
+        RenderPostProcess(&postProcess, &lighting);
+        profileMark(4);
 
         // ========== FINAL COMPOSITE + HUD ==========
         BeginDrawing();
         ClearBackground(BLACK);
-        CompositeScene(&postProcess);
+        PresentFrame(&postProcess);
 
         // Draw minimap
         float playerYaw = atan2f(camera.target.x - camera.position.x,
@@ -1470,12 +1414,6 @@ int main(int argc, char* argv[]) {
         }
         if (seasonPreset >= 0) {
             g_currentSeason = (Season)seasonPreset;
-            // Update shader uniforms for season change
-            int seasonVal = (int)g_currentSeason;
-            int grassSeasonLoc = GetShaderLocation(resources.grassShader, "season");
-            SetShaderValue(resources.grassShader, grassSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
-            int bladeSeasonLoc = GetShaderLocation(resources.grass.bladeShader, "season");
-            SetShaderValue(resources.grass.bladeShader, bladeSeasonLoc, &seasonVal, SHADER_UNIFORM_INT);
             // Initialize particle systems for new season
             if (g_currentSeason == SEASON_WINTER && !snowSystem.initialized) {
                 InitSnowSystem(&snowSystem, camera.position);
@@ -1540,7 +1478,16 @@ int main(int argc, char* argv[]) {
             DrawRectangle(0, 0, screenWidth, screenHeight, (Color){0, 0, 0, alphaVal});
         }
 
+        profileMark(5);
         EndDrawing();
+        profileMark(6);
+        if (profileMode && ++profileFrames == 60) {
+            const char* names[] = {"setup", "shadow", "opaque", "sky+transp", "post", "hud", "swap"};
+            printf("PROFILE (ms/frame):");
+            for (int i = 0; i < 7; i++) { printf(" %s=%.2f", names[i], profileAccum[i] * 1000.0 / 60); profileAccum[i] = 0; }
+            printf("\n");
+            profileFrames = 0;
+        }
 
         // Screenshot mode: capture and exit after a few frames (allow GPU to fully render)
         static int screenshotFrameCount = 0;
