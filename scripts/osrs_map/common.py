@@ -29,11 +29,11 @@ WATER_Y = -1.0
 RIVER_DEPTH = 6.0
 
 # Engine heightmap (src/math_utils.h)
-HM_SIZE = 1024
-HM_OFFSET = 512
+HM_SIZE = 2048
+HM_OFFSET = 1024
 
 # Map squares fetched from mejrs/layers_osrs (64x64 tiles each, 4 px per tile)
-SQ_X0, SQ_X1, SQ_Y0, SQ_Y1 = 48, 52, 47, 52
+SQ_X0, SQ_X1, SQ_Y0, SQ_Y1 = 48, 52, 47, 54
 
 
 def X(tx): return (tx - ORIGIN_TX) * S

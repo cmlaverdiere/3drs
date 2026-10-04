@@ -44,7 +44,7 @@ struct WallBatch {
     Vector3 center;
     float radius;
 };
-constexpr int MAX_WALL_BATCHES = 512;
+constexpr int MAX_WALL_BATCHES = 2048;
 
 struct GameResources {
     // Shaders

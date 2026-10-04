@@ -116,7 +116,7 @@ def extra(ctx):
     L.wall(tx_ - 1.5, tz_, 0.2, 3.0, 14.9, 0.8, "wood"); L.wall(tx_ + 1.5, tz_, 0.2, 3.0, 14.9, 0.8, "wood")
     L.p("ladder", tx_ + 1.3, 0.0, tz_, 15.0, 270.0)
 
-    # Road north to Varrock's south gate (world.map includes varrock.map so the gate is at (-22, -328))
+    # Road north to Varrock's south gate, OSRS tile (3211, 3382) in the generated varrock.map
     road = [(37, -14), (38, -30), (44.5, -40), (44.5, -80), (47, -108), (30, -122), (14, -136), (4, -146), (-11, -164)]
     L.c("ROAD NORTH TO VARROCK (trees along it; bandits for Trading Expedition)")
     for (xa, za), (xb, zb) in zip(road, road[1:]):

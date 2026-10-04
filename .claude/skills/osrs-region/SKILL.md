@@ -32,13 +32,13 @@ uv run python -m osrs_map.tools spawns "Monster" TX0 TY0 TX1 TY1 # monster spawn
 
 ## Adding a region
 
-1. Pick the tile box (OSRS x/y). Extend `SQ_X0..SQ_Y1` in `common.py` if it leaves squares 48-52 x 47-52 (64 tiles each), then `fetch`.
-2. Choose where it sits: all generated regions share one frame, X = (x - 3222) * S, Z = (3218 - y) * S, S = 2 m. Include generated files at offset `0 0` in `maps/world.map`; move hand-made maps (varrock, falador_cv, wilderness) so nothing overlaps. Heightmap covers +-512 m.
-3. Copy `osrs_map/regions/lumbridge.py` to `regions/<region>.py` and fill in:
+1. Pick the tile box (OSRS x/y), adjacent to existing regions without overlap (Lumbridge ends at ty 3366, Varrock covers 3176-3295 x 3367-3515). Extend `SQ_X0..SQ_Y1` in `common.py` if it leaves squares 48-52 x 47-54 (64 tiles each), then `fetch`.
+2. Choose where it sits: all generated regions share one frame, X = (x - 3222) * S, Z = (3218 - y) * S, S = 2 m. Include generated files at offset `0 0` in `maps/world.map`; move hand-made maps (falador_cv, wilderness) so nothing overlaps. Heightmap covers +-1024 m (OSRS x 2710-3734, y 2706-3730).
+3. Copy `osrs_map/regions/varrock.py` (town, no rivers) or `lumbridge.py` (rivers, bridges, stairs) to `regions/<region>.py` and fill in:
    - `BBOX`, `FILES`, `file_for`, `GROUND_PNG`, `HEADERS` (only one file should carry `player_spawn`).
    - `RIVER` (dx, dy, half-width tiles from the origin tile) from `tools water`; `BASINS` for sea/ponds; `[]` if none.
    - `BRIDGES` (tx0, tx1, ty, half-width): map railings on them are dropped, a flat deck + abutments + posts are generated.
-   - `OUTDOOR_WALLS` (tall walls outside buildings, e.g. castle grounds), `STONE_SITES`, `OPEN_COURTYARDS` (no roof).
+   - `OUTDOOR_WALLS` (tall walls outside buildings, e.g. castle grounds; low ones for fountain rims), `STONE_SITES`, `OPEN_COURTYARDS` (walled yards that would get a roof), `NOT_BUILDINGS` (boxes never treated as buildings: fountains, wells), optional `CITY_WALL = (height, material)` for doubled outdoor wall lines and long solid-black wall tiles. `CLOSE_DOORWAYS = True` when building floors share the outdoor ground colour (Varrock's (80, 64, 32)): wall-line gaps of up to 2 tiles are closed for building detection.
    - `STAIRS` + `NO_LADDER_TILES` for buildings that need walkable stairs (design with `tools edges` on each plane); other buildings get ladders from the map's stair icons automatically.
    - `NPCS` from `tools npc`, `MONSTERS` from `tools spawns`, `ROCKS`, `ITEMS`, `LAMPS`, `CAMPFIRES`, `SAND`, `PROPS`.
    - `ROUTES`, `ENTER`, `OVERLAYS` for verify; `tree_keep`, `extra` for bespoke content.
@@ -52,8 +52,10 @@ uv run python -m osrs_map.tools spawns "Monster" TX0 TY0 TX1 TY1 # monster spawn
 - Walls: 1 px pure white (>230) on a tile edge (column 0/3, row 0/3). Doors: red. Diagonal walls: light grey (min channel > 180) across the tile.
 - Planes 1+: every lower plane is drawn at exactly half brightness; a pixel is this plane's own floor if it is not half of any lower plane's pixel. Grey (127,127,127) is a dimmed lower wall.
 - Ladder/staircase icon: (88, 41, 1), drawn on each plane it connects.
-- Colours: road (80,80,80), dirt path (109,91,43), water (104,125,169), wooden floor (75,43,25), Al Kharid paths (130,121,68).
+- Colours: road (80,80,80), Varrock road (120,112,96), dirt path (109,91,43), Varrock path (120,104,72), Varrock ground and floors (80,64,32), water (104,125,169), wooden floor (75,43,25), Al Kharid paths (130,121,68). Add new road/path colours to `ground_classes` in `extract.py`; check `<ground>.png` has non-zero R/G.
 - Roads share the castle floor colour: buildings are floor patches mostly enclosed by walls, or anything under a plane-1 floor.
+- City walls are two parallel wall lines one tile apart; walkable ones also have a plane-1 floor on the strip (generated as a two-storey building).
+- Solid black tiles: runs spanning 6+ tiles are thick walls; smaller black patches are holes, trapdoors and basements.
 
 ## Wiki
 
@@ -68,13 +70,17 @@ uv run python -m osrs_map.tools spawns "Monster" TX0 TY0 TX1 TY1 # monster spawn
 - Player: radius 0.3, step-up 0.45 (resolved at the new position first), head clearance 1.9, ground = highest surface within a step. Walls above the head do not block.
 - Stair flights need a 1 m landing clear of the end wall (the radius keeps the player off the last 0.5 m) and a hole in the floor above; holes must not cut that floor's corridor.
 - Ladders: the end on the player's floor is used, so stacked ladders climb one floor each. `ladder`/`npc` y = height above terrain.
-- `flatten` pads level each building site; floors are then FH = 3.6 m apart.
+- `flatten` pads level each building site; sites merge until no two pads overlap (a dense town becomes one pad); floors are then FH = 3.6 m apart.
+- Several `groundmap` lines (one per region, 2 m per pixel) are composited into one texture over their union.
 - Water lies only in carved channels (natural terrain never goes below 0); water planes must cover every cell below -0.85. Shoreline is height-based.
-- Limits: MAX_WALLS 8000 (walls are batched per 32 m chunk/material), MAX_WATER 100, MAX_NPCS 64, MAX_FLATTENS 256.
+- Limits: MAX_WALLS 20000 (batched per 32 m chunk/material, MAX_WALL_BATCHES 2048), MAX_WATER 100, MAX_NPCS 128, MAX_TREES 8000, MAX_LADDERS 200, MAX_FLATTENS 512, MAX_GROUNDMAPS 8. `--test` prints counts; grep its log for `exceeded`.
 - Terrain noise is compiler-sensitive: tools use `GAME_DUMP_TERRAIN=dir build/game --test` heights; `verify` fails if they differ.
 
 ## Verification
 
 - `verify` checks terrain match, every route in `ROUTES`/`ENTER` with the game's collision rules, entities inside walls, and writes per-floor overlays over the map squares.
+- Add a route across the seam to the neighbouring region (e.g. Lumbridge road (3211, 3360) to the Varrock fountain); its search box may span both regions.
+- Overlay checklist: roofed courtyards, fountains/wells walled as buildings, black blocks inside buildings, missing city walls.
+- The game segfaults at window creation when the Mac display is asleep: run `caffeinate -u -t 1` first and the game under `caffeinate -dimsu`.
 - Validate subagent runs must use `--working-directory /tmp/3drs_run` (symlinks to the repo, its own savegame.json); scripted runs save on exit. Script `hold`/`press` keys stay down until `release`; `warp` ignores Y.
 - Profile: `GAME_PROFILE=2 GAME_UNCAPPED=1 build/game --working-directory /tmp/3drs_run --headless --script <file>`.

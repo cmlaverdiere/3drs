@@ -110,7 +110,7 @@ def edges(pl, tx, ty):
 
 
 def floorlike(c):
-    if c is None or c in (WATER, DIRT_PATH):
+    if c is None or c in (WATER, DIRT_PATH) or max(c) < 20:     # black: holes and thick walls
         return False
     r, g, b = c
     if g > r and b < 40:      # grass, trees
@@ -149,10 +149,26 @@ def extract(tx0, tx1, ty0, ty1, planes=(0, 1, 2)):
     return res
 
 
-def buildings(res, tx0, tx1, ty0, ty1):
+def close_gaps(store, vertical, max_gap=2):
+    """Edges plus gaps of up to max_gap tiles between collinear wall runs (open doorways), so a
+    floor that matches the ground outside does not flood out through them."""
+    out = dict(store)
+    for (a, b) in store:
+        for g in range(1, max_gap + 1):
+            far = (a, b + g + 1) if vertical else (a + g + 1, b)
+            if far in store:
+                for k in range(1, g + 1):
+                    out.setdefault((a, b + k) if vertical else (a + k, b), "W")
+                break
+    return out
+
+
+def buildings(res, tx0, tx1, ty0, ty1, close_doorways=False):
     """Ground-floor building interiors: floor-coloured patches mostly enclosed by walls, plus
     anything under an upper floor. Returns ({tile: colour}, [components])."""
     V, H, D = res["vedges"][0], res["hedges"][0], res["diag"][0]
+    if close_doorways:
+        V, H = close_gaps(V, True), close_gaps(H, False)
     col = {(x, y): tile_colour0(x, y) for y in range(ty0, ty1 + 1) for x in range(tx0, tx1 + 1)}
     upper = set()
     for pl in res["floor"]:
@@ -175,6 +191,7 @@ def buildings(res, tx0, tx1, ty0, ty1):
                             and ((x, y) in upper or (floorlike(nc) and nc == col[(x, y)])))
                 if not joinable:
                     perim += 1
+                    walled += (nx, ny) in upper and (x, y) not in upper   # borders a covered building part
                     continue
                 if (nx, ny) not in seen:
                     seen.add((nx, ny)); q.append((nx, ny))
@@ -199,10 +216,31 @@ def ground_classes(tx0, tx1, ty0, ty1, btiles):
             if (tx, ty) in btiles:
                 continue
             c = tile_colour0(tx, ty)
-            if c == ROAD or c == (68, 68, 68) or c == (102, 102, 102):
+            if c in (ROAD, (68, 68, 68), (102, 102, 102), (120, 112, 96)):
                 out[(tx, ty)] = (1, 0)
-            elif c in (DIRT_PATH, (130, 121, 68), (112, 105, 77)):
+            elif c in (DIRT_PATH, (130, 121, 68), (112, 105, 77), (120, 104, 72)):
                 out[(tx, ty)] = (0, 1)
+    return out
+
+
+def black_tiles(tx0, tx1, ty0, ty1, min_run=6):
+    """Plane-0 tiles drawn solid black in groups spanning at least min_run tiles (thick walls; smaller
+    black patches are holes, trapdoors and basements)."""
+    tiles = {(tx, ty) for ty in range(ty0, ty1 + 1) for tx in range(tx0, tx1 + 1) if block(0, tx, ty).max() < 20}
+    out, seen = set(), set()
+    for t in tiles:
+        if t in seen:
+            continue
+        q, comp = deque([t]), []
+        seen.add(t)
+        while q:
+            x, y = q.popleft(); comp.append((x, y))
+            for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if n in tiles and n not in seen:
+                    seen.add(n); q.append(n)
+        xs = [c[0] for c in comp]; ys = [c[1] for c in comp]
+        if max(max(xs) - min(xs), max(ys) - min(ys)) + 1 >= min_run:
+            out |= set(comp)
     return out
 
 

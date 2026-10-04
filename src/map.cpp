@@ -280,12 +280,14 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
             // Format: groundmap <file.png> x0 z0 sizeX sizeZ  (file relative to maps/)
             char file[96];
             float x0, z0, sx, sz;
-            if (sscanf(line, "%*s %95s %f %f %f %f", file, &x0, &z0, &sx, &sz) == 5) {
-                snprintf(map.groundMapFile, sizeof(map.groundMapFile), "maps/%s", file);
-                map.groundMapRect[0] = x0 + offsetX;
-                map.groundMapRect[1] = z0 + offsetZ;
-                map.groundMapRect[2] = sx;
-                map.groundMapRect[3] = sz;
+            if (map.groundMapCount < MAX_GROUNDMAPS &&
+                sscanf(line, "%*s %95s %f %f %f %f", file, &x0, &z0, &sx, &sz) == 5) {
+                int g = map.groundMapCount++;
+                snprintf(map.groundMapFiles[g], sizeof(map.groundMapFiles[g]), "maps/%s", file);
+                map.groundMapRects[g][0] = x0 + offsetX;
+                map.groundMapRects[g][1] = z0 + offsetZ;
+                map.groundMapRects[g][2] = sx;
+                map.groundMapRects[g][3] = sz;
             }
         }
         else if (strcmp(type, "flatten") == 0) {
@@ -416,6 +418,9 @@ bool LoadMap(const char* filename, MapData& map) {
     map.npcCount = 0;
     map.lightCount = 0;
     map.ladderCount = 0;
+    map.riverCount = 0;
+    map.flattenCount = 0;
+    map.groundMapCount = 0;
 
     // Load the root map file with no offset
     bool success = LoadMapFile(filename, map, 0.0f, 0.0f, nullptr);

@@ -142,25 +142,59 @@ void SetTerrainZoneUniforms(Shader shader, const Sand* sandZones, int sandCount,
 
 namespace ground { GroundMap g_groundMap; }
 
-void LoadTerrainGroundMap(TerrainSystem* terrain, const char* path, float x0, float z0, float sizeX, float sizeZ) {
-    Image img = LoadImage(path);
-    if (img.data == nullptr) {
-        TraceLog(LOG_WARNING, "TERRAIN: ground map %s not found", path);
-        return;
+void LoadTerrainGroundMaps(TerrainSystem* terrain, const char (*paths)[128], const float (*rects)[4], int count) {
+    Image imgs[MAX_GROUNDMAPS];
+    int src[MAX_GROUNDMAPS];   // rects index of each loaded image
+    float x0 = 1e9f, z0 = 1e9f, x1 = -1e9f, z1 = -1e9f, cell = 0.0f;
+    int n = 0;
+    for (int i = 0; i < count; i++) {
+        Image img = LoadImage(paths[i]);
+        if (img.data == nullptr) {
+            TraceLog(LOG_WARNING, "TERRAIN: ground map %s not found", paths[i]);
+            continue;
+        }
+        ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+        const float* r = rects[i];
+        x0 = fminf(x0, r[0]); z0 = fminf(z0, r[1]);
+        x1 = fmaxf(x1, r[0] + r[2]); z1 = fmaxf(z1, r[1] + r[3]);
+        cell = r[2] / img.width;
+        src[n] = i;
+        imgs[n++] = img;
     }
-    ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
-    ground::GroundMap& gm = ground::g_groundMap;
-    gm.width = img.width;
-    gm.height = img.height;
-    gm.rgba.assign((unsigned char*)img.data, (unsigned char*)img.data + img.width * img.height * 4);
-    gm.x0 = x0; gm.z0 = z0; gm.sizeX = sizeX; gm.sizeZ = sizeZ;
+    if (n == 0) return;
 
-    terrain->groundMap = LoadTextureFromImage(img);
-    UnloadImage(img);
+    ground::GroundMap& gm = ground::g_groundMap;
+    gm.width = (int)lroundf((x1 - x0) / cell);
+    gm.height = (int)lroundf((z1 - z0) / cell);
+    gm.x0 = x0; gm.z0 = z0; gm.sizeX = gm.width * cell; gm.sizeZ = gm.height * cell;
+    gm.rgba.assign((size_t)gm.width * gm.height * 4, 0);
+    for (size_t p = 3; p < gm.rgba.size(); p += 4) gm.rgba[p] = 255;
+    for (int k = 0; k < n; k++) {
+        const Image& img = imgs[k];
+        const float* r = rects[src[k]];
+        int ox = (int)lroundf((r[0] - x0) / cell), oz = (int)lroundf((r[1] - z0) / cell);
+        const unsigned char* pix = (const unsigned char*)img.data;
+        for (int y = 0; y < img.height; y++) {
+            int ty = oz + y;
+            if (ty < 0 || ty >= gm.height) continue;
+            for (int x = 0; x < img.width; x++) {
+                int tx = ox + x;
+                if (tx < 0 || tx >= gm.width) continue;
+                unsigned char* d = &gm.rgba[((size_t)ty * gm.width + tx) * 4];
+                const unsigned char* sp = &pix[((size_t)y * img.width + x) * 4];
+                d[0] = d[0] > sp[0] ? d[0] : sp[0];
+                d[1] = d[1] > sp[1] ? d[1] : sp[1];
+            }
+        }
+    }
+    for (int k = 0; k < n; k++) UnloadImage(imgs[k]);
+
+    Image combined = { gm.rgba.data(), gm.width, gm.height, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
+    terrain->groundMap = LoadTextureFromImage(combined);
     SetTextureFilter(terrain->groundMap, TEXTURE_FILTER_BILINEAR);
     SetTextureWrap(terrain->groundMap, TEXTURE_WRAP_CLAMP);
     terrain->material.maps[MATERIAL_MAP_ALBEDO].texture = terrain->groundMap;
-    float rect[4] = {x0, z0, sizeX, sizeZ};
+    float rect[4] = {gm.x0, gm.z0, gm.sizeX, gm.sizeZ};
     SetShaderValue(terrain->shader, GetShaderLocation(terrain->shader, "uGroundMapRect"), rect, SHADER_UNIFORM_VEC4);
 }
 

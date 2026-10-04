@@ -441,16 +441,17 @@ struct CustomMonster {
     bool loaded;
 };
 
-const int MAX_LADDERS = 50;
+const int MAX_LADDERS = 200;
 const int MAX_LIGHTS = 100;
-const int MAX_TREES = 4000;
+const int MAX_TREES = 8000;
 const int MAX_ROCKS = 800;
 const int MAX_WATER = 100;
 const float ITEM_RESPAWN_TIME = 60.0f;  // 60 seconds for respawning items
 const int MAX_SAND = 50;
 const int MAX_VALLEYS = 50;
 const int MAX_RIVERS = 128;
-const int MAX_FLATTENS = 256;
+const int MAX_FLATTENS = 512;
+const int MAX_GROUNDMAPS = 8;
 const int TREE_MAX_HEALTH = 3;      // 3 chops to fell a tree
 const float TREE_RESPAWN_TIME = 30.0f;
 const int WOODCUTTING_XP = 25;       // XP per log
@@ -620,8 +621,8 @@ inline float SmoothTurn(float current, float target, float maxTurn) {
 // Constants
 const int MAX_ENEMIES = 1000;
 const int MAX_WORLD_ITEMS = 500;
-const int MAX_WALLS = 8000;
-const int MAX_NPCS = 64;
+const int MAX_WALLS = 20000;
+const int MAX_NPCS = 128;
 const int MAX_DAMAGE_INDICATORS = 20;
 const int MAX_XP_POPUPS = 10;
 
@@ -688,8 +689,9 @@ struct MapData {
     int riverCount;
     Flatten flattens[MAX_FLATTENS];
     int flattenCount;
-    char groundMapFile[128];   // road/path map (maps/<file>), empty when none
-    float groundMapRect[4];    // world x0, z0, sizeX, sizeZ
+    char groundMapFiles[MAX_GROUNDMAPS][128];   // road/path maps (maps/<file>)
+    float groundMapRects[MAX_GROUNDMAPS][4];    // world x0, z0, sizeX, sizeZ
+    int groundMapCount;
     Vector3 npcSpawns[MAX_NPCS];
     NPCType npcTypes[MAX_NPCS];
     int npcCount;

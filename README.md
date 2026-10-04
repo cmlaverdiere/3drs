@@ -218,10 +218,10 @@ include <file.map> offsetX offsetZ
 ```
 
 A trailing `abs` on a `wall` line makes its Y an absolute world height.
-`lumbridge.map` and `alkharid.map` are generated from the OSRS world map at 2 m
-per tile by `scripts/osrs_map` (see `CLAUDE.md`).
+`lumbridge.map`, `alkharid.map` and `varrock.map` are generated from the OSRS world
+map at 2 m per tile by `scripts/osrs_map` (see `CLAUDE.md`).
 
-See `maps/varrock.map` for a hand-written example.
+See `maps/falador_cv.map` for a hand-written example.
 
 ## Quest System
 

@@ -64,10 +64,13 @@ def heights(map_paths, base=None):
             pads.append(tuple(map(float, t[1:7])))
     h = h0 - carve
     for x0, z0, x1, z1, ht, m in pads:
-        dx = np.maximum(np.maximum(x0 - xs, xs - x1), 0); dz = np.maximum(np.maximum(z0 - zs, zs - z1), 0)
+        lo_x, hi_x = int(max(x0 - m + HM_OFFSET - 1, 0)), int(min(x1 + m + HM_OFFSET + 2, HM_SIZE))
+        lo_z, hi_z = int(max(z0 - m + HM_OFFSET - 1, 0)), int(min(z1 + m + HM_OFFSET + 2, HM_SIZE))
+        X, Z, hs = xs[lo_z:hi_z, lo_x:hi_x], zs[lo_z:hi_z, lo_x:hi_x], h[lo_z:hi_z, lo_x:hi_x]
+        dx = np.maximum(np.maximum(x0 - X, X - x1), 0); dz = np.maximum(np.maximum(z0 - Z, Z - z1), 0)
         dist = np.hypot(dx, dz)
         tt = np.clip(dist / m if m > 0 else 0, 0, 1); tt = tt * tt * (3 - 2 * tt)
-        h = np.where(dist <= m, ht + (h - ht) * tt, h)
+        h[lo_z:hi_z, lo_x:hi_x] = np.where(dist <= m, ht + (hs - ht) * tt, hs)
     return h
 
 

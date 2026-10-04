@@ -100,6 +100,9 @@ static void BuildWallBatches(GameResources* res, const Wall* walls, int wallCoun
     };
 
     res->wallBatchCount = 0;
+    if ((int)groups.size() > MAX_WALL_BATCHES)
+        TraceLog(LOG_WARNING, "MAX_WALL_BATCHES (%d) exceeded, %d wall groups not drawn", MAX_WALL_BATCHES,
+                 (int)groups.size() - MAX_WALL_BATCHES);
     for (size_t g = 0; g < groups.size() && res->wallBatchCount < MAX_WALL_BATCHES; g++) {
         int n = (int)groups[g].size();
         Mesh mesh = {};
@@ -239,9 +242,8 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     }
 
     // Roads and paths (before the grass so blades keep off them)
-    if (mapData.groundMapFile[0]) {
-        LoadTerrainGroundMap(&res.terrain, mapData.groundMapFile, mapData.groundMapRect[0], mapData.groundMapRect[1],
-                             mapData.groundMapRect[2], mapData.groundMapRect[3]);
+    if (mapData.groundMapCount > 0) {
+        LoadTerrainGroundMaps(&res.terrain, mapData.groundMapFiles, mapData.groundMapRects, mapData.groundMapCount);
     }
 
     // Grass blades follow the terrain's ground cover and avoid wall footprints

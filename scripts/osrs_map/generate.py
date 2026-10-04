@@ -27,7 +27,16 @@ PARAPET_H, MERLON_H = 0.7, 1.3       # stone roof battlements
 
 # ---------------------------------------------------------------- source data
 RES = ex.extract(TX0, TX1, TY0, TY1)
-BTILES, COMPS = ex.buildings(RES, TX0, TX1, TY0, TY1)
+FLOOR = RES["floor"]
+BTILES, COMPS = ex.buildings(RES, TX0, TX1, TY0, TY1, getattr(R, "CLOSE_DOORWAYS", False))
+NOT_BUILDINGS = getattr(R, "NOT_BUILDINGS", [])   # tile boxes never treated as buildings (fountains, wells)
+if NOT_BUILDINGS:
+    nb = lambda t: any(b[0] <= t[0] <= b[2] and b[1] <= t[1] <= b[3] for b in NOT_BUILDINGS)
+    BTILES = {t: c for t, c in BTILES.items() if not nb(t)}
+    COMPS = [dict(c, tiles=[t for t in c["tiles"] if not nb(t)]) for c in COMPS]
+    COMPS = [c for c in COMPS if c["tiles"]]
+    for pl in FLOOR:
+        FLOOR[pl] = {t: c for t, c in FLOOR[pl].items() if not nb(t)}
 FLOOR = RES["floor"]
 GROUND = ex.ground_classes(TX0, TX1, TY0, TY1, BTILES)
 
@@ -80,23 +89,23 @@ CACHE.mkdir(parents=True, exist_ok=True)
 BASE = terrain.base_heights()
 H_RIVERS = terrain.heights([CACHE / "_rivers.map"], BASE)
 
-# Sites: building components merged when within 2 tiles; each gets one level pad
 comps = [c for c in COMPS if len(c["tiles"]) >= 3]
-parent = list(range(len(comps)))
-def find(i):
-    while parent[i] != i:
-        parent[i] = parent[parent[i]]; i = parent[i]
-    return i
-boxes = [(min(t[0] for t in c["tiles"]), min(t[1] for t in c["tiles"]),
-          max(t[0] for t in c["tiles"]), max(t[1] for t in c["tiles"])) for c in comps]
-for i in range(len(comps)):
-    for j in range(i + 1, len(comps)):
-        a, b = boxes[i], boxes[j]
-        if a[0] - 2 <= b[2] and b[0] - 2 <= a[2] and a[1] - 2 <= b[3] and b[1] - 2 <= a[3]:
-            parent[find(i)] = find(j)
-sites = defaultdict(list)
-for i, c in enumerate(comps):
-    sites[find(i)].extend(c["tiles"])
+# Sites: building components merged until no two level pads (1 m + 3 m margin) overlap; each gets one pad
+sites = [[(min(t[0] for t in c["tiles"]), min(t[1] for t in c["tiles"]),
+           max(t[0] for t in c["tiles"]), max(t[1] for t in c["tiles"])), list(c["tiles"])]
+         for c in comps]
+merged = True
+while merged:
+    merged = False
+    for i in range(len(sites)):
+        for j in range(i + 1, len(sites)):
+            a, b = sites[i][0], sites[j][0]
+            if a[0] - 4 <= b[2] and b[0] - 4 <= a[2] and a[1] - 4 <= b[3] and b[1] - 4 <= a[3]:
+                sites[i] = [(min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3])), sites[i][1] + sites[j][1]]
+                del sites[j]; merged = True; break
+        if merged:
+            break
+sites = {i: tiles for i, (_, tiles) in enumerate(sites)}
 PADS = []
 for tiles in sites.values():
     xs = [t[0] for t in tiles]; ys = [t[1] for t in tiles]
@@ -125,10 +134,23 @@ def outdoor_wall(t):
     return FENCE_H, "wood"
 
 
-def edge_class(pl, a, b):
+CITY_WALL = getattr(R, "CITY_WALL", None)    # (height, material) for doubled outdoor wall lines
+
+
+def doubled(store, key, vertical):
+    """True if an outdoor wall edge has a parallel twin one tile away (a thick city wall)."""
+    x, y = key
+    twins = ((x - 1, y), (x + 1, y)) if vertical else ((x, y - 1), (x, y + 1))
+    return any(store.get(k) == "W" for k in twins)
+
+
+def edge_class(pl, a, b, store=None, key=None, vertical=False):
     """(y, height, material, kind) for a wall between tiles a and b on plane pl."""
     if pl == 0:
         if a not in BTILES and b not in BTILES:
+            boxed = any(in_box(a, box) for box, _, _ in R.OUTDOOR_WALLS)
+            if CITY_WALL and store is not None and not boxed and doubled(store, key, vertical):
+                return (0.0, CITY_WALL[0], CITY_WALL[1], "city")
             h, mat = outdoor_wall(a)
             return (0.0, h, mat, "fence")
         two = a in FLOOR[1] or b in FLOOR[1]
@@ -147,16 +169,16 @@ def emit_runs(pl, store, vertical):
             bx, ty = key
             if on_bridge(bx, ty) or on_bridge(bx - 1, ty):
                 continue
-            runs[(bx, edge_class(pl, (bx - 1, ty), (bx, ty)))].append(ty)
+            runs[(bx, edge_class(pl, (bx - 1, ty), (bx, ty), store, key, True))].append(ty)
         else:
             tx, by = key
             if on_bridge(tx, by) or on_bridge(tx, by + 1):
                 continue
-            runs[(by, edge_class(pl, (tx, by), (tx, by + 1)))].append(tx)
+            runs[(by, edge_class(pl, (tx, by), (tx, by + 1), store, key, False))].append(tx)
     n = 0
     for (line, cls), pos in runs.items():
         pos.sort()
-        maxlen = 2 if cls[3] == "fence" else 999
+        maxlen = {"fence": 2, "city": 3}.get(cls[3], 999)
         groups, start, prev = [], pos[0], pos[0]
         for p in pos[1:] + [None]:
             if p is not None and p == prev + 1 and p - start < maxlen:
@@ -188,6 +210,9 @@ def emit_diagonals(pl):
         nb = [(tx, ty), (tx - 1, ty), (tx + 1, ty), (tx, ty - 1), (tx, ty + 1)]
         if pl == 0 and not any(t in BTILES for t in nb):
             h, mat = outdoor_wall((tx, ty))
+            twins = [(tx - 1, ty), (tx + 1, ty), (tx, ty - 1), (tx, ty + 1)]
+            if CITY_WALL and any(RES["diag"][pl].get(k) == orient for k in twins):
+                h, mat = CITY_WALL
             y, size = 0.0, (0.55 if mat == "stone" else 0.4)
         else:
             above = any(t in FLOOR.get(pl + 1, {}) for t in nb)
@@ -228,6 +253,13 @@ def slab(o, r, y, thick, mat):
     tx0, tys, tx1, tyn = r
     o.wall((bX(tx0) + bX(tx1 + 1)) / 2, (bZ(tyn) + bZ(tys - 1)) / 2, (tx1 - tx0 + 1) * S, (tyn - tys + 1) * S, y, thick, mat)
 
+
+if CITY_WALL:
+    for r in rects(ex.black_tiles(TX0, TX1, TY0, TY1)):
+        tx0, tys, tx1, tyn = r
+        out_for(tx0).wall((bX(tx0) + bX(tx1 + 1)) / 2, (bZ(tyn) + bZ(tys - 1)) / 2, (tx1 - tx0 + 1) * S,
+                          (tyn - tys + 1) * S, 0.0, CITY_WALL[0], CITY_WALL[1])
+        wall_count += 1
 
 STAIR_HOLES = defaultdict(set)   # plane -> tiles cut out of that plane's floor
 for axis, fixed, (lo, hi), _, pl in R.STAIRS:

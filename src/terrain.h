@@ -34,7 +34,8 @@ void SetTerrainZoneUniforms(Shader shader, const Sand* sandZones, int sandCount,
                             const Water* waterBodies, int waterCount);
 // Loads the road/path ground map covering world rectangle (x0, z0, sizeX, sizeZ); also fills
 // the CPU copy used for grass placement. Call before the grass field is built.
-void LoadTerrainGroundMap(TerrainSystem* terrain, const char* path, float x0, float z0, float sizeX, float sizeZ);
+// Composites the ground maps (all 2 m per pixel) into one texture over their union rectangle
+void LoadTerrainGroundMaps(TerrainSystem* terrain, const char (*paths)[128], const float (*rects)[4], int count);
 
 void DrawTerrain(const TerrainSystem* terrain, const Frustum* frustum, Vector3 cameraPos);
 // Shadow pass: caller supplies the per-cascade visibility test
