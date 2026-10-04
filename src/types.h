@@ -15,6 +15,8 @@ constexpr float ENERGY_DRAIN_RATE = 100.0f / 30.0f;   // Depletes in 30s
 constexpr float ENERGY_REGEN_RATE = 100.0f / 120.0f;  // Regens in 120s
 constexpr float MOUSE_SENSITIVITY = 0.003f;
 constexpr float PLAYER_RADIUS = 0.3f;
+constexpr float PLAYER_STEP_HEIGHT = 0.45f;   // Highest ledge the player walks up onto
+constexpr float PLAYER_HEIGHT = 1.9f;         // Feet to top of head, for walking under raised walls
 constexpr float PLAYER_EYE_HEIGHT = 1.8f;
 
 // Jump physics
@@ -113,6 +115,8 @@ enum EnemyType {
     // === Wilderness Enemies ===
     ENEMY_DEMON,       // Level 32, fire-themed winged humanoid
     ENEMY_DRAGON,      // Level 48, large quadruped with wings
+    // === Lumbridge ===
+    ENEMY_GOBLIN,      // Level 2, small green humanoid east of the River Lum
     // === ADD NEW ENEMIES HERE ===
     ENEMY_TYPE_COUNT
 };
@@ -129,9 +133,14 @@ enum NPCType {
     NPC_ALKHARID_SILK,     // Al Kharid silk merchant
     NPC_ALKHARID_SPICE,    // Ali the spice trader
     // === Shop NPCs ===
-    NPC_SCIMITAR_SHOP,     // Zeke - Varrock scimitar seller
+    NPC_SCIMITAR_SHOP,     // Zeke - Al Kharid scimitar seller
     // === Bank NPCs ===
     NPC_BANKER,            // Bank teller
+    // === Al Kharid ===
+    NPC_BORDER_GUARD,      // Guards the Lumbridge - Al Kharid toll gate
+    // === Lumbridge ===
+    NPC_DUKE,              // Duke Horacio, first floor of Lumbridge Castle
+    NPC_FATHER_AERECK,     // Priest of Lumbridge church
     // === ADD NEW NPCs HERE ===
     NPC_COUNT
 };
@@ -321,6 +330,7 @@ struct Wall {
     float height;
     float depth;
     WallMaterial material;
+    bool absoluteY;    // position.y is a world height rather than an offset from the terrain
 };
 
 // Tree structure (choppable resource)
@@ -363,6 +373,21 @@ struct Valley {
     int axis;          // 0 = X-axis (N-S), 1 = Z-axis (E-W)
     float minExtent;   // Start of valley along perpendicular axis
     float maxExtent;   // End of valley along perpendicular axis
+};
+
+// Level ground pad (buildings sit on these)
+struct Flatten {
+    float x0, z0, x1, z1;  // Rectangle set to exactly `height`
+    float height;          // Absolute terrain height inside the rectangle
+    float margin;          // Blend distance back to the surrounding terrain
+};
+
+// River segment (carves a channel between two points into the heightmap)
+struct River {
+    float x1, z1;      // Segment start
+    float x2, z2;      // Segment end
+    float width;       // Half-width of the carved channel
+    float depth;       // How deep to carve at the centreline
 };
 
 // Light source (decorative - lamp or campfire)
@@ -424,6 +449,8 @@ const int MAX_WATER = 100;
 const float ITEM_RESPAWN_TIME = 60.0f;  // 60 seconds for respawning items
 const int MAX_SAND = 50;
 const int MAX_VALLEYS = 50;
+const int MAX_RIVERS = 128;
+const int MAX_FLATTENS = 256;
 const int TREE_MAX_HEALTH = 3;      // 3 chops to fell a tree
 const float TREE_RESPAWN_TIME = 30.0f;
 const int WOODCUTTING_XP = 25;       // XP per log
@@ -593,7 +620,7 @@ inline float SmoothTurn(float current, float target, float maxTurn) {
 // Constants
 const int MAX_ENEMIES = 1000;
 const int MAX_WORLD_ITEMS = 500;
-const int MAX_WALLS = 1000;
+const int MAX_WALLS = 8000;
 const int MAX_NPCS = 64;
 const int MAX_DAMAGE_INDICATORS = 20;
 const int MAX_XP_POPUPS = 10;
@@ -657,6 +684,12 @@ struct MapData {
     int sandCount;
     Valley valleys[MAX_VALLEYS];
     int valleyCount;
+    River rivers[MAX_RIVERS];
+    int riverCount;
+    Flatten flattens[MAX_FLATTENS];
+    int flattenCount;
+    char groundMapFile[128];   // road/path map (maps/<file>), empty when none
+    float groundMapRect[4];    // world x0, z0, sizeX, sizeZ
     Vector3 npcSpawns[MAX_NPCS];
     NPCType npcTypes[MAX_NPCS];
     int npcCount;

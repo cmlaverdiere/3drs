@@ -7,8 +7,17 @@
 
 #include "types.h"
 #include <cmath>
+#include <vector>
 
 namespace ground {
+
+// CPU copy of the ground map texture (r = paved road, g = dirt path)
+struct GroundMap {
+    std::vector<unsigned char> rgba;
+    int width = 0, height = 0;
+    float x0 = 0, z0 = 0, sizeX = 0, sizeZ = 0;   // world rectangle
+};
+extern GroundMap g_groundMap;
 
 inline float Fract(float x) { return x - floorf(x); }
 inline float Saturate(float x) { return x < 0.0f ? 0.0f : (x > 1.0f ? 1.0f : x); }
@@ -78,8 +87,34 @@ inline void GrassColor(int season, float variation, float dryness, float* r, flo
     *r = out[0]; *g = out[1]; *b = out[2];
 }
 
+// Mirrors groundPaths() in terrain.glsl: bilinear sample (texel centres, clamped) then a noisy edge.
+inline void SampleGroundPaths(float x, float z, float* road, float* path) {
+    *road = *path = 0.0f;
+    const GroundMap& gm = g_groundMap;
+    if (gm.width == 0) return;
+    float u = (x - gm.x0) / gm.sizeX, v = (z - gm.z0) / gm.sizeZ;
+    if (u < 0.0f || v < 0.0f || u > 1.0f || v > 1.0f) return;
+    float px = u * gm.width - 0.5f, py = v * gm.height - 0.5f;
+    int ix = (int)floorf(px), iy = (int)floorf(py);
+    float fx = px - ix, fy = py - iy;
+    auto texel = [&](int tx, int ty, int ch) {
+        tx = tx < 0 ? 0 : (tx >= gm.width ? gm.width - 1 : tx);
+        ty = ty < 0 ? 0 : (ty >= gm.height ? gm.height - 1 : ty);
+        return gm.rgba[(ty * gm.width + tx) * 4 + ch] / 255.0f;
+    };
+    float c[2];
+    for (int ch = 0; ch < 2; ch++) {
+        float a = Mix(texel(ix, iy, ch), texel(ix + 1, iy, ch), fx);
+        float b = Mix(texel(ix, iy + 1, ch), texel(ix + 1, iy + 1, ch), fx);
+        c[ch] = Mix(a, b, fy);
+    }
+    float edge = (Noise(x * 0.7f + 7.0f, z * 0.7f + 7.0f) - 0.5f) * 0.35f;
+    *road = SmoothStep(0.35f, 0.65f, c[0] + edge);
+    *path = SmoothStep(0.35f, 0.65f, c[1] + edge) * (1.0f - *road);
+}
+
 // Mirrors sampleGround() for the grass-relevant terms.
-inline GrassCover SampleGrass(float x, float z, float slope, int season,
+inline GrassCover SampleGrass(float x, float z, float groundY, float slope, int season,
                               const Sand* sand, int sandCount, const Water* water, int waterCount) {
     GrassCover gc = {};
     float macro = Fbm(x * 0.011f, z * 0.011f, 3);
@@ -90,24 +125,23 @@ inline GrassCover SampleGrass(float x, float z, float slope, int season,
     float tone = 0.8f + 0.35f * micro;
     gc.r *= tone; gc.g *= tone; gc.b *= tone;
 
-    float waterDist = 1e4f;
-    for (int i = 0; i < waterCount && i < 16; i++) {
-        waterDist = fminf(waterDist, BoxDistance(x, z, water[i].position.x, water[i].position.z, water[i].width, water[i].length));
-    }
-    float shore = 1.0f - SmoothStep(0.0f, 3.5f + micro * 2.0f, waterDist);
+    (void)water; (void)waterCount;
+    float shore = 1.0f - SmoothStep(-0.6f, 0.15f + micro * 0.2f, groundY);
     float worn = SmoothStep(0.68f, 0.8f, Fbm(x * 0.045f + 31.0f, z * 0.045f + 31.0f, 3)) * 0.8f;
     float dirt = fmaxf(fmaxf(worn, SmoothStep(0.18f, 0.35f, slope)), shore * 0.85f);
 
     float sandAmount = 0.0f;
     if (sandCount > 0) {
         float wobble = (Noise(x * 0.11f, z * 0.11f) - 0.5f) * 7.0f + (Noise(x * 0.6f, z * 0.6f) - 0.5f) * 1.5f;
-        for (int i = 0; i < sandCount && i < 16; i++) {
+        for (int i = 0; i < sandCount && i < 96; i++) {
             float d = BoxDistance(x, z, sand[i].position.x, sand[i].position.z, sand[i].width, sand[i].length) + wobble;
             sandAmount = fmaxf(sandAmount, 1.0f - SmoothStep(-5.0f, 1.5f, d));
         }
     }
-    float density = (1.0f - dirt) * (1.0f - sandAmount);
-    if (waterDist < 0.2f) density = 0.0f;
+    float road, path;
+    SampleGroundPaths(x, z, &road, &path);
+    float density = (1.0f - dirt) * (1.0f - sandAmount) * (1.0f - road) * (1.0f - path * 0.95f);
+    if (groundY < -0.6f) density = 0.0f;
     if (season == 3) {
         float bare = SmoothStep(0.08f, 0.02f, Noise(x * 0.35f + 50.0f, z * 0.35f + 50.0f)) * 0.9f + shore * 0.6f;
         float snow = Saturate(1.0f - bare - SmoothStep(0.4f, 0.7f, slope));

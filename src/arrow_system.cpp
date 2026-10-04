@@ -313,6 +313,7 @@ float GetEnemyRadius(EnemyType type) {
         case ENEMY_SAND_GOLEM: return 0.8f;
         case ENEMY_DEMON: return 0.7f;
         case ENEMY_DRAGON: return 1.5f;
+        case ENEMY_GOBLIN: return 0.4f;
         default: return 0.5f;
     }
 }
@@ -326,6 +327,7 @@ float GetEnemyHeight(EnemyType type) {
         case ENEMY_SAND_GOLEM: return 2.5f;
         case ENEMY_DEMON: return 2.5f;
         case ENEMY_DRAGON: return 3.5f;
+        case ENEMY_GOBLIN: return 1.2f;
         default: return 2.0f;
     }
 }

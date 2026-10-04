@@ -1161,6 +1161,10 @@ void DrawDialogueBox(const DialogueState* dialogue, const NPC* npcs,
 void DrawNPCPrompt(const char* npcName, int screenWidth, int screenHeight) {
     char prompt[64];
     snprintf(prompt, sizeof(prompt), "Press E to talk to %s", npcName);
+    DrawInteractPrompt(prompt, screenWidth, screenHeight);
+}
+
+void DrawInteractPrompt(const char* prompt, int screenWidth, int screenHeight) {
     int promptFontSize = 20;
     int promptWidth = MeasureText(prompt, promptFontSize);
     int promptX = screenWidth / 2 - promptWidth / 2;

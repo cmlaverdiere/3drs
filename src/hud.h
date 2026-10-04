@@ -56,6 +56,7 @@ void DrawDialogueBox(const DialogueState* dialogue, const NPC* npcs,
 
 // Draw NPC interaction prompt (when near an NPC)
 void DrawNPCPrompt(const char* npcName, int screenWidth, int screenHeight);
+void DrawInteractPrompt(const char* prompt, int screenWidth, int screenHeight);
 
 // Draw shop UI
 void DrawShopUI(const ShopState* shop, const PlayerState* state,

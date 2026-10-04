@@ -6,7 +6,6 @@ in vec3 fragWorldPos;
 in vec3 fragBaseWorldPos;
 in vec2 fragUV;
 
-uniform vec2 uWaterSize;   // metres, for soft rectangle edges
 
 uniform sampler2D uSceneColor;   // opaque scene (half res)
 uniform sampler2D uSceneDepth;   // opaque depth
@@ -80,10 +79,9 @@ void main() {
     color = mix(color, foamColor, foam * 0.8);
     color += pointLighting(defaultSurface(vec3(0.02), N), fragWorldPos, V, vec3(0.02), 0.05) * 0.5;
 
-    // Soft edge where the water meets the shore and at the rectangle's borders
-    vec2 border = min(fragUV, 1.0 - fragUV) * uWaterSize;
-    float rectEdge = smoothstep(0.0, 1.2, min(border.x, border.y));
-    float edge = smoothstep(0.0, 0.08, thickness) * rectEdge;
+    // Soft edge where the water meets the shore. Water planes tile the carved
+    // channels edge to edge, so their borders get no fade.
+    float edge = smoothstep(0.0, 0.08, thickness);
     color = mix(refracted, color, edge);
 
     float T; vec3 inscatter;

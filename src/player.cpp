@@ -88,12 +88,18 @@ void UpdatePlayerMovement(Camera3D* camera, PlayerRuntime* runtime,
     // Wall collision
     float currentTerrainY = GetTerrainHeight(camera->position.x, camera->position.z);
     float playerFeetY = camera->position.y - PLAYER_EYE_HEIGHT;
+    // Step up first: the surface under the new position (within a step) sets the feet height the
+    // walls are tested against, so stairs climb smoothly instead of catching on the next step
+    playerFeetY = fmaxf(playerFeetY, GetGroundHeight(camera->position, playerFeetY, walls, nearbyWalls));
 
     for (int idx : nearbyWalls) {
         float wallTerrainY = GetTerrainHeight(walls[idx].position.x, walls[idx].position.z);
         float wallTop = wallTerrainY + walls[idx].position.y + walls[idx].height;
 
-        if (playerFeetY < wallTop - 0.1f) {
+        float wallBottom = wallTerrainY + walls[idx].position.y;
+
+        // Step up onto low ledges; pass under walls raised above the head (upper floors)
+        if (playerFeetY < wallTop - PLAYER_STEP_HEIGHT && playerFeetY + PLAYER_HEIGHT > wallBottom) {
             Wall w = walls[idx];  // Make non-const copy for collision functions
             if (PointInWall(camera->position, w, PLAYER_RADIUS)) {
                 Vector3 oldPos = camera->position;
@@ -124,7 +130,7 @@ void UpdatePlayerMovement(Camera3D* camera, PlayerRuntime* runtime,
 
     // Apply terrain height + jump to player
     float terrainY = GetTerrainHeight(camera->position.x, camera->position.z);
-    float groundY = GetGroundHeight(camera->position, walls, nearbyWalls);
+    float groundY = GetGroundHeight(camera->position, camera->position.y - PLAYER_EYE_HEIGHT, walls, nearbyWalls);
 
     // Land on highest surface
     if (runtime->isJumping && runtime->jumpVelocity < 0) {
@@ -243,7 +249,7 @@ void ToggleRun(PlayerRuntime* runtime) {
     runtime->isRunning = !runtime->isRunning;
 }
 
-float GetGroundHeight(Vector3 pos, const Wall* walls, const std::vector<int>& nearbyWalls) {
+float GetGroundHeight(Vector3 pos, float feetY, const Wall* walls, const std::vector<int>& nearbyWalls) {
     float terrainY = GetTerrainHeight(pos.x, pos.z);
     float groundY = terrainY;
 
@@ -257,7 +263,8 @@ float GetGroundHeight(Vector3 pos, const Wall* walls, const std::vector<int>& ne
             pos.x <= walls[idx].position.x + halfW &&
             pos.z >= walls[idx].position.z - halfD &&
             pos.z <= walls[idx].position.z + halfD) {
-            if (wallTop > groundY) {
+            // Surfaces within a step of the feet; higher ones (floors above) are ignored
+            if (wallTop > groundY && wallTop <= feetY + PLAYER_STEP_HEIGHT) {
                 groundY = wallTop;
             }
         }

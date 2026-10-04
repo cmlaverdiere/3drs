@@ -211,10 +211,17 @@ wall x y z width height depth <material>
 tree x y z
 water x y z width length
 valley <axis> position width depth minExtent maxExtent
+river x1 z1 x2 z2 width depth
+flatten x0 z0 x1 z1 height margin
+groundmap file.png x0 z0 sizeX sizeZ
 include <file.map> offsetX offsetZ
 ```
 
-See `maps/lumbridge.map` for examples.
+A trailing `abs` on a `wall` line makes its Y an absolute world height.
+`lumbridge.map` and `alkharid.map` are generated from the OSRS world map at 2 m
+per tile by `scripts/osrs_map` (see `CLAUDE.md`).
+
+See `maps/varrock.map` for a hand-written example.
 
 ## Quest System
 

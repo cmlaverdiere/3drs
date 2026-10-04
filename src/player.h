@@ -45,6 +45,6 @@ void UpdatePlayerDeath(Camera3D* camera, PlayerState* state, PlayerRuntime* runt
 void ToggleRun(PlayerRuntime* runtime);
 
 // Check if player can stand on wall top (for platforms)
-float GetGroundHeight(Vector3 pos, const Wall* walls, const std::vector<int>& nearbyWalls);
+float GetGroundHeight(Vector3 pos, float feetY, const Wall* walls, const std::vector<int>& nearbyWalls);
 
 #endif

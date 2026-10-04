@@ -8,6 +8,8 @@
 #include "lighting.h"
 #include "rlgl.h"
 #include "raymath.h"
+#include <vector>
+#include <cstring>
 #include <cstdlib>
 #include <cmath>
 #include <climits>
@@ -69,6 +71,84 @@ void InitCamera(Camera3D* camera, const PlayerState* state) {
     camera->projection = CAMERA_PERSPECTIVE;
 }
 
+// Walls are static: bake them into a few large meshes, one per material per chunk.
+// Each vertex carries its wall's base height in texcoord2 for the weathering shader.
+static void BuildWallBatches(GameResources* res, const Wall* walls, int wallCount) {
+    const float BATCH_CHUNK = 32.0f;
+    const int MAX_WALLS_PER_BATCH = 65535 / 24;
+    std::vector<std::vector<int>> groups;
+    std::vector<long long> keys;
+    for (int i = 0; i < wallCount; i++) {
+        long long cx = (long long)floorf(walls[i].position.x / BATCH_CHUNK);
+        long long cz = (long long)floorf(walls[i].position.z / BATCH_CHUNK);
+        long long key = ((cx + 100000) * 200000 + (cz + 100000)) * WALL_MATERIAL_COUNT + walls[i].material;
+        size_t g = 0;
+        while (g < keys.size() && (keys[g] != key || (int)groups[g].size() >= MAX_WALLS_PER_BATCH)) g++;
+        if (g == keys.size()) { keys.push_back(key); groups.emplace_back(); }
+        groups[g].push_back(i);
+    }
+
+    // Cube faces: normal, then four corners as signs of (x, y, z)
+    static const float FACES[6][3] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+    static const float CORNERS[6][4][3] = {
+        {{1, -1, -1}, {1, 1, -1}, {1, 1, 1}, {1, -1, 1}},
+        {{-1, -1, 1}, {-1, 1, 1}, {-1, 1, -1}, {-1, -1, -1}},
+        {{-1, 1, -1}, {-1, 1, 1}, {1, 1, 1}, {1, 1, -1}},
+        {{-1, -1, 1}, {-1, -1, -1}, {1, -1, -1}, {1, -1, 1}},
+        {{1, -1, 1}, {1, 1, 1}, {-1, 1, 1}, {-1, -1, 1}},
+        {{-1, -1, -1}, {-1, 1, -1}, {1, 1, -1}, {1, -1, -1}},
+    };
+
+    res->wallBatchCount = 0;
+    for (size_t g = 0; g < groups.size() && res->wallBatchCount < MAX_WALL_BATCHES; g++) {
+        int n = (int)groups[g].size();
+        Mesh mesh = {};
+        mesh.vertexCount = n * 24;
+        mesh.triangleCount = n * 12;
+        mesh.vertices = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
+        mesh.normals = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
+        mesh.texcoords = (float*)MemAlloc(mesh.vertexCount * 2 * sizeof(float));
+        mesh.texcoords2 = (float*)MemAlloc(mesh.vertexCount * 2 * sizeof(float));
+        mesh.indices = (unsigned short*)MemAlloc(mesh.triangleCount * 3 * sizeof(unsigned short));
+        Vector3 bmin = {1e9f, 1e9f, 1e9f}, bmax = {-1e9f, -1e9f, -1e9f};
+        int v = 0, t = 0;
+        for (int idx : groups[g]) {
+            const Wall& w = walls[idx];
+            float baseY = w.position.y + GetTerrainHeight(w.position.x, w.position.z);
+            Vector3 c = {w.position.x, baseY + w.height * 0.5f, w.position.z};
+            Vector3 h = {w.width * 0.5f, w.height * 0.5f, w.depth * 0.5f};
+            bmin = Vector3Min(bmin, Vector3Subtract(c, h));
+            bmax = Vector3Max(bmax, Vector3Add(c, h));
+            for (int f = 0; f < 6; f++) {
+                int first = v;
+                for (int k = 0; k < 4; k++) {
+                    mesh.vertices[v * 3 + 0] = c.x + CORNERS[f][k][0] * h.x;
+                    mesh.vertices[v * 3 + 1] = c.y + CORNERS[f][k][1] * h.y;
+                    mesh.vertices[v * 3 + 2] = c.z + CORNERS[f][k][2] * h.z;
+                    mesh.normals[v * 3 + 0] = FACES[f][0];
+                    mesh.normals[v * 3 + 1] = FACES[f][1];
+                    mesh.normals[v * 3 + 2] = FACES[f][2];
+                    mesh.texcoords[v * 2 + 0] = (k == 2 || k == 3) ? 1.0f : 0.0f;
+                    mesh.texcoords[v * 2 + 1] = (k == 1 || k == 2) ? 1.0f : 0.0f;
+                    mesh.texcoords2[v * 2 + 0] = baseY;
+                    mesh.texcoords2[v * 2 + 1] = 0.0f;
+                    v++;
+                }
+                unsigned short q[6] = {0, 1, 2, 0, 2, 3};
+                for (int k = 0; k < 6; k++) mesh.indices[t++] = (unsigned short)(first + q[k]);
+            }
+        }
+        UploadMesh(&mesh, false);
+        WallBatch& b = res->wallBatches[res->wallBatchCount++];
+        b.model = LoadModelFromMesh(mesh);
+        b.model.materials[0].shader = res->wallShaders[walls[groups[g][0]].material];
+        b.bounds = {bmin, bmax};
+        b.center = Vector3Scale(Vector3Add(bmin, bmax), 0.5f);
+        b.radius = Vector3Length(Vector3Subtract(bmax, bmin)) * 0.5f;
+    }
+    TraceLog(LOG_INFO, "Walls: %d merged into %d batches", wallCount, res->wallBatchCount);
+}
+
 GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* waterBodies, Sand* sandZones) {
     GameResources res = {};
 
@@ -79,9 +159,6 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     res.wallShaders[WALL_WOOD] = RegisterSceneShader(nullptr, LoadShaderWithIncludes("shaders/wall.vs", "shaders/wood.fs"));
     res.wallShaders[WALL_STONE] = RegisterSceneShader(nullptr, LoadShaderWithIncludes("shaders/wall.vs", "shaders/stone.fs"));
     res.wallShaders[WALL_BRICK] = RegisterSceneShader(nullptr, LoadShaderWithIncludes("shaders/wall.vs", "shaders/brick.fs"));
-    for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
-        res.wallBaseLocs[i] = GetShaderLocation(res.wallShaders[i], "uWallBase");
-    }
 
     // Water shader
     res.waterShader = RegisterSceneShader(nullptr, LoadShaderWithIncludes("shaders/water.vs", "shaders/water.fs"));
@@ -139,14 +216,12 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
     // Instanced trees and rocks
     InitVegetation(&res.vegetation);
 
-    // Create wall models
+    // Merge walls into batched meshes
     res.wallCount = mapData.wallCount;
     for (int i = 0; i < res.wallCount; i++) {
         walls[i] = mapData.walls[i];
-        Mesh wallMesh = GenMeshCube(walls[i].width, walls[i].height, walls[i].depth);
-        res.wallModels[i] = LoadModelFromMesh(wallMesh);
-        res.wallModels[i].materials[0].shader = res.wallShaders[walls[i].material];
     }
+    BuildWallBatches(&res, walls, res.wallCount);
 
     // Create water models
     res.waterCount = mapData.waterCount;
@@ -163,10 +238,24 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
         sandZones[i] = mapData.sandZones[i];
     }
 
+    // Roads and paths (before the grass so blades keep off them)
+    if (mapData.groundMapFile[0]) {
+        LoadTerrainGroundMap(&res.terrain, mapData.groundMapFile, mapData.groundMapRect[0], mapData.groundMapRect[1],
+                             mapData.groundMapRect[2], mapData.groundMapRect[3]);
+    }
+
     // Grass blades follow the terrain's ground cover and avoid wall footprints
     InitGrassField(&res.grass, sandZones, res.sandCount, waterBodies, res.waterCount, walls, res.wallCount);
 
     return res;
+}
+
+// Heightmap cell range covering world [lo, hi] along one axis
+static void CellRange(float lo, float hi, int* first, int* last) {
+    *first = (int)floorf((lo + HEIGHTMAP_OFFSET) / HEIGHTMAP_SCALE);
+    *last = (int)ceilf((hi + HEIGHTMAP_OFFSET) / HEIGHTMAP_SCALE);
+    if (*first < 0) *first = 0;
+    if (*last > HEIGHTMAP_SIZE - 1) *last = HEIGHTMAP_SIZE - 1;
 }
 
 void InitializeHeightmap(const MapData& mapData) {
@@ -179,7 +268,10 @@ void InitializeHeightmap(const MapData& mapData) {
         }
     }
 
-    // Apply valleys from map data
+    // Carve valleys and rivers. Overlapping carves take the deepest rather than
+    // summing, so chained river segments join smoothly.
+    static float carve[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
+    memset(carve, 0, sizeof(carve));
     for (int v = 0; v < mapData.valleyCount; v++) {
         const Valley& valley = mapData.valleys[v];
 
@@ -207,14 +299,78 @@ void InitializeHeightmap(const MapData& mapData) {
 
                 if (dist < valley.width) {
                     float t = dist / valley.width;
-                    float valleyFactor = 1.0f - t * t;
-                    g_heightmap[z][x] -= valley.depth * valleyFactor;
+                    carve[z][x] = fmaxf(carve[z][x], valley.depth * (1.0f - t * t));
                 }
             }
         }
     }
 
+    for (int r = 0; r < mapData.riverCount; r++) {
+        const River& river = mapData.rivers[r];
+        float dx = river.x2 - river.x1;
+        float dz = river.z2 - river.z1;
+        float lenSq = dx * dx + dz * dz;
+        int x0, x1, z0, z1;
+        CellRange(fminf(river.x1, river.x2) - river.width, fmaxf(river.x1, river.x2) + river.width, &x0, &x1);
+        CellRange(fminf(river.z1, river.z2) - river.width, fmaxf(river.z1, river.z2) + river.width, &z0, &z1);
+
+        for (int z = z0; z <= z1; z++) {
+            for (int x = x0; x <= x1; x++) {
+                float worldX = (x * HEIGHTMAP_SCALE) - HEIGHTMAP_OFFSET;
+                float worldZ = (z * HEIGHTMAP_SCALE) - HEIGHTMAP_OFFSET;
+
+                // Distance to the segment
+                float s = lenSq > 0.0f ? ((worldX - river.x1) * dx + (worldZ - river.z1) * dz) / lenSq : 0.0f;
+                s = fminf(fmaxf(s, 0.0f), 1.0f);
+                float px = worldX - (river.x1 + dx * s);
+                float pz = worldZ - (river.z1 + dz * s);
+                float dist = sqrtf(px * px + pz * pz);
+
+                if (dist < river.width) {
+                    float t = dist / river.width;
+                    carve[z][x] = fmaxf(carve[z][x], river.depth * (1.0f - t * t));
+                }
+            }
+        }
+    }
+
+    for (int z = 0; z < HEIGHTMAP_SIZE; z++) {
+        for (int x = 0; x < HEIGHTMAP_SIZE; x++) {
+            g_heightmap[z][x] -= carve[z][x];
+        }
+    }
+
+    // Level pads, applied in map order after carving
+    for (int f = 0; f < mapData.flattenCount; f++) {
+        const Flatten& pad = mapData.flattens[f];
+        int x0, x1, z0, z1;
+        CellRange(pad.x0 - pad.margin, pad.x1 + pad.margin, &x0, &x1);
+        CellRange(pad.z0 - pad.margin, pad.z1 + pad.margin, &z0, &z1);
+        for (int z = z0; z <= z1; z++) {
+            for (int x = x0; x <= x1; x++) {
+                float worldX = (x * HEIGHTMAP_SCALE) - HEIGHTMAP_OFFSET;
+                float worldZ = (z * HEIGHTMAP_SCALE) - HEIGHTMAP_OFFSET;
+                float dx = fmaxf(fmaxf(pad.x0 - worldX, worldX - pad.x1), 0.0f);
+                float dz = fmaxf(fmaxf(pad.z0 - worldZ, worldZ - pad.z1), 0.0f);
+                float dist = sqrtf(dx * dx + dz * dz);
+                if (dist > pad.margin) continue;
+                float t = pad.margin > 0.0f ? dist / pad.margin : 0.0f;
+                t = t * t * (3.0f - 2.0f * t);
+                g_heightmap[z][x] = pad.height + (g_heightmap[z][x] - pad.height) * t;
+            }
+        }
+    }
+
     g_heightmapInitialized = true;
+}
+
+void ResolveAbsoluteWallHeights(MapData& mapData) {
+    for (int i = 0; i < mapData.wallCount; i++) {
+        Wall& wall = mapData.walls[i];
+        if (!wall.absoluteY) continue;
+        wall.position.y -= GetTerrainHeight(wall.position.x, wall.position.z);
+        wall.absoluteY = false;
+    }
 }
 
 void InitEnemiesFromMap(Enemy* enemies, int* enemyCount, const MapData& mapData) {
@@ -286,8 +442,8 @@ void CleanupGameResources(GameResources* res) {
     UnloadShader(res->grassShader);
     UnloadGrassField(&res->grass);
 
-    for (int i = 0; i < res->wallCount; i++) {
-        UnloadModel(res->wallModels[i]);
+    for (int i = 0; i < res->wallBatchCount; i++) {
+        UnloadModel(res->wallBatches[i].model);
     }
     for (int i = 0; i < WALL_MATERIAL_COUNT; i++) {
         UnloadShader(res->wallShaders[i]);

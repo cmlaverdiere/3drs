@@ -124,6 +124,38 @@ void DrawTroll(const EntityModels* models, Vector3 pos, float facingAngle, bool 
     rlPopMatrix();
 }
 
+void DrawGoblin(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted) {
+    Color skin = { 95, 140, 55, 255 };
+    Color tunic = { 110, 75, 40, 255 };
+    Color dark = { 60, 50, 35, 255 };
+    Color eye = { 230, 200, 40, 255 };
+
+    rlPushMatrix();
+    rlTranslatef(pos.x, pos.y, pos.z);
+    rlRotatef(facingAngle * RAD2DEG, 0, 1, 0);
+
+    // Hunched body in a leather tunic
+    DrawModelCube(models, (Vector3){0, 0.55f, 0.03f}, 0.36f, 0.42f, 0.26f, tunic);
+    // Big head with pointed ears
+    DrawModelSphere(models, (Vector3){0, 0.98f, 0.06f}, 0.22f, skin);
+    DrawModelCube(models, (Vector3){-0.26f, 1.02f, 0.02f}, 0.16f, 0.06f, 0.05f, skin);
+    DrawModelCube(models, (Vector3){0.26f, 1.02f, 0.02f}, 0.16f, 0.06f, 0.05f, skin);
+    // Yellow eyes and a long nose
+    DrawModelSphere(models, (Vector3){-0.08f, 1.02f, 0.25f}, 0.04f, eye);
+    DrawModelSphere(models, (Vector3){0.08f, 1.02f, 0.25f}, 0.04f, eye);
+    DrawModelCube(models, (Vector3){0, 0.94f, 0.28f}, 0.05f, 0.05f, 0.08f, skin);
+    // Long arms, short legs
+    DrawModelCube(models, (Vector3){-0.25f, 0.5f, 0.05f}, 0.11f, 0.45f, 0.11f, skin);
+    DrawModelCube(models, (Vector3){0.25f, 0.5f, 0.05f}, 0.11f, 0.45f, 0.11f, skin);
+    DrawModelCube(models, (Vector3){-0.1f, 0.17f, 0}, 0.12f, 0.34f, 0.12f, dark);
+    DrawModelCube(models, (Vector3){0.1f, 0.17f, 0}, 0.12f, 0.34f, 0.12f, dark);
+    // Wooden club
+    DrawModelCube(models, (Vector3){0.27f, 0.3f, 0.2f}, 0.07f, 0.07f, 0.34f, tunic);
+
+    (void)highlighted;
+    rlPopMatrix();
+}
+
 void DrawCow(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted) {
     Color cowBody = { 240, 240, 240, 255 };      // White body
     Color cowSpots = { 40, 30, 30, 255 };        // Black spots
@@ -575,6 +607,9 @@ void DrawEnemy(EntityModels* models, const Enemy& enemy, bool highlighted,
         case ENEMY_DRAGON:
             DrawDragon(models, enemy.position, enemy.facingAngle, highlighted);
             break;
+        case ENEMY_GOBLIN:
+            DrawGoblin(models, enemy.position, enemy.facingAngle, highlighted);
+            break;
         default:
             DrawModelCube(models, enemy.position, 0.5f, 1.0f, 0.5f, RED);
             break;
@@ -1011,7 +1046,7 @@ void DrawLadder(const EntityModels* models, const Ladder& ladder, bool highlight
     Color woodColor = highlighted ? (Color){180, 140, 90, 255} : (Color){139, 90, 43, 255};
     Color woodDark = highlighted ? (Color){140, 100, 60, 255} : (Color){100, 65, 30, 255};
 
-    float groundY = GetTerrainHeight(ladder.position.x, ladder.position.z);
+    float groundY = GetTerrainHeight(ladder.position.x, ladder.position.z) + ladder.position.y;
     Vector3 basePos = { ladder.position.x, groundY, ladder.position.z };
 
     float angle = ladder.facingAngle * DEG2RAD;

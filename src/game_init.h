@@ -37,11 +37,19 @@ struct EntityModels {
 };
 
 // All game resources that need cleanup
+// Walls merged into one static mesh per material per chunk (one draw call each)
+struct WallBatch {
+    Model model;
+    BoundingBox bounds;
+    Vector3 center;
+    float radius;
+};
+constexpr int MAX_WALL_BATCHES = 512;
+
 struct GameResources {
     // Shaders
     Shader grassShader;  // Terrain shader (also handles sand zones)
     Shader wallShaders[WALL_MATERIAL_COUNT];
-    int wallBaseLocs[WALL_MATERIAL_COUNT];
     Shader waterShader;
     Shader entityShader;  // For lit entities (enemies, trees, items)
     Shader depthShader;   // For shadow map pass
@@ -50,7 +58,8 @@ struct GameResources {
     // Models
     TerrainSystem terrain;
     VegetationSystem vegetation;
-    Model wallModels[MAX_WALLS];
+    WallBatch wallBatches[MAX_WALL_BATCHES];
+    int wallBatchCount;
     Model waterModels[MAX_WATER];
 
     // Entity primitive models (for DrawModelEx-based rendering)
@@ -79,6 +88,10 @@ GameResources LoadGameResources(const MapData& mapData, Wall* walls, Water* wate
 
 // Initialize heightmap with valleys from map data
 void InitializeHeightmap(const MapData& mapData);
+
+// Convert walls placed at absolute heights ("abs" in the map) to terrain-relative offsets.
+// Call after InitializeHeightmap.
+void ResolveAbsoluteWallHeights(MapData& mapData);
 
 // Initialize enemies from map data
 void InitEnemiesFromMap(Enemy* enemies, int* enemyCount, const MapData& mapData);

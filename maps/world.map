@@ -1,19 +1,20 @@
 # World Master Map
 # This file includes all regions of the world
 # Format: include filename.map offsetX offsetZ
+# lumbridge.map and alkharid.map are generated at 2 m per OSRS tile (scripts/osrs_map); the other
+# regions sit at their OSRS directions from Lumbridge, clear of the generated area.
 
 # Lumbridge - starting area (centered at origin)
 include lumbridge.map 0 0
 
-# Varrock - northern city
-include varrock.map 0 -200
+# Varrock - northern city; its south gate (local 0, 50) is at OSRS tile (3211, 3382)
+include varrock.map -22 -378
 
 # Falador - western city with White Knights' Castle
-include falador_cv.map -200 0
+include falador_cv.map -380 -230
 
-# Al Kharid - desert region to the east
-include alkharid.map 100 50
+# Al Kharid - desert region to the east (shares Lumbridge's frame)
+include alkharid.map 0 0
 
-
-# Wilderness - dangerous northern region (level 3-48 enemies)
-include wilderness.map 0 -500
+# Wilderness - dangerous northern region (level 3-48 enemies), north of Varrock
+include wilderness.map 0 -745

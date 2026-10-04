@@ -23,6 +23,7 @@ void DrawSword(const EntityModels* models, Vector3 pos, Color bladeColor, Color 
 
 // Draw a troll (simple humanoid shape)
 void DrawTroll(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted);
+void DrawGoblin(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted);
 
 // Draw a cow
 void DrawCow(const EntityModels* models, Vector3 pos, float facingAngle, bool highlighted);

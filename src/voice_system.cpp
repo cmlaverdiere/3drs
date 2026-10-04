@@ -210,6 +210,7 @@ bool IsSpeaking() {
 VoiceType GetVoiceForNPC(NPCType npc) {
     switch (npc) {
         case NPC_GUARD:
+        case NPC_BORDER_GUARD:
             return VoiceType::MALE_DEEP;
         default:
             return VoiceType::MALE_NEUTRAL;

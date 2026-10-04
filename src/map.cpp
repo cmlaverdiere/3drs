@@ -138,6 +138,8 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         enemyType = ENEMY_DEMON;
                     } else if (strcmp(enemyName, "dragon") == 0) {
                         enemyType = ENEMY_DRAGON;
+                    } else if (strcmp(enemyName, "goblin") == 0) {
+                        enemyType = ENEMY_GOBLIN;
                     }
                     map.enemySpawns[map.enemyCount] = { x + offsetX, y, z + offsetZ };
                     map.enemyTypes[map.enemyCount] = enemyType;
@@ -151,8 +153,10 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
             if (map.wallCount < MAX_WALLS) {
                 float x, y, z, w, h, d;
                 char materialName[64];
-                if (sscanf(line, "%*s %f %f %f %f %f %f %63s", &x, &y, &z, &w, &h, &d, materialName) == 7) {
+                char heightMode[16] = "";
+                if (sscanf(line, "%*s %f %f %f %f %f %f %63s %15s", &x, &y, &z, &w, &h, &d, materialName, heightMode) >= 7) {
                     map.walls[map.wallCount].position = { x + offsetX, y, z + offsetZ };
+                    map.walls[map.wallCount].absoluteY = (strcmp(heightMode, "abs") == 0);
                     map.walls[map.wallCount].width = w;
                     map.walls[map.wallCount].height = h;
                     map.walls[map.wallCount].depth = d;
@@ -272,6 +276,42 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                 TraceLog(LOG_WARNING, "MAX_VALLEYS (%d) exceeded, skipping valley", MAX_VALLEYS);
             }
         }
+        else if (strcmp(type, "groundmap") == 0) {
+            // Format: groundmap <file.png> x0 z0 sizeX sizeZ  (file relative to maps/)
+            char file[96];
+            float x0, z0, sx, sz;
+            if (sscanf(line, "%*s %95s %f %f %f %f", file, &x0, &z0, &sx, &sz) == 5) {
+                snprintf(map.groundMapFile, sizeof(map.groundMapFile), "maps/%s", file);
+                map.groundMapRect[0] = x0 + offsetX;
+                map.groundMapRect[1] = z0 + offsetZ;
+                map.groundMapRect[2] = sx;
+                map.groundMapRect[3] = sz;
+            }
+        }
+        else if (strcmp(type, "flatten") == 0) {
+            // Format: flatten x0 z0 x1 z1 height margin
+            if (map.flattenCount < MAX_FLATTENS) {
+                float x0, z0, x1, z1, height, margin;
+                if (sscanf(line, "%*s %f %f %f %f %f %f", &x0, &z0, &x1, &z1, &height, &margin) == 6) {
+                    map.flattens[map.flattenCount] = { x0 + offsetX, z0 + offsetZ, x1 + offsetX, z1 + offsetZ, height, margin };
+                    map.flattenCount++;
+                }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_FLATTENS (%d) exceeded, skipping flatten", MAX_FLATTENS);
+            }
+        }
+        else if (strcmp(type, "river") == 0) {
+            // Format: river x1 z1 x2 z2 width depth
+            if (map.riverCount < MAX_RIVERS) {
+                float x1, z1, x2, z2, width, depth;
+                if (sscanf(line, "%*s %f %f %f %f %f %f", &x1, &z1, &x2, &z2, &width, &depth) == 6) {
+                    map.rivers[map.riverCount] = { x1 + offsetX, z1 + offsetZ, x2 + offsetX, z2 + offsetZ, width, depth };
+                    map.riverCount++;
+                }
+            } else {
+                TraceLog(LOG_WARNING, "MAX_RIVERS (%d) exceeded, skipping river", MAX_RIVERS);
+            }
+        }
         else if (strcmp(type, "npc") == 0) {
             // Format: npc <type> x y z
             if (map.npcCount < MAX_NPCS) {
@@ -297,6 +337,12 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
                         npcType = NPC_ALKHARID_SPICE;
                     } else if (strcmp(npcName, "scimitar_shop") == 0) {
                         npcType = NPC_SCIMITAR_SHOP;
+                    } else if (strcmp(npcName, "duke") == 0) {
+                        npcType = NPC_DUKE;
+                    } else if (strcmp(npcName, "father_aereck") == 0) {
+                        npcType = NPC_FATHER_AERECK;
+                    } else if (strcmp(npcName, "border_guard") == 0) {
+                        npcType = NPC_BORDER_GUARD;
                     } else if (strcmp(npcName, "banker") == 0) {
                         npcType = NPC_BANKER;
                     } else {

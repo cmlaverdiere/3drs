@@ -89,7 +89,7 @@ def generate_catalog(project_root: str = ".") -> dict:
         "wall_materials": parse_map_wall_materials(map_cpp),
         "tree_types": ["tree", "oak_tree"],
         "rock_types": parse_map_rock_types(map_cpp),
-        "terrain": ["water", "sand", "valley"],
+        "terrain": ["water", "sand", "valley", "river", "flatten", "groundmap"],
         "lights": ["lamp", "campfire"],
         "structures": ["ladder"],
     }

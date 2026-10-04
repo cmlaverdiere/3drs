@@ -99,6 +99,8 @@ int main(int argc, char* argv[]) {
         printf("  Water: %d / %d\n", mapData.waterCount, MAX_WATER);
         printf("  Sand: %d / %d\n", mapData.sandCount, MAX_SAND);
         printf("  Valleys: %d / %d\n", mapData.valleyCount, MAX_VALLEYS);
+        printf("  Rivers: %d / %d\n", mapData.riverCount, MAX_RIVERS);
+        printf("  Flattens: %d / %d\n", mapData.flattenCount, MAX_FLATTENS);
         printf("  Lights: %d / %d\n", mapData.lightCount, MAX_LIGHTS);
         printf("  Player spawn: (%.1f, %.1f, %.1f)\n",
                mapData.playerSpawn.x, mapData.playerSpawn.y, mapData.playerSpawn.z);
@@ -111,6 +113,29 @@ int main(int argc, char* argv[]) {
         std::vector<int> nearby;
         g_spatial.walls.Query(0.0f, 0.0f, 20.0f, nearby);
         printf("  Spatial hash test: %zu walls near origin\n", nearby.size());
+
+        // GAME_DUMP_TERRAIN=dir writes base.bin (procedural only) and final.bin (with
+        // rivers and pads): HEIGHTMAP_SIZE^2 float32, row = z, for the map tools
+        if (const char* dumpDir = getenv("GAME_DUMP_TERRAIN")) {
+            InitializeHeightmap(mapData);
+            char path[512];
+            snprintf(path, sizeof(path), "%s/base.bin", dumpDir);
+            if (FILE* f = fopen(path, "wb")) {
+                for (int z = 0; z < HEIGHTMAP_SIZE; z++) {
+                    for (int x = 0; x < HEIGHTMAP_SIZE; x++) {
+                        float h = GenerateProceduralHeight(x * HEIGHTMAP_SCALE - HEIGHTMAP_OFFSET, z * HEIGHTMAP_SCALE - HEIGHTMAP_OFFSET);
+                        fwrite(&h, sizeof(float), 1, f);
+                    }
+                }
+                fclose(f);
+            }
+            snprintf(path, sizeof(path), "%s/final.bin", dumpDir);
+            if (FILE* f = fopen(path, "wb")) {
+                fwrite(g_heightmap, sizeof(float), HEIGHTMAP_SIZE * HEIGHTMAP_SIZE, f);
+                fclose(f);
+            }
+            printf("  Terrain dumped to %s\n", dumpDir);
+        }
 
         printf("=== TEST PASSED ===\n");
         return 0;
@@ -144,6 +169,7 @@ int main(int argc, char* argv[]) {
 
     // Initialize heightmap
     InitializeHeightmap(mapData);
+    ResolveAbsoluteWallHeights(mapData);
 
     // Initialize game entities
     Wall walls[MAX_WALLS] = {};
@@ -548,7 +574,10 @@ int main(int argc, char* argv[]) {
         for (int i = 0; i < npcCount; i++) {
             if (npcs[i].active) {
                 Vector3 npcPos = npcs[i].position;
-                npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z);
+                npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z) + npcs[i].position.y;
+                // Only NPCs on the player's floor: no talking through ceilings
+                float playerFeet = camera.position.y - PLAYER_EYE_HEIGHT;
+                if (fabsf(npcPos.y - playerFeet) > 1.5f) continue;
                 float dist = Distance3D(camera.position, npcPos);
                 if (dist < nearestNPCDist) {
                     nearestNPCDist = dist;
@@ -558,22 +587,24 @@ int main(int argc, char* argv[]) {
         }
 
         // Find nearest ladder for climbing
-        const float LADDER_INTERACT_RANGE = 2.5f;
+        // Pick the ladder end on the player's own floor, then the nearest horizontally,
+        // so stacked ladders (ground -> 1 -> 2) each climb one floor
+        const float LADDER_INTERACT_RANGE = 2.0f;
         const Ladder* nearestLadder = nullptr;
+        bool nearestLadderUp = true;
         float nearestLadderDist = LADDER_INTERACT_RANGE;
+        float playerFeetY = camera.position.y - PLAYER_EYE_HEIGHT;
         for (int i = 0; i < ladderCount; i++) {
-            float groundY = GetTerrainHeight(ladders[i].position.x, ladders[i].position.z);
-            Vector3 ladderBase = { ladders[i].position.x, groundY, ladders[i].position.z };
-            Vector3 ladderTop = { ladders[i].position.x, groundY + ladders[i].height, ladders[i].position.z };
-
-            // Check distance to base or top
-            float distBase = Distance3D(camera.position, ladderBase);
-            float distTop = Distance3D(camera.position, ladderTop);
-            float dist = (distBase < distTop) ? distBase : distTop;
-
-            if (dist < nearestLadderDist) {
-                nearestLadderDist = dist;
-                nearestLadder = &ladders[i];
+            float baseY = GetTerrainHeight(ladders[i].position.x, ladders[i].position.z) + ladders[i].position.y;
+            float topY = baseY + ladders[i].height;
+            float dx = camera.position.x - ladders[i].position.x;
+            float dz = camera.position.z - ladders[i].position.z;
+            float dist = sqrtf(dx * dx + dz * dz);
+            if (dist >= nearestLadderDist) continue;
+            if (fabsf(playerFeetY - baseY) < 1.2f) {
+                nearestLadderDist = dist; nearestLadder = &ladders[i]; nearestLadderUp = true;
+            } else if (fabsf(playerFeetY - topY) < 1.2f) {
+                nearestLadderDist = dist; nearestLadder = &ladders[i]; nearestLadderUp = false;
             }
         }
 
@@ -581,7 +612,7 @@ int main(int argc, char* argv[]) {
         if (nearestLadder && !climbState.active && !playerRuntime.isDead) {
             if (Game_IsKeyPressed(KEY_E) || Game_IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 // Determine if player is at top or bottom
-                float groundY = GetTerrainHeight(nearestLadder->position.x, nearestLadder->position.z);
+                float groundY = GetTerrainHeight(nearestLadder->position.x, nearestLadder->position.z) + nearestLadder->position.y;
 
                 // Calculate step-off offset based on ladder facing direction
                 // (player steps off in the direction the ladder faces)
@@ -597,20 +628,13 @@ int main(int argc, char* argv[]) {
                     nearestLadder->position.z + offsetZ
                 };
 
-                float distBase = Distance3D(camera.position, ladderBase);
-                float distTop = Distance3D(camera.position, ladderTop);
-
                 // Start climb animation
                 climbState.active = true;
                 climbState.fadeTimer = 0.0f;
                 climbState.hasTeleported = false;
 
-                // Teleport to opposite end
-                if (distBase < distTop) {
-                    climbState.targetPos = ladderTop;
-                } else {
-                    climbState.targetPos = ladderBase;
-                }
+                // Teleport to the other end
+                climbState.targetPos = nearestLadderUp ? ladderTop : ladderBase;
 
                 PlaySoundEffect(SFX_PICKUP);  // Climbing sound (reuse pickup for now)
             }
@@ -1078,6 +1102,7 @@ int main(int argc, char* argv[]) {
             if (LoadMap("maps/world.map", newMapData)) {
                 mapData = newMapData;
                 InitializeHeightmap(mapData);
+                ResolveAbsoluteWallHeights(mapData);
                 RebuildTerrain(&resources.terrain);
                 ResetGrassField(&resources.grass);
 
@@ -1181,18 +1206,20 @@ int main(int argc, char* argv[]) {
                     return IsShadowCasterVisible(cc->lighting, cc->cascade, center, radius);
                 }, &cull);
 
-                for (int i = 0; i < resources.wallCount; i++) {
-                    Vector3 pos = walls[i].position;
-                    pos.y += GetTerrainHeight(pos.x, pos.z) + walls[i].height / 2.0f;
-                    float radius = 0.5f * sqrtf(walls[i].width * walls[i].width + walls[i].height * walls[i].height +
-                                                walls[i].depth * walls[i].depth);
-                    if (!IsShadowCasterVisible(&lighting, c, pos, radius)) continue;
-                    DrawModelForPass(resources.wallModels[i], pos, {1, 1, 1}, WHITE, RenderPass::Shadow, resources.depthShader);
+                for (int i = 0; i < resources.wallBatchCount; i++) {
+                    const WallBatch& b = resources.wallBatches[i];
+                    if (!IsShadowCasterVisible(&lighting, c, b.center, b.radius)) continue;
+                    DrawModelForPass(b.model, {0, 0, 0}, {1, 1, 1}, WHITE, RenderPass::Shadow, resources.depthShader);
                 }
                 DrawVegetationShadows(&resources.vegetation, &lighting, c, trees, treeCount, rocks, rockCount);
-                for (int i = 0; i < enemyCount; i++) {
+                // Characters are built from many small primitives: only the near cascades get
+                // their shadows, and only within a short range
+                const float CHAR_SHADOW_DIST_SQ = 45.0f * 45.0f;
+                for (int i = 0; i < enemyCount && c < 2; i++) {
                     if (!enemies[i].alive) continue;
                     Vector3 enemyPos = enemies[i].position;
+                    float sdx = enemyPos.x - camera.position.x, sdz = enemyPos.z - camera.position.z;
+                    if (sdx * sdx + sdz * sdz > CHAR_SHADOW_DIST_SQ) continue;
                     enemyPos.y = GetTerrainHeight(enemyPos.x, enemyPos.z);
                     float r = enemies[i].type == ENEMY_DRAGON ? 6.0f : 2.5f;
                     if (!IsShadowCasterVisible(&lighting, c, Vector3Add(enemyPos, {0, 1, 0}), r)) continue;
@@ -1200,10 +1227,12 @@ int main(int argc, char* argv[]) {
                     adjustedEnemy.position = enemyPos;
                     DrawEnemy(&resources.entityModels, adjustedEnemy, false, customMonsters, customMonsterCount);
                 }
-                for (int i = 0; i < npcCount; i++) {
+                for (int i = 0; i < npcCount && c < 2; i++) {
                     if (!npcs[i].active) continue;
                     Vector3 npcPos = npcs[i].position;
-                    npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z);
+                    float sdx = npcPos.x - camera.position.x, sdz = npcPos.z - camera.position.z;
+                    if (sdx * sdx + sdz * sdz > CHAR_SHADOW_DIST_SQ) continue;
+                    npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z) + npcs[i].position.y;
                     if (!IsShadowCasterVisible(&lighting, c, Vector3Add(npcPos, {0, 1, 0}), 1.2f)) continue;
                     NPC adjustedNPC = npcs[i];
                     adjustedNPC.position = npcPos;
@@ -1241,7 +1270,7 @@ int main(int argc, char* argv[]) {
             }
 
             // Enemies (with frustum + distance culling)
-            const float ENEMY_DRAW_DIST_SQ = 160.0f * 160.0f;
+            const float ENEMY_DRAW_DIST_SQ = 90.0f * 90.0f;
             for (int i = 0; i < enemyCount; i++) {
                 if (enemies[i].alive) {
                     Vector3 enemyPos = enemies[i].position;
@@ -1270,7 +1299,9 @@ int main(int argc, char* argv[]) {
             for (int i = 0; i < npcCount; i++) {
                 if (npcs[i].active) {
                     Vector3 npcPos = npcs[i].position;
-                    npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z);
+                    float ndx = npcPos.x - camera.position.x, ndz = npcPos.z - camera.position.z;
+                    if (ndx * ndx + ndz * ndz > ENEMY_DRAW_DIST_SQ) continue;
+                    npcPos.y = GetTerrainHeight(npcPos.x, npcPos.z) + npcs[i].position.y;
                     if (!SphereInFrustum(&frustum, Vector3Add(npcPos, {0, 1, 0}), 1.2f)) continue;
                     NPC adjustedNPC = npcs[i];
                     adjustedNPC.position = npcPos;
@@ -1294,13 +1325,10 @@ int main(int argc, char* argv[]) {
             DrawLadders(&resources.entityModels, ladders, ladderCount, nearestLadder);
 
             // Walls (have their own shaders)
-            for (int i = 0; i < resources.wallCount; i++) {
-                Vector3 pos = walls[i].position;
-                float baseY = pos.y + GetTerrainHeight(pos.x, pos.z);
-                pos.y = baseY + walls[i].height / 2.0f;
-                int material = walls[i].material;
-                SetShaderValue(resources.wallShaders[material], resources.wallBaseLocs[material], &baseY, SHADER_UNIFORM_FLOAT);
-                DrawModel(resources.wallModels[i], pos, 1.0f, WHITE);
+            for (int i = 0; i < resources.wallBatchCount; i++) {
+                const WallBatch& b = resources.wallBatches[i];
+                if (!AABBInFrustum(&frustum, b.bounds.min, b.bounds.max)) continue;
+                DrawModel(b.model, {0, 0, 0}, 1.0f, WHITE);
             }
 
             profileMark(2);
@@ -1309,10 +1337,7 @@ int main(int argc, char* argv[]) {
 
             // ---- Transparent: after the opaque snapshot (water refraction) ----
             CaptureOpaqueScene(&postProcess, camera);
-            int waterSizeLoc = GetShaderLocation(resources.waterShader, "uWaterSize");
             for (int i = 0; i < resources.waterCount; i++) {
-                float size[2] = {waterBodies[i].width, waterBodies[i].length};
-                SetShaderValue(resources.waterShader, waterSizeLoc, size, SHADER_UNIFORM_VEC2);
                 DrawModel(resources.waterModels[i], waterBodies[i].position, 1.0f, WHITE);
             }
 
@@ -1381,6 +1406,12 @@ int main(int argc, char* argv[]) {
                 &bowState,
                 mouseMode, statusMessage,
                 screenWidth, screenHeight);
+
+        // Ladder prompt
+        if (nearestLadder && nearestNPCIndex < 0 && !climbState.active && !dialogueState.active &&
+            !mouseMode && !playerRuntime.isDead) {
+            DrawInteractPrompt(nearestLadderUp ? "Press E to climb up" : "Press E to climb down", screenWidth, screenHeight);
+        }
 
         // Draw NPC prompt (when near an NPC but not in dialogue/shop/bank)
         if (nearestNPCIndex >= 0 && !dialogueState.active && !shopState.active &&

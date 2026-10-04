@@ -157,7 +157,7 @@ const NPCConfig NPC_CONFIGS[NPC_COUNT] = {
         },
         .dialogueCount = 3
     },
-    // NPC_SCIMITAR_SHOP - Zeke, Varrock scimitar seller
+    // NPC_SCIMITAR_SHOP - Zeke, Al Kharid scimitar seller
     {
         .name = "Zeke",
         .skinColor = {230, 190, 160, 255},   // Light tan
@@ -166,7 +166,7 @@ const NPCConfig NPC_CONFIGS[NPC_COUNT] = {
         .height = 1.02f,
         .dialogueLines = {
             "Welcome to Zeke's Superior Scimitars!",
-            "I have the finest curved blades in Varrock.",
+            "I have the finest curved blades in Al Kharid.",
             "Scimitars are lighter and faster than regular swords."
         },
         .dialogueCount = 3
@@ -184,6 +184,47 @@ const NPCConfig NPC_CONFIGS[NPC_COUNT] = {
             "Your items will be protected here."
         },
         .dialogueCount = 3
+    },
+    // NPC_BORDER_GUARD - Al Kharid toll gate guard
+    {
+        .name = "Border Guard",
+        .skinColor = {170, 120, 80, 255},    // Sun-tanned
+        .shirtColor = {150, 30, 30, 255},    // Al Kharid red
+        .pantsColor = {90, 70, 50, 255},     // Leather
+        .height = 1.08f,
+        .dialogueLines = {
+            "This is the border of Al Kharid.",
+            "Normally the toll is ten coins to pass.",
+            "Prince Ali has lifted it for now. Go on through."
+        },
+        .dialogueCount = 3
+    },
+    // NPC_DUKE - Duke Horacio of Lumbridge
+    {
+        .name = "Duke Horacio",
+        .skinColor = {225, 190, 160, 255},
+        .shirtColor = {120, 30, 120, 255},   // Royal purple
+        .pantsColor = {60, 40, 70, 255},
+        .height = 1.05f,
+        .dialogueLines = {
+            "Greetings. Welcome to my castle.",
+            "The bank is upstairs, and the Cook keeps the kitchen below.",
+            "Mind the goblins across the river."
+        },
+        .dialogueCount = 3
+    },
+    // NPC_FATHER_AERECK - Lumbridge church priest
+    {
+        .name = "Father Aereck",
+        .skinColor = {230, 200, 175, 255},
+        .shirtColor = {40, 40, 45, 255},     // Black cassock
+        .pantsColor = {40, 40, 45, 255},
+        .height = 1.0f,
+        .dialogueLines = {
+            "Welcome to the church of holy Saradomin.",
+            "Rest a while. The graveyard outside is quiet, mostly."
+        },
+        .dialogueCount = 2
     }
 };
 
@@ -311,6 +352,24 @@ const EnemyConfig ENEMY_CONFIGS[ENEMY_TYPE_COUNT] = {
             { ITEM_BONES, 1, 1, 1.0f },              // Always drops dragon bones
             { ITEM_GIL, 300, 800, 1.0f },            // Always drops 300-800 gil
             { ITEM_IRON_2H_SWORD, 1, 1, 0.1f },      // 10% chance rare sword drop
+        },
+        .dropCount = 3
+    },
+    // ENEMY_GOBLIN - Lumbridge goblins
+    {
+        .name = "Goblin",
+        .combatLevel = 2,
+        .maxHealth = 5,
+        .maxHit = 1,
+        .attackCooldown = 1.2f,
+        .chaseSpeed = 3.2f,
+        .attackRange = 1.6f,
+        .respawnTime = 12.0f,
+        .aggressive = false,
+        .drops = {
+            { ITEM_BONES, 1, 1, 1.0f },      // Always drops bones
+            { ITEM_GIL, 1, 12, 0.8f },       // 80% chance of 1-12 gil
+            { ITEM_ARROW, 2, 6, 0.3f },      // 30% chance of 2-6 arrows
         },
         .dropCount = 3
     }

@@ -4,6 +4,7 @@ in vec3 vertexPosition;
 in vec2 vertexTexCoord;
 in vec3 vertexNormal;
 in vec4 vertexColor;
+in vec2 vertexTexCoord2;   // x: world height of the wall's base
 
 uniform mat4 mvp;
 uniform mat4 matModel;
@@ -14,6 +15,7 @@ out vec3 fragWorldPos;
 out vec3 fragNormal;
 out vec4 fragColor;
 out vec3 fragLocalPos;
+out float fragWallBase;
 
 void main() {
     fragTexCoord = vertexTexCoord;
@@ -21,5 +23,6 @@ void main() {
     fragWorldPos = (matModel * vec4(vertexPosition, 1.0)).xyz;
     fragNormal = normalize(mat3(matNormal) * vertexNormal);
     fragColor = vertexColor;
+    fragWallBase = vertexTexCoord2.x;
     gl_Position = mvp * vec4(vertexPosition, 1.0);
 }

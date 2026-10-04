@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
+
+# Optimised build unless asked otherwise (an unset type compiles everything at -O0)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 project(game)
 
 set(CMAKE_CXX_STANDARD 17)

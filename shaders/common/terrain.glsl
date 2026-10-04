@@ -4,9 +4,9 @@
 #include "frame.glsl"
 
 uniform int uSandCount;
-uniform vec4 uSandZones[16];   // center xz, size xz
-uniform int uWaterCount;
-uniform vec4 uWaterZones[16];
+uniform vec4 uSandZones[96];   // center xz, size xz
+uniform sampler2D texture0;     // ground map: r = paved road, g = dirt path
+uniform vec4 uGroundMapRect;    // world x0, z0, width, depth (width 0: no ground map)
 
 float boxDistance(vec2 p, vec4 zone) {
     vec2 d = abs(p - zone.xy) - zone.zw * 0.5;
@@ -16,7 +16,7 @@ float boxDistance(vec2 p, vec4 zone) {
 float sandAmount(vec2 xz) {
     float amount = 0.0;
     float wobble = (noise(xz * 0.11) - 0.5) * 7.0 + (noise(xz * 0.6) - 0.5) * 1.5;
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 96; i++) {
         if (i >= uSandCount) break;
         float d = boxDistance(xz, uSandZones[i]) + wobble;
         amount = max(amount, 1.0 - smoothstep(-5.0, 1.5, d));
@@ -24,13 +24,16 @@ float sandAmount(vec2 xz) {
     return amount;
 }
 
-float waterDistance(vec2 xz) {
-    float dist = 1e4;
-    for (int i = 0; i < 16; i++) {
-        if (i >= uWaterCount) break;
-        dist = min(dist, boxDistance(xz, uWaterZones[i]));
-    }
-    return dist;
+// Road and path coverage from the ground map (mirrored in ground_noise.h)
+vec2 groundPaths(vec2 xz) {
+    if (uGroundMapRect.z <= 0.0) return vec2(0.0);
+    vec2 uv = (xz - uGroundMapRect.xy) / uGroundMapRect.zw;
+    if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec2(0.0);
+    vec2 paths = texture(texture0, uv).rg;
+    float edge = (noise(xz * 0.7 + 7.0) - 0.5) * 0.35;
+    float road = smoothstep(0.35, 0.65, paths.r + edge);
+    float path = smoothstep(0.35, 0.65, paths.g + edge) * (1.0 - road);
+    return vec2(road, path);
 }
 
 struct GroundSample {
@@ -55,7 +58,9 @@ vec3 grassColor(float variation, float dryness) {
     return mix(mix(a, b, variation), dry, dryness);
 }
 
-GroundSample sampleGround(vec2 xz, float slope) {
+// groundY: terrain height. Water only lies in carved channels (the natural ground
+// never dips below zero), so ground carved below ~0 is shoreline.
+GroundSample sampleGround(vec2 xz, float slope, float groundY) {
     GroundSample g;
     float macro = fbm(xz * 0.011, 3);
     float meso = fbm(xz * 0.085 + 13.0, 3);
@@ -69,8 +74,7 @@ GroundSample sampleGround(vec2 xz, float slope) {
 
     // Dirt: worn patches, steep slopes, mud along the water
     vec3 dirt = mix(vec3(0.15, 0.10, 0.06), vec3(0.24, 0.18, 0.11), fine);
-    float waterDist = waterDistance(xz);
-    float shore = 1.0 - smoothstep(0.0, 3.5 + micro * 2.0, waterDist);
+    float shore = 1.0 - smoothstep(-0.6, 0.15 + micro * 0.2, groundY);
     float worn = smoothstep(0.68, 0.8, fbm(xz * 0.045 + 31.0, 3)) * 0.8;
     float dirtAmount = max(max(worn, smoothstep(0.18, 0.35, slope)), shore * 0.85);
     dirtAmount = saturate(dirtAmount + (fine - 0.5) * 0.35 * dirtAmount);
@@ -110,6 +114,25 @@ GroundSample sampleGround(vec2 xz, float slope) {
         roughness = mix(roughness, mix(0.95, 0.5, shore), sand);
         height = mix(height, ripple * 0.025 + fine * 0.006, sand);
         grassiness *= 1.0 - sand;
+    }
+
+    // Paved roads (cobbles) and dirt paths
+    vec2 paths = groundPaths(xz);
+    if (paths.x > 0.0) {
+        vec4 v = voronoiCell(xz * 1.4);
+        float joint = smoothstep(0.32, 0.5, v.x);
+        vec3 cobble = vec3(0.30, 0.29, 0.27) * (0.78 + 0.4 * hash(v.zw));
+        cobble = mix(cobble, vec3(0.11, 0.10, 0.09), joint * 0.7);
+        albedo = mix(albedo, cobble, paths.x);
+        roughness = mix(roughness, 0.8, paths.x);
+        height = mix(height, (1.0 - joint) * 0.025 + fine * 0.004, paths.x);
+        grassiness *= 1.0 - paths.x;
+    }
+    if (paths.y > 0.0) {
+        vec3 pathColor = vec3(0.29, 0.21, 0.12) * (0.85 + 0.3 * fine) * (0.9 + 0.2 * micro);
+        albedo = mix(albedo, pathColor, paths.y);
+        height = mix(height, fine * 0.012, paths.y);
+        grassiness *= 1.0 - paths.y * 0.95;
     }
 
     // Winter snow blanket with drifts and occasional bare earth

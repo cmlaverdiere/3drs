@@ -9,7 +9,7 @@ in vec3 fragNormal;
 void main() {
     vec3 N = normalize(fragNormal);
     float slope = 1.0 - N.y;
-    GroundSample g = sampleGround(fragWorldPos.xz, slope);
+    GroundSample g = sampleGround(fragWorldPos.xz, slope, fragWorldPos.y);
 
     // Near the camera the ground sits under grass blades: darken it so the
     // gaps between blades read as depth rather than bare paint.

@@ -2,8 +2,6 @@
 # Source: scripts/pipeline-output/falador.png
 # Bounds: X[-80.0, 80.0] Z[-80.0, 80.0]
 
-player_spawn -51.8 0 -22.0
-
 # === WALLS ===
 wall -23.7 0 63.2 7.2 4.0 0.5 stone
 wall -23.7 0 71.7 7.2 4.0 0.5 stone

@@ -110,7 +110,7 @@ static void BuildChunk(GrassField* grass, int cx, int cz, GrassFieldChunk* out) 
         float hx = GetTerrainHeight(x + 0.5f, z) - GetTerrainHeight(x - 0.5f, z);
         float hz = GetTerrainHeight(x, z + 0.5f) - GetTerrainHeight(x, z - 0.5f);
         float slope = 1.0f - 1.0f / sqrtf(1.0f + hx * hx + hz * hz);
-        ground::GrassCover cover = ground::SampleGrass(x, z, slope, season, grass->sand, grass->sandCount,
+        ground::GrassCover cover = ground::SampleGrass(x, z, y, slope, season, grass->sand, grass->sandCount,
                                                        grass->water, grass->waterCount);
         if (keepRoll > cover.density) continue;
         float height = (0.2f + 0.36f * cover.tallness) * (0.6f + 0.75f * rng.Next()) * (0.65f + 0.35f * cover.density);

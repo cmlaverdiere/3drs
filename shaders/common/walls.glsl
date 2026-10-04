@@ -6,7 +6,7 @@ in vec3 fragNormal;
 in vec4 fragColor;
 in vec3 fragLocalPos;
 
-uniform float uWallBase;   // world height of the wall's base
+in float fragWallBase;     // world height of the wall's base
 
 #include "lighting.glsl"
 
@@ -19,7 +19,7 @@ vec2 wallUV(vec3 N, vec3 p) {
 
 // Weathering common to all walls: grime at the base, moss or snow on top faces
 vec3 weatherWall(vec3 albedo, vec3 N, vec3 p, out float roughnessBoost) {
-    float above = p.y - uWallBase;
+    float above = p.y - fragWallBase;
     float grimeNoise = fbm(p.xz * 0.9 + p.y * 0.4, 3);
     float grime = (1.0 - smoothstep(0.0, 0.9 + grimeNoise * 0.8, above)) * 0.55;
     albedo = mix(albedo, albedo * vec3(0.45, 0.42, 0.36), grime);

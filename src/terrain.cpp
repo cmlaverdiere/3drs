@@ -1,4 +1,5 @@
 #include "terrain.h"
+#include "ground_noise.h"
 #include "math_utils.h"
 #include "raymath.h"
 #include "rlgl.h"
@@ -126,24 +127,41 @@ void RebuildTerrain(TerrainSystem* terrain) {
 
 void SetTerrainZoneUniforms(Shader shader, const Sand* sandZones, int sandCount,
                             const Water* waterBodies, int waterCount) {
-    float sand[16 * 4] = {}, water[16 * 4] = {};
-    int ns = sandCount < 16 ? sandCount : 16, nw = waterCount < 16 ? waterCount : 16;
+    (void)waterBodies; (void)waterCount;
+    float sand[96 * 4] = {};
+    int ns = sandCount < 96 ? sandCount : 96;
     for (int i = 0; i < ns; i++) {
         sand[i * 4 + 0] = sandZones[i].position.x;
         sand[i * 4 + 1] = sandZones[i].position.z;
         sand[i * 4 + 2] = sandZones[i].width;
         sand[i * 4 + 3] = sandZones[i].length;
     }
-    for (int i = 0; i < nw; i++) {
-        water[i * 4 + 0] = waterBodies[i].position.x;
-        water[i * 4 + 1] = waterBodies[i].position.z;
-        water[i * 4 + 2] = waterBodies[i].width;
-        water[i * 4 + 3] = waterBodies[i].length;
-    }
     SetShaderValue(shader, GetShaderLocation(shader, "uSandCount"), &ns, SHADER_UNIFORM_INT);
-    SetShaderValue(shader, GetShaderLocation(shader, "uWaterCount"), &nw, SHADER_UNIFORM_INT);
     if (ns) SetShaderValueV(shader, GetShaderLocation(shader, "uSandZones"), sand, SHADER_UNIFORM_VEC4, ns);
-    if (nw) SetShaderValueV(shader, GetShaderLocation(shader, "uWaterZones"), water, SHADER_UNIFORM_VEC4, nw);
+}
+
+namespace ground { GroundMap g_groundMap; }
+
+void LoadTerrainGroundMap(TerrainSystem* terrain, const char* path, float x0, float z0, float sizeX, float sizeZ) {
+    Image img = LoadImage(path);
+    if (img.data == nullptr) {
+        TraceLog(LOG_WARNING, "TERRAIN: ground map %s not found", path);
+        return;
+    }
+    ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+    ground::GroundMap& gm = ground::g_groundMap;
+    gm.width = img.width;
+    gm.height = img.height;
+    gm.rgba.assign((unsigned char*)img.data, (unsigned char*)img.data + img.width * img.height * 4);
+    gm.x0 = x0; gm.z0 = z0; gm.sizeX = sizeX; gm.sizeZ = sizeZ;
+
+    terrain->groundMap = LoadTextureFromImage(img);
+    UnloadImage(img);
+    SetTextureFilter(terrain->groundMap, TEXTURE_FILTER_BILINEAR);
+    SetTextureWrap(terrain->groundMap, TEXTURE_WRAP_CLAMP);
+    terrain->material.maps[MATERIAL_MAP_ALBEDO].texture = terrain->groundMap;
+    float rect[4] = {x0, z0, sizeX, sizeZ};
+    SetShaderValue(terrain->shader, GetShaderLocation(terrain->shader, "uGroundMapRect"), rect, SHADER_UNIFORM_VEC4);
 }
 
 void InitTerrain(TerrainSystem* terrain, Shader shader, Shader depthShader,
@@ -176,5 +194,6 @@ void DrawTerrainShadow(const TerrainSystem* terrain, bool (*visible)(Vector3, fl
 
 void UnloadTerrain(TerrainSystem* terrain) {
     FreeChunks(terrain);
+    if (terrain->groundMap.id > 0) UnloadTexture(terrain->groundMap);
     terrain->initialized = false;
 }
