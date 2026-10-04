@@ -1,5 +1,0 @@
-warp 0 0 10
-wait 30
-press M
-wait 10
-screenshot vv_probe_menu

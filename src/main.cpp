@@ -561,7 +561,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Action menu input
-        if (showActionMenu && targetItem != nullptr) {
+        if (showActionMenu && targetItem != nullptr && !console.active) {
             if (Game_IsKeyPressed(KEY_ONE)) {
                 if (HandleItemPickup(&playerState, targetItem)) {
                     showActionMenu = false;
@@ -616,7 +616,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Ladder climbing interaction (E key or LMB)
-        if (nearestLadder && !climbState.active && !playerRuntime.isDead) {
+        if (nearestLadder && !climbState.active && !playerRuntime.isDead && !console.active) {
             if (Game_IsKeyPressed(KEY_E) || Game_IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 // Determine if player is at top or bottom
                 float groundY = GetTerrainHeight(nearestLadder->position.x, nearestLadder->position.z) + nearestLadder->position.y;
@@ -685,7 +685,7 @@ int main(int argc, char* argv[]) {
         bool helpWasOpen = (helpSystem.state != HelpState::CLOSED);
         if (helpWasOpen) {
             UpdateHelpSystem(&helpSystem, quests, questCount, &playerState);
-        } else if (!dialogueState.active && !mouseMode && !playerRuntime.isDead) {
+        } else if (CanProcessHotkeys(&menuSystem) && !mouseMode && !playerRuntime.isDead) {
             // 'H' key opens help
             if (Game_IsKeyPressed(KEY_H)) {
                 OpenHelpUI(&helpSystem, quests, questCount, &playerState);
@@ -835,7 +835,7 @@ int main(int argc, char* argv[]) {
             !timeSelectMenu.active && !menuSystem.bank.active) {
             if (!dialogueState.active) {
                 // Start dialogue when pressing E near an NPC
-                if (nearestNPCIndex >= 0 && !mouseMode && !playerRuntime.isDead) {
+                if (nearestNPCIndex >= 0 && !mouseMode && !playerRuntime.isDead && !console.active) {
                     if (Game_IsKeyPressed(KEY_E)) {
                         NPCType npcType = npcs[nearestNPCIndex].type;
 
