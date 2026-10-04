@@ -13,7 +13,7 @@ import sys
 import numpy as np
 from PIL import Image, ImageDraw
 
-from . import extract as ex
+from .source import ex
 from .common import CACHE, ORIGIN_TX, ORIGIN_TY
 from .fetch import wikitext
 

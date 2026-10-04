@@ -5,8 +5,8 @@ description: Build or extend an OSRS area (walls, floors, stairs, rivers, roads,
 
 # OSRS Region
 
-Generated maps come from `scripts/osrs_map`: map squares (planes 0-2) give walls, doors, floors,
-roofs, roads and ladder spots; a region module gives rivers, bridges, staircases, NPCs and spawns.
+Generated maps come from `scripts/osrs_map`: the OSRS game cache (OpenRS2 dump) gives walls, doors,
+floors, roofs, roads, staircases and ladders; a region module gives rivers, bridges, NPCs and spawns.
 Never hand-edit generated `.map` files; edit the region module or generator and regenerate.
 
 ## Commands
@@ -14,13 +14,23 @@ Never hand-edit generated `.map` files; edit the region module or generator and 
 ```bash
 cmake --build build                                   # tools read terrain from build/game
 cd scripts
-uv run python -m osrs_map.fetch                       # map squares -> pipeline-output/osrs/tiles (cached)
+uv run python -m osrs_map.cache fetch                 # OpenRS2 dump (cache 2499 + loc keys) -> pipeline-output/osrs/cache, once
+uv run python -m osrs_map.cache                       # parse self-check: every square and object def must consume exactly
+uv run python -m osrs_map.fetch                       # map squares -> pipeline-output/osrs/tiles (zoom/water tools, image source)
 uv run python -m osrs_map.generate <region>           # writes maps/<files>, maps/<ground>.png
 uv run python -m osrs_map.verify <region>             # must print no FAIL
 OSRS_MAP_OUT=/tmp/out uv run python -m osrs_map.generate <region>   # dry run elsewhere
 ```
 
-Inspection (all read the cache):
+`OSRS_MAP_SOURCE=image` generates from the map squares instead (`extract.py`).
+
+
+- Only OpenRS2 (third party) is contacted; never connect to Jagex servers or a local game client/cache.
+- `cache.py` reads JS5 containers, XTEA loc keys, terrain (`m` groups), locs (`l` groups), object/underlay/overlay defs and model vertex heights (archive 7); formats follow RuneLite's offline loaders.
+- `extract_cache.py` replaces `extract.py` with rules: walls = loc types 0/2/9 with a visible model (doors: an op or the wall-or-door flag), fences = walls that don't block projectiles, outdoor wall height = model top x `MODEL_TILE_H` (generate.py), floors = overlay or underlay, bridge = plane-1 tile flag 2 (planes shift down), buildings = tile flag 4 (under roof), roofless = no roof loc (types 12-21) within a tile, ladders = Climb/Climb-up/Climb-down locs, trees = Chop down locs, black tiles = no floor under a blocking loc.
+- generate.py builds staircase flights from Staircase locs (first straight flight in the footprint with a walkable entry below and exit above; otherwise a ladder) and ignores `STAIRS`, `NO_LADDER_TILES`, `CLOSE_DOORWAYS`. `NOT_BUILDINGS`, `OPEN_COURTYARDS` and `OUTDOOR_WALLS` are still applied but not needed for Lumbridge, Al Kharid or Varrock.
+
+Inspection (`edges` reads the cache; `zoom` and `water` read the map squares):
 
 ```bash
 uv run python -m osrs_map.tools zoom   TX0 TY0 TX1 TY1 [PLANE]   # gridded crop -> pipeline-output/osrs/zoom.png (Read it)
@@ -38,15 +48,14 @@ uv run python -m osrs_map.tools spawns "Monster" TX0 TY0 TX1 TY1 # monster spawn
    - `BBOX`, `FILES`, `file_for`, `GROUND_PNG`, `HEADERS` (only one file should carry `player_spawn`).
    - `RIVER` (dx, dy, half-width tiles from the origin tile) from `tools water`; `BASINS` for sea/ponds; `[]` if none.
    - `BRIDGES` (tx0, tx1, ty, half-width): map railings on them are dropped, a flat deck + abutments + posts are generated.
-   - `OUTDOOR_WALLS` (tall walls outside buildings, e.g. castle grounds; low ones for fountain rims), `STONE_SITES`, `OPEN_COURTYARDS` (walled yards that would get a roof), `NOT_BUILDINGS` (boxes never treated as buildings: fountains, wells), optional `CITY_WALL = (height, material)` for doubled outdoor wall lines and long solid-black wall tiles. `CLOSE_DOORWAYS = True` when building floors share the outdoor ground colour (Varrock's (80, 64, 32)): wall-line gaps of up to 2 tiles are closed for building detection.
-   - `STAIRS` + `NO_LADDER_TILES` for buildings that need walkable stairs (design with `tools edges` on each plane); other buildings get ladders from the map's stair icons automatically.
+   - `STONE_SITES`; optional `OPEN_COURTYARDS` / `NOT_BUILDINGS` overrides if `verify` overlays show a wrong roof or building; optional `CITY_WALL = (height, material)` for doubled outdoor wall lines. `OUTDOOR_WALLS`, `CLOSE_DOORWAYS`, `STAIRS`, `NO_LADDER_TILES` only affect the image source.
    - `NPCS` from `tools npc`, `MONSTERS` from `tools spawns`, `ROCKS`, `ITEMS`, `LAMPS`, `CAMPFIRES`, `SAND`, `PROPS`.
    - `ROUTES`, `ENTER`, `OVERLAYS` for verify; `tree_keep`, `extra` for bespoke content.
 4. New NPC/enemy types: follow the checklists in `CLAUDE.md` (types.h enum before the COUNT, configs in types.cpp, map.cpp parser, renderer for enemies).
 5. `generate`, `cmake --build build` only if C++ changed, `./build/game --test`, `verify`, then Read the overlays in `scripts/pipeline-output/osrs/verify/`.
 6. In-game check: validate subagent with `--working-directory` (below), or `--screenshot` for a quick look.
 
-## Map square encoding (mejrs/layers_osrs, 4 px per tile)
+## Map square encoding (mejrs/layers_osrs, 4 px per tile; image source and zoom/water tools)
 
 - URL: `https://mejrs.github.io/layers_osrs/mapsquares/-1/2/{plane}_{sx}_{sy}.png` (square = 64 tiles, sy grows north). maps.runescape.wiki tiles return 403.
 - Walls: 1 px pure white (>230) on a tile edge (column 0/3, row 0/3). Doors: red. Diagonal walls: light grey (min channel > 180) across the tile.

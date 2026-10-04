@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 from . import terrain
 from .common import MAPS, CACHE, S, FH, ORIGIN_TX, ORIGIN_TY, X, Z
-from . import extract as ex
+from .source import ex
 
 RADIUS, STEP, HEAD, EYE = 0.3, 0.45, 1.9, 1.8
 LADDER_RANGE, LADDER_FLOOR_TOL = 2.0, 1.2

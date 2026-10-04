@@ -13,7 +13,7 @@ from collections import defaultdict
 import numpy as np
 from PIL import Image
 
-from . import extract as ex
+from .source import ex, CACHE_SOURCE
 from . import terrain
 from .common import (MAPS, CACHE, S, FH, SLAB, GSLAB, ROOF, T, WALL_H, TOP_WALL_H, FENCE_H,
                      WATER_Y, RIVER_DEPTH, HM_OFFSET, ORIGIN_TX, ORIGIN_TY, X, Z, bX, bZ)
@@ -126,8 +126,17 @@ def building_material(*tiles):
     return "stone"
 
 
-def outdoor_wall(t):
-    """(height, material) for a wall outside any building at tile t."""
+MODEL_TILE_H = 1.9 / 200 * 128     # metres per tile of OSRS model height (players are ~200 units tall)
+
+
+def outdoor_wall(t, pl=0, key=None, vertical=None):
+    """(height, material) for a wall outside any building at tile t (key/vertical: the cache edge;
+    vertical None for a diagonal). From the cache: model height, stone if it blocks projectiles,
+    otherwise a wooden fence."""
+    if CACHE_SOURCE and key is not None:
+        tag = "D" if vertical is None else ("V" if vertical else "H")
+        h = max(RES["height"][pl].get((tag, key), 0) * MODEL_TILE_H, 0.4)
+        return h, ("wood" if (tag, key) in RES["fence"][pl] else "stone")
     for box, h, mat in R.OUTDOOR_WALLS:
         if in_box(t, box):
             return h, mat
@@ -151,7 +160,7 @@ def edge_class(pl, a, b, store=None, key=None, vertical=False):
             boxed = any(in_box(a, box) for box, _, _ in R.OUTDOOR_WALLS)
             if CITY_WALL and store is not None and not boxed and doubled(store, key, vertical):
                 return (0.0, CITY_WALL[0], CITY_WALL[1], "city")
-            h, mat = outdoor_wall(a)
+            h, mat = outdoor_wall(a, pl, key, vertical)
             return (0.0, h, mat, "fence")
         two = a in FLOOR[1] or b in FLOOR[1]
         return (0.0, FH - SLAB if two else WALL_H, building_material(a, b), "bldg")
@@ -209,7 +218,7 @@ def emit_diagonals(pl):
             continue
         nb = [(tx, ty), (tx - 1, ty), (tx + 1, ty), (tx, ty - 1), (tx, ty + 1)]
         if pl == 0 and not any(t in BTILES for t in nb):
-            h, mat = outdoor_wall((tx, ty))
+            h, mat = outdoor_wall((tx, ty), pl, (tx, ty))
             twins = [(tx - 1, ty), (tx + 1, ty), (tx, ty - 1), (tx, ty + 1)]
             if CITY_WALL and any(RES["diag"][pl].get(k) == orient for k in twins):
                 h, mat = CITY_WALL
@@ -261,8 +270,141 @@ if CITY_WALL:
                           (tyn - tys + 1) * S, 0.0, CITY_WALL[0], CITY_WALL[1])
         wall_count += 1
 
+def wall_between(pl, a, b):
+    """A wall (not a door) on plane pl between orthogonally adjacent tiles a and b."""
+    (ax, ay), (bx, by) = a, b
+    if ay == by:
+        return RES["vedges"][pl].get((max(ax, bx), ay)) == "W"
+    return RES["hedges"][pl].get((ax, min(ay, by))) == "W"
+
+
+def walkable(pl, t, holes):
+    if t in holes[pl] or t in RES["diag"][pl]:
+        return False
+    return pl == 0 or t in FLOOR.get(pl, {})
+
+
+def stair_candidates(x0, y0, x1, y1):
+    """Straight runs of 2-3 tiles overlapping a footprint, allowed one tile beyond it: longer (gentler)
+    runs first, then the most overlap, then along the footprint's long side."""
+    foot = {(x, y) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1)}
+    wide = (x1 - x0) >= (y1 - y0)
+    cands = []
+    for axis in ("row", "col"):
+        (p0, p1), (q0, q1) = ((y0, y1), (x0, x1)) if axis == "row" else ((x0, x1), (y0, y1))
+        for fixed in range(p0 - 1, p1 + 2):
+            for n in (3, 2):
+                for lo in range(q0 - 1, q1 + 3 - n):
+                    tiles = [(v, fixed) if axis == "row" else (fixed, v) for v in range(lo, lo + n)]
+                    overlap = sum(t in foot for t in tiles)
+                    if overlap:
+                        for d in (("E", "W") if axis == "row" else ("N", "S")):
+                            cands.append(((-n, -overlap, (axis == "row") != wide), (axis, fixed, (lo, lo + n - 1), d)))
+    return [c for _, c in sorted(cands, key=lambda c: c[0])]
+
+
+def check_flight(pl, cand, st):
+    """(failed check or None, run, entry, exit) for a flight from plane pl given the flights placed so
+    far (st: holes per plane, tiles taken by runs and entries, landing exits). The bottom step and
+    the top landing can be reached straight on or from the side."""
+    axis, fixed, (lo, hi), d = cand
+    run = [(v, fixed) if axis == "row" else (fixed, v) for v in range(lo, hi + 1)]
+    if d in ("W", "S"):
+        run = run[::-1]
+    step = {"E": (1, 0), "W": (-1, 0), "N": (0, 1), "S": (0, -1)}[d]
+    side = (step[1], step[0])
+    holes, taken, exits = st
+    if not all(walkable(pl, t, holes) and t not in taken[pl] and t not in exits[pl] for t in run):
+        return "run blocked", run, None, None
+    if any(wall_between(pl, a, b) for a, b in zip(run, run[1:])):
+        return "run walled", run, None, None
+    if any(t in RES["diag"][pl + 1] for t in run):
+        return "diagonal above", run, None, None
+
+    def reach(t, pl2, dirs, ok):
+        for dx, dy in dirs:
+            n = (t[0] + dx, t[1] + dy)
+            if n not in run and ok(n) and not wall_between(pl2, t, n):
+                return n
+        return None
+    # Side entry onto the bottom step needs room beside it: not with a wall at the flight's start
+    behind = (run[0][0] - step[0], run[0][1] - step[1])
+    sides = [] if wall_between(pl, behind, run[0]) else [side, (-side[0], -side[1])]
+    entry = reach(run[0], pl, [(-step[0], -step[1])] + sides,
+                  lambda n: walkable(pl, n, holes) and n not in taken[pl])
+    if entry is None:
+        return "no entry", run, None, None
+    exit_ = reach(run[-1], pl + 1, [step, side, (-side[0], -side[1])],
+                  lambda n: walkable(pl + 1, n, holes) and n not in taken[pl + 1] and n not in holes[pl + 1])
+    if exit_ is None:
+        return "no exit", run, entry, None
+    return None, run, entry, exit_
+
+
+def place(st, pl, run, entry, exit_):
+    holes, taken, exits = st
+    holes = {**holes, pl + 1: holes[pl + 1] | set(run)}
+    taken = {**taken, pl: taken[pl] | set(run) | {entry}}
+    exits = {**exits, pl + 1: exits[pl + 1] | {exit_}}
+    return holes, taken, exits
+
+
+def cache_stairs():
+    """Flights for the cache's staircases. Stacked staircases (a footprint continuing up from the
+    floor above) are solved together: the first combination of candidates, in preference order,
+    where every flight's entry below and exit above are walkable and not walled off. Staircases with
+    no fit keep their ladder. Returns (STAIRS entries, footprint tiles handled)."""
+    stairs = [s for s in ex.staircases(TX0, TX1, TY0, TY1) if s[0] + 1 in RES["floor"]]  # floors stop at plane 2
+    def overlaps(a, b):
+        return a[1] <= b[3] and b[1] <= a[3] and a[2] <= b[4] and b[2] <= a[4]
+    chains, seen = [], set()
+    for s0 in sorted(stairs):
+        if s0 in seen:
+            continue
+        chain = [s0]; seen.add(s0)
+        while nxt := next((s for s in stairs if s not in seen and s[0] == chain[-1][0] + 1 and overlaps(s, chain[-1])), None):
+            chain.append(nxt); seen.add(nxt)
+        chains.append(chain)
+    planes = range(4)
+    st = ({p: set() for p in planes}, {p: set() for p in planes}, {p: set() for p in planes})
+    flights, handled = [], set()
+
+    def solve(chain, st):
+        if not chain:
+            return [], st
+        pl, x0, y0, x1, y1 = chain[0]
+        for cand in stair_candidates(x0, y0, x1, y1):
+            failed, run, entry, exit_ = check_flight(pl, cand, st)
+            if failed:
+                continue
+            rest = solve(chain[1:], place(st, pl, run, entry, exit_))
+            if rest is not None:
+                return [(cand, pl)] + rest[0], rest[1]
+        return None
+
+    for chain in chains:
+        # Whole chain if possible, else its longest solvable prefix
+        for k in range(len(chain), 0, -1):
+            res = solve(chain[:k], st)
+            if res is not None:
+                placed, st = res
+                for (axis, fixed, span, d), pl in placed:
+                    flights.append((axis, fixed, span, d, pl))
+                for s in chain[:k]:
+                    handled |= {(x, y) for x in range(s[1], s[3] + 1) for y in range(s[2], s[4] + 1)}
+                break
+        for s in chain[k if res is not None else 0:]:
+            print(f"staircase plane {s[0]} at {s[1]},{s[2]}: no straight flight fits, using a ladder")
+    return flights, handled
+
+
+if CACHE_SOURCE:
+    STAIRS, NO_LADDER_TILES = cache_stairs()
+else:
+    STAIRS, NO_LADDER_TILES = R.STAIRS, R.NO_LADDER_TILES
+
 STAIR_HOLES = defaultdict(set)   # plane -> tiles cut out of that plane's floor
-for axis, fixed, (lo, hi), _, pl in R.STAIRS:
+for axis, fixed, (lo, hi), _, pl in STAIRS:
     for v in range(lo, hi + 1):
         STAIR_HOLES[pl + 1].add((v, fixed) if axis == "row" else (fixed, v))
 
@@ -284,13 +426,18 @@ for pl in (1, 2):
 
 # Roofs over each building's top floor: stone ones are terraces with crenellated parapets
 roof_at = {}      # tile -> roof top height above the pad
+ROOFLESS = set().union(*(c.get("roofless", ()) for c in COMPS)) if COMPS else set()
 for t in BTILES:
-    if t not in FLOOR[1] and not any(in_box(t, b) for b in R.OPEN_COURTYARDS):
+    if t not in FLOOR[1] and t not in ROOFLESS and t not in STAIR_HOLES[1] and not any(in_box(t, b) for b in R.OPEN_COURTYARDS):
         roof_at[t] = WALL_H + ROOF
 for pl in (1, 2):
     for t in FLOOR[pl]:
-        if t not in FLOOR.get(pl + 1, {}) and not on_bridge(*t):
+        if t not in FLOOR.get(pl + 1, {}) and t not in STAIR_HOLES[pl + 1] and not on_bridge(*t):
             roof_at[t] = (pl + 1) * FH
+for pl in (1, 2):      # stairwells with no floor around them above still get a ceiling
+    for t in STAIR_HOLES[pl]:
+        if t not in FLOOR.get(pl, {}):
+            roof_at.setdefault(t, (pl + 1) * FH)
 roof_tiles = defaultdict(list)
 for t, top in roof_at.items():
     roof_tiles[(top, building_material(t))].append(t)
@@ -327,7 +474,7 @@ for t, top in roof_at.items():
 # ---------------------------------------------------------------- staircases
 def emit_stairs():
     n = 0
-    for axis, fixed, (lo, hi), rise_dir, pl in R.STAIRS:
+    for axis, fixed, (lo, hi), rise_dir, pl in STAIRS:
         o = out_for(fixed if axis == "col" else lo)
         rise = FH / STEPS
         base = pl * FH + (GSLAB if pl == 0 else 0.0)
@@ -338,18 +485,19 @@ def emit_stairs():
             a0, a1 = bZ(hi), bZ(lo - 1)
             start, sign = (a1, -1) if rise_dir == "N" else (a0, 1)
         depth = ((a1 - a0) - LANDING) / STEPS
-        def block(c, length, top):
+        def block(c, length, top, width=S - 0.1):
             if axis == "row":
-                o.wall(c, Z(fixed), length + 0.02, S - 0.1, base, top - base, "stone")
+                o.wall(c, Z(fixed), length + 0.02, width, base, top - base, "stone")
             else:
-                o.wall(X(fixed), c, S - 0.1, length + 0.02, base, top - base, "stone")
+                o.wall(X(fixed), c, width, length + 0.02, base, top - base, "stone")
         for k in range(STEPS):
             block(start + sign * depth * (k + 0.5), depth, pl * FH + rise * (k + 1)); n += 1
-        block(start + sign * (depth * STEPS + LANDING / 2), LANDING, (pl + 1) * FH); n += 1
+        # Full-width landing (overlapping the floor beside it) so stepping off sideways finds floor
+        block(start + sign * (depth * STEPS + LANDING / 2), LANDING, (pl + 1) * FH, S + 0.1); n += 1
     return n
 
 
-if R.STAIRS:
+if STAIRS:
     MAIN.c("STAIRCASES")
     wall_count += emit_stairs()
 
@@ -359,7 +507,7 @@ ICONS = {pl: ex.icon_tiles(pl, TX0, TX1, TY0, TY1) for pl in (0, 1, 2)}
 LADDERS = []
 for pl in (0, 1):
     for tx, ty in ICONS[pl]:
-        if (tx, ty) in R.NO_LADDER_TILES:
+        if (tx, ty) in NO_LADDER_TILES:
             continue
         up = FLOOR.get(pl + 1, {})
         if not any((tx + dx, ty + dy) in up for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
