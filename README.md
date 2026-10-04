@@ -47,7 +47,7 @@ Run the game with a script file for automated testing:
 ./build/game --headless --script scripts/ingame/my_test.script
 ```
 
-Scripts support commands like `warp`, `face`, `press`, `click`, `set_time`, `set_season`, `screenshot`, and `wait`. Multiple instances can run in parallel for batch screenshot capture. See `scripts/ingame/` for examples.
+Scripts support commands like `warp`, `face`, `press`, `click`, `set_time`, `set_season`, `classic`, `screenshot`, and `wait`. The same parser backs the in-game console (`/`), which runs the non-input commands. Multiple instances can run in parallel for batch screenshot capture. See `scripts/ingame/` for examples.
 
 ## Controls
 
@@ -61,6 +61,8 @@ Scripts support commands like `warp`, `face`, `press`, `click`, `set_time`, `set
 ### Menus
 - **SHIFT** - Toggle inventory
 - **T** - Time menu (set time of day)
+- **M** - Settings (Classic graphics: flat-shaded OSRS look)
+- **/** - Console: runs script commands (`warp`, `set_time`, `give_item`, `classic on`...); Tab completes, Up/Down for history, `help` lists commands
 - **H** - Quest help (LLM-powered hints)
 - **G** - Monster generator (LLM-powered)
 - **ESC** - Close menu / Exit game

@@ -14,7 +14,7 @@ void main() {
     // Near the camera the ground sits under grass blades: darken it so the
     // gaps between blades read as depth rather than bare paint.
     float dist = length(uCamera.xyz - fragWorldPos);
-    float underBlades = g.grass * clamp(1.0 - (dist - 12.0) / 42.0, 0.0, 1.0) * (1.0 - smoothstep(40.0, 50.0, dist));
+    float underBlades = CLASSIC ? 0.0 : g.grass * clamp(1.0 - (dist - 12.0) / 42.0, 0.0, 1.0) * (1.0 - smoothstep(40.0, 50.0, dist));
     vec3 albedo = g.albedo * mix(1.0, 0.62, underBlades);
 
     // Fade bump detail with distance to avoid shimmer

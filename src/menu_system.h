@@ -5,6 +5,8 @@
 #include "types.h"
 #include "help_system.h"
 #include "monster_generator.h"
+#include "settings_menu.h"
+#include "console.h"
 
 // ============================================================================
 // MENU SYSTEM
@@ -42,6 +44,8 @@ struct MenuSystem {
     TimeSelectMenu* timeSelect;
     HelpSystem* help;
     MonsterGenerator* generator;    // Monster generation UI
+    SettingsMenu* settings;         // Settings (M)
+    Console* console;               // Developer console (/)
 
     // Banking state (owned by MenuSystem)
     BankState bank;

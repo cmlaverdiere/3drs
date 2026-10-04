@@ -29,6 +29,8 @@ void InitMenuSystem(MenuSystem* menu,
     menu->timeSelect = timeSelect;
     menu->help = help;
     menu->generator = generator;
+    menu->settings = nullptr;
+    menu->console = nullptr;
 
     // Initialize bank state
     menu->bank.active = false;
@@ -48,6 +50,8 @@ bool IsAnyMenuOpen(const MenuSystem* menu) {
     if (menu->help && menu->help->state != HelpState::CLOSED) return true;
     if (menu->bank.active) return true;
     if (menu->generator && IsGeneratorOpen(menu->generator)) return true;
+    if (menu->settings && menu->settings->active) return true;
+    if (menu->console && menu->console->active) return true;
     return false;
 }
 
@@ -60,6 +64,8 @@ bool CanProcessGameInput(const MenuSystem* menu) {
     if (menu->help && menu->help->state != HelpState::CLOSED) return false;
     if (menu->bank.active) return false;
     if (menu->generator && IsGeneratorOpen(menu->generator)) return false;
+    if (menu->settings && menu->settings->active) return false;
+    if (menu->console && menu->console->active) return false;
     return true;
 }
 
@@ -70,6 +76,7 @@ bool CanProcessWorldInteraction(const MenuSystem* menu) {
     if (menu->help && menu->help->state != HelpState::CLOSED) return false;
     if (menu->bank.active) return false;
     if (menu->generator && IsGeneratorOpen(menu->generator)) return false;
+    if (menu->console && menu->console->active) return false;
     return true;
 }
 
@@ -77,6 +84,7 @@ bool CanProcessScreenshotKey(const MenuSystem* menu) {
     // Screenshot key (P) works except during help UI or generator (might want to type P)
     if (menu->help && menu->help->state == HelpState::TYPING) return false;
     if (menu->generator && menu->generator->state == GeneratorState::TYPING) return false;
+    if (menu->console && menu->console->active) return false;
     return true;
 }
 
@@ -87,6 +95,7 @@ bool CanProcessHotkeys(const MenuSystem* menu) {
     if (menu->help && menu->help->state != HelpState::CLOSED) return false;
     if (menu->bank.active) return false;
     if (menu->generator && IsGeneratorOpen(menu->generator)) return false;
+    if (menu->console && menu->console->active) return false;
     return true;
 }
 

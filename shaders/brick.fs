@@ -28,8 +28,9 @@ void main() {
     vec3 mortarColor = vec3(0.30, 0.28, 0.25) * (0.8 + 0.3 * noise(uv * 60.0));
     vec3 albedo = mix(mortarColor, brick, brickMask);
 
-    float rough;
-    albedo = weatherWall(albedo, N, fragWorldPos, rough);
+    float rough = 0.0;
+    if (CLASSIC) albedo = vec3(0.36, 0.11, 0.06);
+    else albedo = weatherWall(albedo, N, fragWorldPos, rough);
     // Rounded brick faces in the height field; mortar sits 8mm back
     float height = brickMask * (0.008 + smoothstep(0.0, 0.02, edgeDist) * 0.004) + noise(uv * 25.0) * 0.0015;
     vec3 n = bumpNormal(N, fragWorldPos, height, 1.0);

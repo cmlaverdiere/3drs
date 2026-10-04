@@ -275,12 +275,14 @@ void PrepareFrame(LightingSystem* lighting, const Camera3D& camera, int renderWi
     f.screen[0] = (float)renderWidth; f.screen[1] = (float)renderHeight;
     f.screen[2] = 1.0f / renderWidth; f.screen[3] = 1.0f / renderHeight;
     f.exposure[0] = lighting->exposure; f.exposure[1] = lighting->nightFactor;
+    f.exposure[2] = lighting->classicMode ? 1.0f : 0.0f;
 
     // Cascades: bounding spheres of view-frustum slices, texel-snapped
     Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
     float tanHalf = tanf(camera.fovy * DEG2RAD * 0.5f);
     Vector3 travel = Vector3Negate(lighting->lightDir);
-    lighting->shadowsEnabled = lighting->shadowAtlas.fbo != 0 && Luminance(lighting->lightColor) > 1e-5f;
+    lighting->shadowsEnabled = lighting->shadowAtlas.fbo != 0 && Luminance(lighting->lightColor) > 1e-5f &&
+                               !lighting->classicMode;
     float sliceNear = nearPlane;
     for (int c = 0; c < SHADOW_CASCADES; c++) {
         Vector3 center; float radius;

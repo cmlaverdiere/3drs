@@ -172,28 +172,33 @@ void RenderPostProcess(PostProcessSystem* pp, const LightingSystem* lighting) {
     Matrix invProj = MatrixInvert(f.projection);
     int hw = pp->ssao[0].width, hh = pp->ssao[0].height;
 
-    // SSAO at half resolution, then a depth-aware blur
-    BeginFullscreenPass(pp->ssaoShader, &pp->ssao[0]);
-    BindTextureUnit(0, pp->scene.depth);
-    glUniformMatrix4fv(glGetUniformLocation(pp->ssaoShader.id, "uInvProj"), 1, GL_FALSE, MatrixToFloat(invProj));
-    DrawFullscreenTriangle();
-    for (int pass = 0; pass < 2; pass++) {
-        BeginFullscreenPass(pp->ssaoBlurShader, &pp->ssao[(pass + 1) % 2]);
-        BindTextureUnit(0, pp->ssao[pass % 2].color[0]);
-        SetUniform2f(pp->ssaoBlurShader, "uDirection", pass == 0 ? 1.0f / hw : 0.0f, pass == 0 ? 0.0f : 1.0f / hh);
-        DrawFullscreenTriangle();
-    }
+    // Classic mode resolves without AO, volumetric light or bloom
+    bool full = !lighting->classicMode;
 
-    // Volumetric light (shadowed sun/moon shafts + point light halos)
-    BeginFullscreenPass(pp->volumetricShader, &pp->volumetric[0]);
-    BindTextureUnit(0, pp->scene.depth);
-    DrawFullscreenTriangle();
-    for (int pass = 0; pass < 2; pass++) {
-        BeginFullscreenPass(pp->volumetricBlurShader, &pp->volumetric[(pass + 1) % 2]);
-        BindTextureUnit(0, pp->volumetric[pass % 2].color[0]);
-        BindTextureUnit(1, pp->ssao[0].color[0]);
-        SetUniform2f(pp->volumetricBlurShader, "uDirection", pass == 0 ? 1.0f / hw : 0.0f, pass == 0 ? 0.0f : 1.0f / hh);
+    // SSAO at half resolution, then a depth-aware blur
+    if (full) {
+        BeginFullscreenPass(pp->ssaoShader, &pp->ssao[0]);
+        BindTextureUnit(0, pp->scene.depth);
+        glUniformMatrix4fv(glGetUniformLocation(pp->ssaoShader.id, "uInvProj"), 1, GL_FALSE, MatrixToFloat(invProj));
         DrawFullscreenTriangle();
+        for (int pass = 0; pass < 2; pass++) {
+            BeginFullscreenPass(pp->ssaoBlurShader, &pp->ssao[(pass + 1) % 2]);
+            BindTextureUnit(0, pp->ssao[pass % 2].color[0]);
+            SetUniform2f(pp->ssaoBlurShader, "uDirection", pass == 0 ? 1.0f / hw : 0.0f, pass == 0 ? 0.0f : 1.0f / hh);
+            DrawFullscreenTriangle();
+        }
+
+        // Volumetric light (shadowed sun/moon shafts + point light halos)
+        BeginFullscreenPass(pp->volumetricShader, &pp->volumetric[0]);
+        BindTextureUnit(0, pp->scene.depth);
+        DrawFullscreenTriangle();
+        for (int pass = 0; pass < 2; pass++) {
+            BeginFullscreenPass(pp->volumetricBlurShader, &pp->volumetric[(pass + 1) % 2]);
+            BindTextureUnit(0, pp->volumetric[pass % 2].color[0]);
+            BindTextureUnit(1, pp->ssao[0].color[0]);
+            SetUniform2f(pp->volumetricBlurShader, "uDirection", pass == 0 ? 1.0f / hw : 0.0f, pass == 0 ? 0.0f : 1.0f / hh);
+            DrawFullscreenTriangle();
+        }
     }
 
     // Resolve: direct + ambient * AO + in-scattering
@@ -211,7 +216,7 @@ void RenderPostProcess(PostProcessSystem* pp, const LightingSystem* lighting) {
     // Bloom: 13-tap downsample chain, tent upsample accumulation
     unsigned int source = pp->hdr.color[0];
     int sw = pp->hdr.width, sh = pp->hdr.height;
-    for (int i = 0; i < BLOOM_LEVELS; i++) {
+    for (int i = 0; i < BLOOM_LEVELS && full; i++) {
         BeginFullscreenPass(pp->bloomDownShader, &pp->bloom[i]);
         BindTextureUnit(0, source);
         SetUniform2f(pp->bloomDownShader, "uTexel", 1.0f / sw, 1.0f / sh);
@@ -221,7 +226,7 @@ void RenderPostProcess(PostProcessSystem* pp, const LightingSystem* lighting) {
         sw = pp->bloom[i].width;
         sh = pp->bloom[i].height;
     }
-    for (int i = BLOOM_LEVELS - 1; i > 0; i--) {
+    for (int i = BLOOM_LEVELS - 1; i > 0 && full; i--) {
         BeginFullscreenPass(pp->bloomUpShader, &pp->bloom[i - 1]);
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE);

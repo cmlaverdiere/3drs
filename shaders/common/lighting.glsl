@@ -97,7 +97,30 @@ vec3 pointLighting(Surface s, vec3 worldPos, vec3 V, vec3 f0, float a) {
 // Full surface shading. Returns direct (key light + point lights + emissive)
 // and ambient (sky irradiance + sky reflections) separately.
 // ---------------------------------------------------------------------------
+// Classic mode: one flat-shaded colour per face, lit by the key light and a flat sky
+// ambient; no shadows, specular or reflections.
+void shadeClassic(Surface s, vec3 worldPos, vec3 geomNormal, out vec3 direct, out vec3 ambient) {
+    vec3 N = normalize(cross(dFdx(worldPos), dFdy(worldPos)));
+    if (dot(N, geomNormal) < 0.0) N = -N;
+    vec3 L = uLightDir.xyz;
+    float lambert = saturate((dot(N, L) + s.wrap) / (1.0 + s.wrap));
+    direct = s.albedo * (0.25 + 0.75 * lambert) * uLightColor.rgb + s.emissive;
+    int count = int(uCounts.x);
+    for (int i = 0; i < 16; i++) {
+        if (i >= count) break;
+        vec3 toLight = uPointPos[i].xyz - worldPos;
+        float r = uPointPos[i].w;
+        float k = saturate(1.0 - length(toLight) / r);
+        direct += s.albedo * uPointColor[i].rgb * k * k * 0.6;
+    }
+    ambient = s.albedo * ambientIrradiance(vec3(0.0, 1.0, 0.0)) * 1.15;
+}
+
 void shadeSurface(Surface s, vec3 worldPos, vec3 geomNormal, out vec3 direct, out vec3 ambient) {
+    if (CLASSIC) {
+        shadeClassic(s, worldPos, geomNormal, direct, ambient);
+        return;
+    }
     vec3 V = normalize(uCamera.xyz - worldPos);
     vec3 N = s.normal;
     vec3 L = uLightDir.xyz;
@@ -151,9 +174,20 @@ void fogTerms(vec3 worldPos, out float transmittance, out vec3 inscatter) {
     inscatter = skyRadiance(dir) * (1.0 - transmittance) * uFog.w;
 }
 
+// Classic mode: colours stay flat as the camera moves; only the far edge of the view fades into the sky
+void sceneFog(vec3 worldPos, out float transmittance, out vec3 inscatter) {
+    if (!CLASSIC) {
+        fogTerms(worldPos, transmittance, inscatter);
+        return;
+    }
+    vec3 d = worldPos - uCamera.xyz;
+    transmittance = 1.0 - smoothstep(180.0, 320.0, length(d));
+    inscatter = skyRadiance(normalize(vec3(d.x, 0.0, d.z) + vec3(0.0, 0.05, 0.0))) * (1.0 - transmittance);
+}
+
 void writeScene(vec3 direct, vec3 ambient, vec3 worldPos, float alpha) {
     float T; vec3 inscatter;
-    fogTerms(worldPos, T, inscatter);
+    sceneFog(worldPos, T, inscatter);
     outDirect = vec4(direct * T + inscatter, alpha);
     outAmbient = vec4(ambient * T, alpha);
 }
@@ -166,6 +200,7 @@ void writeSurface(Surface s, vec3 worldPos, vec3 geomNormal, float alpha) {
 
 // Screen-derivative bump mapping: perturbs N by the gradient of a height field
 vec3 bumpNormal(vec3 N, vec3 worldPos, float height, float strength) {
+    if (CLASSIC) return N;
     vec3 dpdx = dFdx(worldPos);
     vec3 dpdy = dFdy(worldPos);
     float dhdx = dFdx(height);

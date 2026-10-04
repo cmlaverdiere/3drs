@@ -3,6 +3,7 @@
 #include "lighting.h"
 #include <cstdio>
 #include <cstring>
+#include <strings.h>
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
@@ -15,38 +16,22 @@ ScriptState* g_activeScript = nullptr;
 // KEY NAME PARSING
 // ============================================================================
 
-static int ParseKeyName(const char* name) {
-    // Letters
-    if (strcmp(name, "W") == 0) return KEY_W;
-    if (strcmp(name, "A") == 0) return KEY_A;
-    if (strcmp(name, "S") == 0) return KEY_S;
-    if (strcmp(name, "D") == 0) return KEY_D;
-    if (strcmp(name, "E") == 0) return KEY_E;
-    if (strcmp(name, "R") == 0) return KEY_R;
-    if (strcmp(name, "P") == 0) return KEY_P;
-    if (strcmp(name, "H") == 0) return KEY_H;
-    if (strcmp(name, "G") == 0) return KEY_G;
-    if (strcmp(name, "T") == 0) return KEY_T;
-    if (strcmp(name, "Y") == 0) return KEY_Y;
-    if (strcmp(name, "N") == 0) return KEY_N;
-
-    // Special keys
-    if (strcmp(name, "SPACE") == 0) return KEY_SPACE;
-    if (strcmp(name, "ESCAPE") == 0 || strcmp(name, "ESC") == 0) return KEY_ESCAPE;
-    if (strcmp(name, "SHIFT") == 0) return KEY_LEFT_SHIFT;
-    if (strcmp(name, "LEFT_SHIFT") == 0) return KEY_LEFT_SHIFT;
-    if (strcmp(name, "RIGHT_SHIFT") == 0) return KEY_RIGHT_SHIFT;
-
-    // Numbers
-    if (strcmp(name, "ZERO") == 0 || strcmp(name, "0") == 0) return KEY_ZERO;
-    if (strcmp(name, "ONE") == 0 || strcmp(name, "1") == 0) return KEY_ONE;
-    if (strcmp(name, "TWO") == 0 || strcmp(name, "2") == 0) return KEY_TWO;
-    if (strcmp(name, "THREE") == 0 || strcmp(name, "3") == 0) return KEY_THREE;
-
+struct KeyName { const char* name; int code; };
+static const KeyName KEY_NAMES[] = {
+    {"W", KEY_W}, {"A", KEY_A}, {"S", KEY_S}, {"D", KEY_D}, {"E", KEY_E}, {"R", KEY_R}, {"P", KEY_P},
+    {"H", KEY_H}, {"G", KEY_G}, {"T", KEY_T}, {"Y", KEY_Y}, {"N", KEY_N}, {"M", KEY_M},
+    {"SPACE", KEY_SPACE}, {"ESCAPE", KEY_ESCAPE}, {"ESC", KEY_ESCAPE}, {"SHIFT", KEY_LEFT_SHIFT},
+    {"LEFT_SHIFT", KEY_LEFT_SHIFT}, {"RIGHT_SHIFT", KEY_RIGHT_SHIFT}, {"SLASH", KEY_SLASH},
+    {"ZERO", KEY_ZERO}, {"0", KEY_ZERO}, {"ONE", KEY_ONE}, {"1", KEY_ONE}, {"TWO", KEY_TWO}, {"2", KEY_TWO},
+    {"THREE", KEY_THREE}, {"3", KEY_THREE},
     // Mouse buttons (stored as negative values to distinguish from keyboard)
-    if (strcmp(name, "LMB") == 0) return -MOUSE_BUTTON_LEFT - 1;
-    if (strcmp(name, "RMB") == 0) return -MOUSE_BUTTON_RIGHT - 1;
+    {"LMB", -MOUSE_BUTTON_LEFT - 1}, {"RMB", -MOUSE_BUTTON_RIGHT - 1},
+};
 
+static int ParseKeyName(const char* name) {
+    for (const KeyName& k : KEY_NAMES) {
+        if (strcmp(name, k.name) == 0) return k.code;
+    }
     return -1000; // Invalid
 }
 
@@ -66,29 +51,171 @@ static int ParseSeasonName(const char* name) {
 // ITEM TYPE PARSING
 // ============================================================================
 
-static int ParseItemType(const char* name) {
-    // Common items - support both numeric and name-based
-    if (strcmp(name, "BRONZE_SHORTSWORD") == 0) return ITEM_BRONZE_SHORTSWORD;
-    if (strcmp(name, "BRONZE_AXE") == 0) return ITEM_BRONZE_AXE;
-    if (strcmp(name, "IRON_2H_SWORD") == 0) return ITEM_IRON_2H_SWORD;
-    if (strcmp(name, "STEEL_SCIMITAR") == 0) return ITEM_STEEL_SCIMITAR;
-    if (strcmp(name, "MITHRIL_SCIMITAR") == 0) return ITEM_MITHRIL_SCIMITAR;
-    if (strcmp(name, "ADAMANT_SCIMITAR") == 0) return ITEM_ADAMANT_SCIMITAR;
-    if (strcmp(name, "BRONZE_PICKAXE") == 0) return ITEM_BRONZE_PICKAXE;
-    if (strcmp(name, "BOW") == 0) return ITEM_BOW;
-    if (strcmp(name, "ARROW") == 0) return ITEM_ARROW;
-    if (strcmp(name, "GIL") == 0) return ITEM_GIL;
-    if (strcmp(name, "LOGS") == 0) return ITEM_LOGS;
-    if (strcmp(name, "OAK_LOGS") == 0) return ITEM_OAK_LOGS;
-    if (strcmp(name, "BONES") == 0) return ITEM_BONES;
-    if (strcmp(name, "COW_HIDE") == 0) return ITEM_COW_HIDE;
-    if (strcmp(name, "CHITIN") == 0) return ITEM_CHITIN;
+struct ItemName { const char* name; ItemType type; };
+static const ItemName ITEM_NAMES_SCRIPT[] = {
+    {"BRONZE_SHORTSWORD", ITEM_BRONZE_SHORTSWORD}, {"BRONZE_AXE", ITEM_BRONZE_AXE},
+    {"IRON_2H_SWORD", ITEM_IRON_2H_SWORD}, {"STEEL_SCIMITAR", ITEM_STEEL_SCIMITAR},
+    {"MITHRIL_SCIMITAR", ITEM_MITHRIL_SCIMITAR}, {"ADAMANT_SCIMITAR", ITEM_ADAMANT_SCIMITAR},
+    {"BRONZE_PICKAXE", ITEM_BRONZE_PICKAXE}, {"BOW", ITEM_BOW}, {"ARROW", ITEM_ARROW}, {"GIL", ITEM_GIL},
+    {"LOGS", ITEM_LOGS}, {"OAK_LOGS", ITEM_OAK_LOGS}, {"BONES", ITEM_BONES}, {"COW_HIDE", ITEM_COW_HIDE},
+    {"CHITIN", ITEM_CHITIN},
+};
 
+static int ParseItemType(const char* name) {
+    for (const ItemName& it : ITEM_NAMES_SCRIPT) {
+        if (strcasecmp(name, it.name) == 0) return it.type;
+    }
     // Try numeric
     int val = atoi(name);
     if (val > 0 && val < ITEM_COUNT) return val;
 
     return ITEM_NONE;
+}
+
+// ============================================================================
+// COMMAND TABLE (scripts and the console)
+// ============================================================================
+
+static const ScriptCommandInfo SCRIPT_COMMANDS[] = {
+    {"press", "press <key>", "key", true},
+    {"hold", "hold <key> <frames>", "key", true},
+    {"release", "release <key>", "key", true},
+    {"click", "click <x> <y> [right]", nullptr, true},
+    {"move", "move <x> <y>", nullptr, true},
+    {"wait", "wait <frames>", nullptr, true},
+    {"wait_seconds", "wait_seconds <s>", nullptr, true},
+    {"warp", "warp <x> <y> <z>", nullptr, false},
+    {"face", "face <yaw> <pitch>", nullptr, false},
+    {"look_at", "look_at <x> <y> <z>", nullptr, false},
+    {"screenshot", "screenshot [label]", nullptr, false},
+    {"set_time", "set_time <0-1>", nullptr, false},
+    {"set_season", "set_season <season>", "season", false},
+    {"give_item", "give_item <item> [count]", "item", false},
+    {"equip", "equip <item>", "item", false},
+    {"set_hp", "set_hp <hp> <max>", nullptr, false},
+    {"classic", "classic <on|off|toggle>", "toggle", false},
+};
+
+const ScriptCommandInfo* GetScriptCommands(int* count) {
+    *count = (int)(sizeof(SCRIPT_COMMANDS) / sizeof(SCRIPT_COMMANDS[0]));
+    return SCRIPT_COMMANDS;
+}
+
+int GetScriptArgCompletions(const char* kind, const char** out, int max) {
+    static const char* SEASONS[] = {"spring", "summer", "autumn", "winter"};
+    static const char* TOGGLES[] = {"on", "off", "toggle"};
+    int n = 0;
+    if (!kind) return 0;
+    if (strcmp(kind, "key") == 0) {
+        for (const KeyName& k : KEY_NAMES) if (n < max) out[n++] = k.name;
+    } else if (strcmp(kind, "item") == 0) {
+        for (const ItemName& it : ITEM_NAMES_SCRIPT) if (n < max) out[n++] = it.name;
+    } else if (strcmp(kind, "season") == 0) {
+        for (const char* v : SEASONS) if (n < max) out[n++] = v;
+    } else if (strcmp(kind, "toggle") == 0) {
+        for (const char* v : TOGGLES) if (n < max) out[n++] = v;
+    }
+    return n;
+}
+
+// ============================================================================
+// PARSE ONE COMMAND LINE (scripts and the console)
+// ============================================================================
+
+bool ParseScriptCommand(const char* p, ScriptCommand* cmd, char* err, int errLen) {
+    *cmd = {};
+    err[0] = '\0';
+    char arg1[64] = {};
+
+    // Parse commands
+    if (sscanf(p, "press %63s", arg1) == 1) {
+        cmd->type = ScriptCommandType::PRESS_KEY;
+        cmd->keyCode = ParseKeyName(arg1);
+        if (cmd->keyCode == -1000) {
+            snprintf(err, errLen, "Unknown key '%s'", arg1);
+            return false;
+        }
+    }
+    else if (sscanf(p, "hold %63s %d", arg1, &cmd->frames) == 2) {
+        cmd->type = ScriptCommandType::HOLD_KEY;
+        cmd->keyCode = ParseKeyName(arg1);
+        if (cmd->keyCode == -1000) {
+            snprintf(err, errLen, "Unknown key '%s'", arg1);
+            return false;
+        }
+    }
+    else if (sscanf(p, "release %63s", arg1) == 1) {
+        cmd->type = ScriptCommandType::RELEASE_KEY;
+        cmd->keyCode = ParseKeyName(arg1);
+    }
+    else if (sscanf(p, "click %d %d %63s", &cmd->x, &cmd->y, arg1) >= 2) {
+        cmd->type = ScriptCommandType::CLICK;
+        cmd->rightClick = (strcmp(arg1, "right") == 0);
+    }
+    else if (sscanf(p, "move %d %d", &cmd->x, &cmd->y) == 2) {
+        cmd->type = ScriptCommandType::MOVE_MOUSE;
+    }
+    else if (sscanf(p, "wait %d", &cmd->frames) == 1) {
+        cmd->type = ScriptCommandType::WAIT;
+    }
+    else if (sscanf(p, "wait_seconds %f", &cmd->value) == 1) {
+        cmd->type = ScriptCommandType::WAIT;
+        cmd->frames = (int)(cmd->value * 60.0f);  // 60 fps
+    }
+    else if (sscanf(p, "warp %f %f %f", &cmd->fx, &cmd->fy, &cmd->fz) == 3) {
+        cmd->type = ScriptCommandType::WARP;
+    }
+    else if (sscanf(p, "face %f %f", &cmd->fx, &cmd->fy) == 2) {
+        cmd->type = ScriptCommandType::FACE;
+    }
+    else if (sscanf(p, "look_at %f %f %f", &cmd->fx, &cmd->fy, &cmd->fz) == 3) {
+        cmd->type = ScriptCommandType::LOOK_AT;
+    }
+    else if (sscanf(p, "screenshot %63s", cmd->label) == 1) {
+        cmd->type = ScriptCommandType::SCREENSHOT;
+    }
+    else if (strncmp(p, "screenshot", 10) == 0 && (p[10] == '\0' || p[10] == ' ' || p[10] == '\n')) {
+        cmd->type = ScriptCommandType::SCREENSHOT;
+        cmd->label[0] = '\0';
+    }
+    else if (sscanf(p, "set_time %f", &cmd->value) == 1) {
+        cmd->type = ScriptCommandType::SET_TIME;
+    }
+    else if (sscanf(p, "set_season %63s", arg1) == 1) {
+        cmd->type = ScriptCommandType::SET_SEASON;
+        cmd->intValue = ParseSeasonName(arg1);
+        if (cmd->intValue < 0) {
+            snprintf(err, errLen, "Unknown season '%s'", arg1);
+            return false;
+        }
+    }
+    else if (sscanf(p, "give_item %63s %d", arg1, &cmd->intValue2) >= 1) {
+        cmd->type = ScriptCommandType::GIVE_ITEM;
+        cmd->intValue = ParseItemType(arg1);
+        if (cmd->intValue2 == 0) cmd->intValue2 = 1;
+    }
+    else if (sscanf(p, "equip %63s", arg1) == 1) {
+        cmd->type = ScriptCommandType::EQUIP;
+        cmd->intValue = ParseItemType(arg1);
+    }
+    else if (sscanf(p, "set_hp %d %d", &cmd->intValue, &cmd->intValue2) == 2) {
+        cmd->type = ScriptCommandType::SET_HP;
+    }
+    else if (sscanf(p, "classic %63s", arg1) == 1) {
+        cmd->type = ScriptCommandType::SET_CLASSIC;
+        if (strcmp(arg1, "on") == 0) cmd->intValue = 1;
+        else if (strcmp(arg1, "off") == 0) cmd->intValue = 0;
+        else if (strcmp(arg1, "toggle") == 0) cmd->intValue = -1;
+        else {
+            snprintf(err, errLen, "classic expects on, off or toggle");
+            return false;
+        }
+    }
+    else {
+        snprintf(err, errLen, "Unknown command: %s", p);
+        return false;
+    }
+    return true;
 }
 
 // ============================================================================
@@ -135,85 +262,13 @@ bool LoadScript(ScriptState* state, const char* filename) {
         if (nl) *nl = '\0';
 
         ScriptCommand cmd = {};
-        char arg1[64] = {}, arg2[64] = {}, arg3[64] = {};
-
-        // Parse commands
-        if (sscanf(p, "press %63s", arg1) == 1) {
-            cmd.type = ScriptCommandType::PRESS_KEY;
-            cmd.keyCode = ParseKeyName(arg1);
-            if (cmd.keyCode == -1000) {
-                printf("WARNING: Unknown key '%s' at line %d\n", arg1, lineNum);
-                continue;
-            }
-        }
-        else if (sscanf(p, "hold %63s %d", arg1, &cmd.frames) == 2) {
-            cmd.type = ScriptCommandType::HOLD_KEY;
-            cmd.keyCode = ParseKeyName(arg1);
-            if (cmd.keyCode == -1000) {
-                printf("WARNING: Unknown key '%s' at line %d\n", arg1, lineNum);
-                continue;
-            }
-        }
-        else if (sscanf(p, "release %63s", arg1) == 1) {
-            cmd.type = ScriptCommandType::RELEASE_KEY;
-            cmd.keyCode = ParseKeyName(arg1);
-        }
-        else if (sscanf(p, "click %d %d %63s", &cmd.x, &cmd.y, arg1) >= 2) {
-            cmd.type = ScriptCommandType::CLICK;
-            cmd.rightClick = (strcmp(arg1, "right") == 0);
-        }
-        else if (sscanf(p, "move %d %d", &cmd.x, &cmd.y) == 2) {
-            cmd.type = ScriptCommandType::MOVE_MOUSE;
-        }
-        else if (sscanf(p, "wait %d", &cmd.frames) == 1) {
-            cmd.type = ScriptCommandType::WAIT;
-        }
-        else if (sscanf(p, "wait_seconds %f", &cmd.value) == 1) {
-            cmd.type = ScriptCommandType::WAIT;
-            cmd.frames = (int)(cmd.value * 60.0f);  // 60 fps
-        }
-        else if (sscanf(p, "warp %f %f %f", &cmd.fx, &cmd.fy, &cmd.fz) == 3) {
-            cmd.type = ScriptCommandType::WARP;
-        }
-        else if (sscanf(p, "face %f %f", &cmd.fx, &cmd.fy) == 2) {
-            cmd.type = ScriptCommandType::FACE;
-        }
-        else if (sscanf(p, "look_at %f %f %f", &cmd.fx, &cmd.fy, &cmd.fz) == 3) {
-            cmd.type = ScriptCommandType::LOOK_AT;
-        }
-        else if (sscanf(p, "screenshot %63s", cmd.label) == 1) {
-            cmd.type = ScriptCommandType::SCREENSHOT;
-        }
-        else if (strncmp(p, "screenshot", 10) == 0 && (p[10] == '\0' || p[10] == ' ' || p[10] == '\n')) {
-            cmd.type = ScriptCommandType::SCREENSHOT;
-            snprintf(cmd.label, sizeof(cmd.label), "auto_%d", (int)state->commands.size());
-        }
-        else if (sscanf(p, "set_time %f", &cmd.value) == 1) {
-            cmd.type = ScriptCommandType::SET_TIME;
-        }
-        else if (sscanf(p, "set_season %63s", arg1) == 1) {
-            cmd.type = ScriptCommandType::SET_SEASON;
-            cmd.intValue = ParseSeasonName(arg1);
-            if (cmd.intValue < 0) {
-                printf("WARNING: Unknown season '%s' at line %d\n", arg1, lineNum);
-                continue;
-            }
-        }
-        else if (sscanf(p, "give_item %63s %d", arg1, &cmd.intValue2) >= 1) {
-            cmd.type = ScriptCommandType::GIVE_ITEM;
-            cmd.intValue = ParseItemType(arg1);
-            if (cmd.intValue2 == 0) cmd.intValue2 = 1;
-        }
-        else if (sscanf(p, "equip %63s", arg1) == 1) {
-            cmd.type = ScriptCommandType::EQUIP;
-            cmd.intValue = ParseItemType(arg1);
-        }
-        else if (sscanf(p, "set_hp %d %d", &cmd.intValue, &cmd.intValue2) == 2) {
-            cmd.type = ScriptCommandType::SET_HP;
-        }
-        else {
-            printf("WARNING: Unknown command at line %d: %s\n", lineNum, p);
+        char err[160];
+        if (!ParseScriptCommand(p, &cmd, err, sizeof(err))) {
+            printf("WARNING: %s at line %d\n", err, lineNum);
             continue;
+        }
+        if (cmd.type == ScriptCommandType::SCREENSHOT && cmd.label[0] == '\0') {
+            snprintf(cmd.label, sizeof(cmd.label), "auto_%d", (int)state->commands.size());
         }
 
         if (cmd.type != ScriptCommandType::NONE) {
@@ -475,6 +530,16 @@ bool UpdateScript(ScriptState* state, Camera3D* camera, PlayerState* player,
                 break;
             }
 
+            case ScriptCommandType::SET_CLASSIC: {
+                if (lighting) {
+                    lighting->classicMode = cmd.intValue < 0 ? !lighting->classicMode : cmd.intValue != 0;
+                    if (player) player->classicGraphics = lighting->classicMode;
+                    printf("SCRIPT: Classic graphics %s\n", lighting->classicMode ? "on" : "off");
+                }
+                state->currentCommand++;
+                break;
+            }
+
             default:
                 state->currentCommand++;
                 break;
@@ -485,6 +550,31 @@ bool UpdateScript(ScriptState* state, Camera3D* camera, PlayerState* player,
     state->finished = true;
     printf("SCRIPT: Finished all commands\n");
     return false;
+}
+
+// ============================================================================
+// RUN ONE COMMAND IMMEDIATELY (console)
+// ============================================================================
+
+bool ExecuteScriptCommandNow(const ScriptCommand& cmd, Camera3D* camera, PlayerState* player,
+                             LightingSystem* lighting, int screenWidth, int screenHeight) {
+    switch (cmd.type) {
+        case ScriptCommandType::PRESS_KEY: case ScriptCommandType::HOLD_KEY: case ScriptCommandType::RELEASE_KEY:
+        case ScriptCommandType::CLICK: case ScriptCommandType::MOVE_MOUSE: case ScriptCommandType::WAIT:
+            return false;   // input and timing commands only make sense in scripts
+        default:
+            break;
+    }
+    // Run it through the script interpreter; a second step applies a queued warp/face
+    ScriptState state;
+    state.commands.push_back(cmd);
+    if (cmd.type == ScriptCommandType::SCREENSHOT && cmd.label[0] == '\0') {
+        snprintf(state.commands[0].label, sizeof(state.commands[0].label), "console");
+    }
+    UpdateScript(&state, camera, player, lighting, screenWidth, screenHeight);
+    state.finished = false;
+    UpdateScript(&state, camera, player, lighting, screenWidth, screenHeight);
+    return true;
 }
 
 // ============================================================================

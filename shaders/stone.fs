@@ -34,8 +34,9 @@ void main() {
     vec3 mortarColor = vec3(0.17, 0.16, 0.14);
     vec3 albedo = mix(mortarColor, stone, mask);
 
-    float rough;
-    albedo = weatherWall(albedo, N, fragWorldPos, rough);
+    float rough = 0.0;
+    if (CLASSIC) albedo = vec3(0.34, 0.33, 0.31);
+    else albedo = weatherWall(albedo, N, fragWorldPos, rough);
     float dome = smoothstep(0.0, 0.06, edgeDist);
     float height = mask * (0.01 + dome * 0.012) + fbm(uv * 9.0, 3) * 0.006 * mask;
     vec3 n = bumpNormal(N, fragWorldPos, height, 1.0);

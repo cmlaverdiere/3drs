@@ -36,6 +36,7 @@ void main() {
     ao /= max(weights, 1e-4);
 
     vec3 volumetric = texture(uVolumetric, uv).rgb;
+    if (CLASSIC) { ao = 1.0; volumetric = vec3(0.0); }
     vec3 color = direct + ambient * ao + volumetric;
     if (uDebugView == 7) color = volumetric * 8.0;
     if (uDebugView == 8) color = direct;

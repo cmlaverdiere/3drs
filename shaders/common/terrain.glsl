@@ -66,6 +66,7 @@ GroundSample sampleGround(vec2 xz, float slope, float groundY) {
     float meso = fbm(xz * 0.085 + 13.0, 3);
     float micro = noise(xz * 1.1);
     float fine = noise(xz * 6.5);
+    if (CLASSIC) { meso = 0.45; micro = 0.5; fine = 0.5; }   // flat colour fields
 
     // Grass with large dry patches and clumpy variation
     float dryness = smoothstep(0.55, 0.78, macro) * 0.55 + smoothstep(0.6, 0.9, meso) * 0.25;
@@ -85,7 +86,8 @@ GroundSample sampleGround(vec2 xz, float slope, float groundY) {
     float grassiness = 1.0 - dirtAmount;
 
     int season = uSeasonId;
-    if (season == 0) {
+    if (CLASSIC) {
+    } else if (season == 0) {
         // Scattered flowers in spring meadows
         vec4 v = voronoiCell(xz * 2.2);
         float petal = step(0.86, hash(v.zw)) * (1.0 - smoothstep(0.06, 0.13, v.x)) * grassiness;
@@ -106,7 +108,7 @@ GroundSample sampleGround(vec2 xz, float slope, float groundY) {
     float sand = sandAmount(xz);
     if (sand > 0.0) {
         vec2 dir = normalize(vec2(0.8, 0.6));
-        float ripple = sin(dot(xz, dir) * 5.5 + noise(xz * 0.4) * 6.0) * 0.5 + 0.5;
+        float ripple = CLASSIC ? 0.5 : sin(dot(xz, dir) * 5.5 + noise(xz * 0.4) * 6.0) * 0.5 + 0.5;
         vec3 sandColor = mix(vec3(0.40, 0.30, 0.17), vec3(0.56, 0.44, 0.27), meso * 0.7 + fine * 0.3);
         sandColor *= 0.92 + 0.12 * ripple;
         sandColor = mix(sandColor, sandColor * 0.55, shore);
@@ -120,8 +122,8 @@ GroundSample sampleGround(vec2 xz, float slope, float groundY) {
     vec2 paths = groundPaths(xz);
     if (paths.x > 0.0) {
         vec4 v = voronoiCell(xz * 1.4);
-        float joint = smoothstep(0.32, 0.5, v.x);
-        vec3 cobble = vec3(0.30, 0.29, 0.27) * (0.78 + 0.4 * hash(v.zw));
+        float joint = CLASSIC ? 0.0 : smoothstep(0.32, 0.5, v.x);
+        vec3 cobble = vec3(0.30, 0.29, 0.27) * (CLASSIC ? 1.0 : 0.78 + 0.4 * hash(v.zw));
         cobble = mix(cobble, vec3(0.11, 0.10, 0.09), joint * 0.7);
         albedo = mix(albedo, cobble, paths.x);
         roughness = mix(roughness, 0.8, paths.x);

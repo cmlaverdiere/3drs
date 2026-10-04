@@ -65,7 +65,7 @@ struct FrameUniforms {
     float pointColor[MAX_POINT_LIGHTS][4];  // rgb
     float counts[4];         // point light count
     float screen[4];         // render width, height, 1/width, 1/height
-    float exposure[4];       // exposure, night factor, unused, unused
+    float exposure[4];       // exposure, night factor, classic mode, unused
 };
 
 // Centralized lighting state
@@ -102,6 +102,7 @@ struct LightingSystem {
     ShadowMatrices cascades[SHADOW_CASCADES];
     float cascadeTexel[SHADOW_CASCADES];
     bool shadowsEnabled;
+    bool classicMode;       // flat-shaded OSRS look: no shadows, grass, SSAO, volumetrics or bloom
 
     // Lamp and campfire lights
     std::vector<Vector3> lampPositions;

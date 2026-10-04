@@ -35,6 +35,7 @@ enum class ScriptCommandType {
     GIVE_ITEM,       // Add item to inventory
     EQUIP,           // Equip weapon
     SET_HP,          // Set player health
+    SET_CLASSIC,     // Classic (flat-shaded) graphics on/off/toggle
 };
 
 // ============================================================================
@@ -84,6 +85,24 @@ struct ScriptState {
 // ============================================================================
 // SCRIPT FUNCTIONS
 // ============================================================================
+
+// Command table shared by scripts and the console
+struct ScriptCommandInfo {
+    const char* name;
+    const char* usage;
+    const char* argKind;   // first-argument completions: "key", "item", "season", "toggle" or nullptr
+    bool scriptOnly;       // input/timing commands that only run inside scripts
+};
+const ScriptCommandInfo* GetScriptCommands(int* count);
+// Fills out with completion candidates for an argument kind; returns how many
+int GetScriptArgCompletions(const char* kind, const char** out, int max);
+
+// Parse one command line; on failure writes a message to err
+bool ParseScriptCommand(const char* line, ScriptCommand* cmd, char* err, int errLen);
+
+// Run one state command now (console). Returns false for script-only input/timing commands.
+bool ExecuteScriptCommandNow(const ScriptCommand& cmd, Camera3D* camera, PlayerState* player,
+                             LightingSystem* lighting, int screenWidth, int screenHeight);
 
 // Load script from file
 // Returns true on success, false on failure

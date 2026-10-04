@@ -28,6 +28,8 @@ set(ONNX_LIB_DIR ${PIPER_INSTALL_DIR}/lib)
 
 add_executable(game
     src/main.cpp
+    src/settings_menu.cpp
+    src/console.cpp
     src/types.cpp
     src/xp_system.cpp
     src/collision.cpp

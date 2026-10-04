@@ -566,6 +566,7 @@ struct PlayerState {
     int maxHP;
     float timeOfDay;  // 0.0 to 1.0, for day/night cycle persistence
     int season;       // 0=Spring, 1=Summer, 2=Autumn, 3=Winter
+    bool classicGraphics;   // settings menu: flat-shaded OSRS look
     int questPoints;
     QuestProgress questProgress[MAX_QUESTS];
     // Bank storage

@@ -24,12 +24,13 @@ layout(std140, row_major) uniform FrameData {  // raylib Matrix is row-major in 
     vec4 uPointColor[16];
     vec4 uCounts;          // point light count
     vec4 uScreen;          // size, 1/size
-    vec4 uExposure;        // exposure, night factor
+    vec4 uExposure;        // exposure, night factor, classic mode
 };
 
 #define PI 3.14159265
 #define uTime (uCamera.w)
 #define uSeasonId (int(uSeason.x + 0.5))
+#define CLASSIC (uExposure.z > 0.5)   // flat-shaded OSRS look (settings menu)
 
 float hash(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);

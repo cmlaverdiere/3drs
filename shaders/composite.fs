@@ -46,6 +46,16 @@ void main() {
     vec2 uv = fragTexCoord;
     vec3 hdr = texture(uHDR, uv).rgb;
     vec3 bloom = texture(uBloom, uv).rgb / 6.0;
+    if (CLASSIC) {
+        // Plain exposure curve, slightly muted, quantised to 5 bits per channel (OSRS's 16-bit palette)
+        vec3 c = 1.0 - exp(-hdr * uExposure.x * 1.4);
+        c = pow(c, vec3(1.0 / 1.12));
+        float l = dot(c, vec3(0.299, 0.587, 0.114));
+        c = saturate(l + 0.9 * (c - l));
+        c = floor(c * 31.0 + 0.5) / 31.0;
+        finalColor = vec4(c, dot(c, vec3(0.299, 0.587, 0.114)));
+        return;
+    }
     vec3 color = mix(hdr, bloom, uBloomStrength) * uExposure.x;
     if (uDebugView == 1) { finalColor = vec4(hdr, 1.0); return; }
     if (uDebugView == 3) { finalColor = vec4(bloom, 1.0); return; }

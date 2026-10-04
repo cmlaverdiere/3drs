@@ -34,6 +34,8 @@
 #include "arrow_system.h"
 #include "monster_system.h"
 #include "script_input.h"
+#include "settings_menu.h"
+#include "console.h"
 
 // Global heightmap data
 float g_heightmap[HEIGHTMAP_SIZE][HEIGHTMAP_SIZE];
@@ -289,6 +291,7 @@ int main(int argc, char* argv[]) {
         camera.target = (Vector3){ playerState.targetX, playerState.targetY, playerState.targetZ };
         lighting.timeOfDay = playerState.timeOfDay;
         g_currentSeason = (Season)playerState.season;
+        lighting.classicMode = playerState.classicGraphics;
     }
 
     // Populate spatial hash
@@ -380,6 +383,10 @@ int main(int argc, char* argv[]) {
 
     // Initialize menu system (after mouseMode is declared)
     InitMenuSystem(&menuSystem, &mouseMode, &dialogueState, &shopState, &timeSelectMenu, &helpSystem, &monsterGenerator);
+    SettingsMenu settingsMenu = {};
+    Console console = {};
+    menuSystem.settings = &settingsMenu;
+    menuSystem.console = &console;
 
     DisableCursor();
     SetTargetFPS(getenv("GAME_UNCAPPED") ? 0 : 60);
@@ -726,7 +733,10 @@ int main(int argc, char* argv[]) {
             }
         } else if (Game_IsKeyPressed(KEY_ESCAPE) && !helpJustClosed) {
             // ESC priority: help UI > generator > bank > dialogue > shop > time menu > show quit prompt
-            if (helpSystem.state != HelpState::CLOSED) {
+            if (console.active) {
+                CloseConsole(&console);
+                if (!IsAnyMenuOpen(&menuSystem)) DisableCursor();
+            } else if (helpSystem.state != HelpState::CLOSED) {
                 // Help system handles its own ESC
             } else if (IsGeneratorOpen(&monsterGenerator)) {
                 // Close monster generator
@@ -743,6 +753,9 @@ int main(int argc, char* argv[]) {
                 // Close time menu
                 timeSelectMenu.active = false;
                 DisableCursor();
+            } else if (settingsMenu.active) {
+                settingsMenu.active = false;
+                if (!IsAnyMenuOpen(&menuSystem)) DisableCursor();
             } else {
                 // Show quit confirmation
                 showQuitConfirm = true;
@@ -1049,6 +1062,19 @@ int main(int argc, char* argv[]) {
             screenshotMsgTimer = 2.0f;
         }
 
+        // Developer console (/): script commands with tab completion
+        UpdateConsole(&console, &camera, &playerState, &lighting, screenWidth, screenHeight);
+        if (Game_IsKeyPressed(KEY_SLASH) && CanProcessHotkeys(&menuSystem)) {
+            OpenConsole(&console);
+        }
+
+        // Settings menu toggle (M key)
+        if (Game_IsKeyPressed(KEY_M) && CanProcessHotkeys(&menuSystem)) {
+            settingsMenu.active = !settingsMenu.active;
+            if (settingsMenu.active) EnableCursor();
+            else if (!IsAnyMenuOpen(&menuSystem)) DisableCursor();
+        }
+
         // Time selection menu toggle (T key)
         if (Game_IsKeyPressed(KEY_T) && CanProcessHotkeys(&menuSystem)) {
             timeSelectMenu.active = !timeSelectMenu.active;
@@ -1258,7 +1284,7 @@ int main(int argc, char* argv[]) {
             DrawTerrain(&resources.terrain, &frustum, camera.position);
 
             // Grass blades (baked chunks streaming around the player)
-            DrawGrassField(&resources.grass, &frustum, camera.position);
+            if (!lighting.classicMode) DrawGrassField(&resources.grass, &frustum, camera.position);
 
             // World items
             for (int i = 0; i < worldItemCount; i++) {
@@ -1460,6 +1486,14 @@ int main(int argc, char* argv[]) {
             timeSelectMenu.active = false;
             DisableCursor();
         }
+
+        // Settings menu (M)
+        if (DrawSettingsMenu(&settingsMenu, &lighting.classicMode, screenWidth, screenHeight)) {
+            playerState.classicGraphics = lighting.classicMode;
+        }
+
+        // Developer console (/)
+        DrawConsole(&console, screenWidth, screenHeight);
 
         // Draw help UI (on top of everything)
         DrawHelpUI(&helpSystem, screenWidth, screenHeight);

@@ -77,6 +77,11 @@ void main() {
 
     vec3 color = mix(underwater, reflection, fresnel) + glint;
     color = mix(color, foamColor, foam * 0.8);
+    if (CLASSIC) {
+        // One flat blue, lit like the classic surfaces (no reflections, glints or refraction)
+        color = vec3(0.07, 0.13, 0.22) * (ambientIrradiance(vec3(0, 1, 0)) * 1.15 + uLightColor.rgb * saturate(L.y));
+        thickness = 1.0;
+    }
     color += pointLighting(defaultSurface(vec3(0.02), N), fragWorldPos, V, vec3(0.02), 0.05) * 0.5;
 
     // Soft edge where the water meets the shore. Water planes tile the carved
@@ -85,7 +90,7 @@ void main() {
     color = mix(refracted, color, edge);
 
     float T; vec3 inscatter;
-    fogTerms(fragWorldPos, T, inscatter);
+    sceneFog(fragWorldPos, T, inscatter);
     outDirect = vec4(color * T + inscatter, 1.0);
     outAmbient = vec4(0.0, 0.0, 0.0, 1.0);
 }

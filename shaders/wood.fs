@@ -35,8 +35,9 @@ void main() {
     vec3 albedo = mix(wood, vec3(0.03, 0.025, 0.02), gap);
     albedo = mix(albedo, vec3(0.08, 0.07, 0.065), nail);
 
-    float rough;
-    albedo = weatherWall(albedo, N, fragWorldPos, rough);
+    float rough = 0.0;
+    if (CLASSIC) albedo = vec3(0.26, 0.15, 0.07);
+    else albedo = weatherWall(albedo, N, fragWorldPos, rough);
     float height = (1.0 - gap) * 0.006 + grain * 0.002 + rings * 0.0008 - knot * 0.001;
     vec3 n = bumpNormal(N, fragWorldPos, height, 1.0);
 
