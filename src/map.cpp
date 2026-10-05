@@ -153,10 +153,16 @@ static bool LoadMapFile(const char* filename, MapData& map, float offsetX, float
             if (map.wallCount < MAX_WALLS) {
                 float x, y, z, w, h, d;
                 char materialName[64];
-                char heightMode[16] = "";
-                if (sscanf(line, "%*s %f %f %f %f %f %f %63s %15s", &x, &y, &z, &w, &h, &d, materialName, heightMode) >= 7) {
+                char opts[2][16] = {"", ""};
+                if (sscanf(line, "%*s %f %f %f %f %f %f %63s %15s %15s", &x, &y, &z, &w, &h, &d, materialName, opts[0], opts[1]) >= 7) {
                     map.walls[map.wallCount].position = { x + offsetX, y, z + offsetZ };
-                    map.walls[map.wallCount].absoluteY = (strcmp(heightMode, "abs") == 0);
+                    map.walls[map.wallCount].absoluteY = false;
+                    map.walls[map.wallCount].yaw = 0.0f;
+                    for (auto& opt : opts) {   // "abs": absolute Y; "yaw=DEG": rotation about Y
+                        float deg;
+                        if (strcmp(opt, "abs") == 0) map.walls[map.wallCount].absoluteY = true;
+                        else if (sscanf(opt, "yaw=%f", &deg) == 1) map.walls[map.wallCount].yaw = deg * DEG2RAD;
+                    }
                     map.walls[map.wallCount].width = w;
                     map.walls[map.wallCount].height = h;
                     map.walls[map.wallCount].depth = d;

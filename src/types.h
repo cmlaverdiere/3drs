@@ -331,6 +331,7 @@ struct Wall {
     float depth;
     WallMaterial material;
     bool absoluteY;    // position.y is a world height rather than an offset from the terrain
+    float yaw;         // rotation about Y in radians (0: width along X, depth along Z)
 };
 
 // Tree structure (choppable resource)

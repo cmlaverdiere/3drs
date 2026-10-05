@@ -4,7 +4,8 @@ Drop-in replacement for extract.py (the default; OSRS_MAP_SOURCE=image selects e
 map data instead of the rendered map squares:
   walls/doors   wall locs (types 0 straight, 2 corner, 9 diagonal); doors have an interaction op;
                 fences are walls that do not block projectiles
-  floors        tiles on a plane with an overlay or underlay; bridges (tile flag 2 on plane 1)
+  floors        tiles on a plane with an overlay or underlay, except upper-plane tiles flagged 8
+                (drawn on the ground plane) or 16 (hidden); bridges (tile flag 2 on plane 1)
                 shift that tile's planes down by one
   buildings     tiles flagged "under roof" (flag 4) on the ground plane; roofless if no roof loc
                 (types 12-21) lies within a tile
@@ -17,7 +18,7 @@ from functools import lru_cache
 from . import cache as C
 from .extract import P, block, PX_TX0, PX_TY_TOP, WATER, floorlike, tile_colour0   # map-square view for overlays
 
-BRIDGE, UNDER_ROOF = 2, 4
+BRIDGE, UNDER_ROOF, LOWER_PLANE, HIDDEN = 2, 4, 8, 16
 ROAD_RGB = {(80, 80, 80), (68, 68, 68), (102, 102, 102), (120, 112, 96)}
 PATH_RGB = {(109, 91, 43), (130, 121, 68), (112, 105, 77), (120, 104, 72)}
 
@@ -124,7 +125,9 @@ def extract(tx0, tx1, ty0, ty1, planes=(0, 1, 2)):
                         if not o.blocks_projectile:
                             fence.add((tag, key))
                         height[(tag, key)] = max(h, height.get((tag, key), 0))
-                if pl > 0 and has_floor(pl, tx, ty):
+                # Upper-plane overlays drawn on the ground plane (riverbanks, coasts) or hidden
+                # (rooftops) are not floors
+                if pl > 0 and has_floor(pl, tx, ty) and not tile(pl, tx, ty)[4] & (LOWER_PLANE | HIDDEN):
                     F[(tx, ty)] = tile_colour(pl, tx, ty)
         if pl > 0:
             # Keep upper-plane walls that bound this plane's own floor

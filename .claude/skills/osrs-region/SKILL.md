@@ -27,7 +27,7 @@ OSRS_MAP_OUT=/tmp/out uv run python -m osrs_map.generate <region>   # dry run el
 
 - Only OpenRS2 (third party) is contacted; never connect to Jagex servers or a local game client/cache.
 - `cache.py` reads JS5 containers, XTEA loc keys, terrain (`m` groups), locs (`l` groups), object/underlay/overlay defs and model vertex heights (archive 7); formats follow RuneLite's offline loaders.
-- `extract_cache.py` replaces `extract.py` with rules: walls = loc types 0/2/9 with a visible model (doors: an op or the wall-or-door flag), fences = walls that don't block projectiles, outdoor wall height = model top x `MODEL_TILE_H` (generate.py), floors = overlay or underlay, bridge = plane-1 tile flag 2 (planes shift down), buildings = tile flag 4 (under roof), roofless = no roof loc (types 12-21) within a tile, ladders = Climb/Climb-up/Climb-down locs, trees = Chop down locs, black tiles = no floor under a blocking loc.
+- `extract_cache.py` replaces `extract.py` with rules: walls = loc types 0/2/9 with a visible model (doors: an op or the wall-or-door flag), fences = walls that don't block projectiles, outdoor wall height = model top x `MODEL_TILE_H` (generate.py), floors = overlay or underlay (upper planes: not tile flag 8, drawn on the ground plane, or 16, hidden rooftops), bridge = plane-1 tile flag 2 (planes shift down), buildings = tile flag 4 (under roof), roofless = no roof loc (types 12-21) within a tile, ladders = Climb/Climb-up/Climb-down locs, trees = Chop down locs, black tiles = no floor under a blocking loc.
 - generate.py builds staircase flights from Staircase locs (first straight flight in the footprint with a walkable entry below and exit above; otherwise a ladder) and ignores `STAIRS`, `NO_LADDER_TILES`, `CLOSE_DOORWAYS`. `NOT_BUILDINGS`, `OPEN_COURTYARDS` and `OUTDOOR_WALLS` are still applied but not needed for Lumbridge, Al Kharid or Varrock.
 
 Inspection (`edges` reads the cache; `zoom` and `water` read the map squares):
@@ -75,7 +75,7 @@ uv run python -m osrs_map.tools spawns "Monster" TX0 TY0 TX1 TY1 # monster spawn
 
 ## Engine rules the generator relies on
 
-- Walls are axis-aligned boxes only (diagonals = 4 overlapping posts per tile). Wall y is relative to terrain at the wall centre unless the line ends in `abs`.
+- Walls are boxes, axis-aligned unless the line carries `yaw=DEG` (diagonals: one wall at +-45 degrees, length S*sqrt(2) + T). Wall y is relative to terrain at the wall centre unless the line ends in `abs`.
 - Player: radius 0.3, step-up 0.45 (resolved at the new position first), head clearance 1.9, ground = highest surface within a step. Walls above the head do not block.
 - Stair flights need a 1 m landing clear of the end wall (the radius keeps the player off the last 0.5 m) and a hole in the floor above; holes must not cut that floor's corridor.
 - Ladders: the end on the player's floor is used, so stacked ladders climb one floor each. `ladder`/`npc` y = height above terrain.

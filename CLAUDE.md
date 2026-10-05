@@ -65,7 +65,7 @@ Maps use a text-based format in `maps/`:
 - `groundmap file.png x0 z0 sizeX sizeZ` - road/path texture over a world rectangle (r = paved road, g = dirt path); several are composited
 - `npc`, `ladder`: the y value is the height above the terrain (upper floors)
 
-Append `abs` to a `wall` line to make its Y an absolute world height instead of an offset from the terrain (used for bridge decks over carved channels).
+Append `abs` to a `wall` line to make its Y an absolute world height instead of an offset from the terrain (used for bridge decks over carved channels). Append `yaw=DEG` to rotate it about its centre (diagonal walls).
 
 ## Generated OSRS regions
 

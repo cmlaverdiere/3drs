@@ -1,4 +1,5 @@
 #include "grass.h"
+#include "collision.h"
 #include "ground_noise.h"
 #include "lighting.h"
 #include "math_utils.h"
@@ -86,8 +87,10 @@ static void BuildChunk(GrassField* grass, int cx, int cz, GrassFieldChunk* out) 
     std::vector<int> walls;
     for (int i = 0; i < grass->wallCount; i++) {
         const Wall& w = grass->walls[i];
-        if (w.position.x + w.width * 0.5f < x0 || w.position.x - w.width * 0.5f > x0 + CHUNK) continue;
-        if (w.position.z + w.depth * 0.5f < z0 || w.position.z - w.depth * 0.5f > z0 + CHUNK) continue;
+        float hx, hz;
+        WallFootprint(w, &hx, &hz);
+        if (w.position.x + hx < x0 || w.position.x - hx > x0 + CHUNK) continue;
+        if (w.position.z + hz < z0 || w.position.z - hz > z0 + CHUNK) continue;
         walls.push_back(i);
     }
 
@@ -101,9 +104,7 @@ static void BuildChunk(GrassField* grass, int cx, int cz, GrassFieldChunk* out) 
         float keepRoll = rng.Next();
         bool blocked = false;
         for (int w : walls) {
-            const Wall& wall = grass->walls[w];
-            if (fabsf(x - wall.position.x) < wall.width * 0.5f + 0.05f &&
-                fabsf(z - wall.position.z) < wall.depth * 0.5f + 0.05f) { blocked = true; break; }
+            if (PointInWall({x, 0.0f, z}, grass->walls[w], 0.05f)) { blocked = true; break; }
         }
         if (blocked) continue;
         float y = GetTerrainHeight(x, z);

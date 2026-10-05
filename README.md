@@ -219,7 +219,8 @@ groundmap file.png x0 z0 sizeX sizeZ
 include <file.map> offsetX offsetZ
 ```
 
-A trailing `abs` on a `wall` line makes its Y an absolute world height.
+A trailing `abs` on a `wall` line makes its Y an absolute world height; `yaw=DEG` rotates it about
+its centre (rendering, collision and the minimap all follow the rotation).
 `lumbridge.map`, `alkharid.map` and `varrock.map` are generated from the OSRS game
 cache at 2 m per tile by `scripts/osrs_map` (see `CLAUDE.md`).
 

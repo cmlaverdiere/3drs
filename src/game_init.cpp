@@ -1,4 +1,5 @@
 #include "game_init.h"
+#include "collision.h"
 #include "math_utils.h"
 #include "enemy_ai.h"
 #include "sound_system.h"
@@ -120,17 +121,23 @@ static void BuildWallBatches(GameResources* res, const Wall* walls, int wallCoun
             float baseY = w.position.y + GetTerrainHeight(w.position.x, w.position.z);
             Vector3 c = {w.position.x, baseY + w.height * 0.5f, w.position.z};
             Vector3 h = {w.width * 0.5f, w.height * 0.5f, w.depth * 0.5f};
-            bmin = Vector3Min(bmin, Vector3Subtract(c, h));
-            bmax = Vector3Max(bmax, Vector3Add(c, h));
+            float fx, fz;
+            WallFootprint(w, &fx, &fz);
+            bmin = Vector3Min(bmin, Vector3Subtract(c, {fx, h.y, fz}));
+            bmax = Vector3Max(bmax, Vector3Add(c, {fx, h.y, fz}));
             for (int f = 0; f < 6; f++) {
                 int first = v;
+                float nx, nz;
+                WallWorld(w, FACES[f][0], FACES[f][2], &nx, &nz);
                 for (int k = 0; k < 4; k++) {
-                    mesh.vertices[v * 3 + 0] = c.x + CORNERS[f][k][0] * h.x;
+                    float dx, dz;
+                    WallWorld(w, CORNERS[f][k][0] * h.x, CORNERS[f][k][2] * h.z, &dx, &dz);
+                    mesh.vertices[v * 3 + 0] = c.x + dx;
                     mesh.vertices[v * 3 + 1] = c.y + CORNERS[f][k][1] * h.y;
-                    mesh.vertices[v * 3 + 2] = c.z + CORNERS[f][k][2] * h.z;
-                    mesh.normals[v * 3 + 0] = FACES[f][0];
+                    mesh.vertices[v * 3 + 2] = c.z + dz;
+                    mesh.normals[v * 3 + 0] = nx;
                     mesh.normals[v * 3 + 1] = FACES[f][1];
-                    mesh.normals[v * 3 + 2] = FACES[f][2];
+                    mesh.normals[v * 3 + 2] = nz;
                     mesh.texcoords[v * 2 + 0] = (k == 2 || k == 3) ? 1.0f : 0.0f;
                     mesh.texcoords[v * 2 + 1] = (k == 1 || k == 2) ? 1.0f : 0.0f;
                     mesh.texcoords2[v * 2 + 0] = baseY;
@@ -425,8 +432,9 @@ void PopulateSpatialHash(WorldSpatialData* spatial, const Wall* walls, int wallC
                          const Tree* trees, int treeCount) {
     spatial->Clear();
     for (int i = 0; i < wallCount; i++) {
-        spatial->walls.InsertBox(i, walls[i].position.x, walls[i].position.z,
-                                  walls[i].width, walls[i].depth);
+        float hx, hz;
+        WallFootprint(walls[i], &hx, &hz);
+        spatial->walls.InsertBox(i, walls[i].position.x, walls[i].position.z, hx * 2.0f, hz * 2.0f);
     }
     for (int i = 0; i < enemyCount; i++) {
         spatial->enemies.Insert(i, enemies[i].position.x, enemies[i].position.z);

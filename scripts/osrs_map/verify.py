@@ -42,7 +42,9 @@ def load_world():
                 load(t[1], ox + float(t[2]), oz + float(t[3]))
             elif k == "wall":
                 x, y, z, w, h, d = map(float, t[1:7])
-                walls.append([x + ox, y, z + oz, w, h, d, len(t) > 8 and t[8] == "abs", name])
+                opts = t[8:]
+                yaw = next((float(o[4:]) for o in opts if o.startswith("yaw=")), 0.0)
+                walls.append([x + ox, y, z + oz, w, h, d, "abs" in opts, yaw, name])
             elif k == "ladder":
                 x, y, z, h, f = map(float, t[1:6])
                 ladders.append((x + ox, y, z + oz, h, f))
@@ -58,12 +60,16 @@ class World:
     def __init__(self):
         self.walls_raw, self.ladders_raw, self.ents, maps = load_world()
         self.H = terrain.heights(maps)
-        self.walls = []      # (x0, z0, x1, z1, bottom, top)
-        for x, y, z, w, h, d, absy, _ in self.walls_raw:
+        self.walls = []      # (cx, cz, half w, half d, cos yaw, sin yaw, bottom, top), as src/collision.h
+        boxes = []
+        for x, y, z, w, h, d, absy, yaw, _ in self.walls_raw:
             base = y if absy else y + terrain.sample(self.H, x, z)
-            self.walls.append((x - w / 2, z - d / 2, x + w / 2, z + d / 2, base, base + h))
+            c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+            self.walls.append((x, z, w / 2, d / 2, c, s, base, base + h))
+            hx, hz = abs(c) * w / 2 + abs(s) * d / 2, abs(s) * w / 2 + abs(c) * d / 2
+            boxes.append((x - hx, z - hz, x + hx, z + hz))
         self.grid = defaultdict(list)
-        for i, (x0, z0, x1, z1, _, _) in enumerate(self.walls):
+        for i, (x0, z0, x1, z1) in enumerate(boxes):
             for gx in range(int(math.floor(x0 / 4)), int(math.floor(x1 / 4)) + 1):
                 for gz in range(int(math.floor(z0 / 4)), int(math.floor(z1 / 4)) + 1):
                     self.grid[(gx, gz)].append(i)
@@ -79,19 +85,23 @@ class World:
     def terrain_h(self, x, z):
         return terrain.sample(self.H, x, z)
 
+    def inside(self, i, x, z, pad):
+        cx, cz, hw, hd, c, s, _, _ = self.walls[i]
+        dx, dz = x - cx, z - cz
+        return abs(dx * c - dz * s) <= hw + pad and abs(dx * s + dz * c) <= hd + pad
+
     def blocked(self, x, z, feet):
         for i in self.near(x, z):
-            x0, z0, x1, z1, bot, top = self.walls[i]
-            if feet < top - STEP and feet + HEAD > bot:
-                if x0 - RADIUS < x < x1 + RADIUS and z0 - RADIUS < z < z1 + RADIUS:
-                    return True
+            bot, top = self.walls[i][6:]
+            if feet < top - STEP and feet + HEAD > bot and self.inside(i, x, z, RADIUS):
+                return True
         return False
 
     def ground(self, x, z, feet):
         g = self.terrain_h(x, z)
         for i in self.near(x, z):
-            x0, z0, x1, z1, bot, top = self.walls[i]
-            if x0 <= x <= x1 and z0 <= z <= z1 and g < top <= feet + STEP:
+            top = self.walls[i][7]
+            if g < top <= feet + STEP and self.inside(i, x, z, 0.0):
                 g = top
         return g
 
@@ -173,8 +183,8 @@ def entity_problems(world):
         feet = world.terrain_h(x, z) + y
         r = {"tree": 0.3, "oak_tree": 0.3, "rock": 0.4}.get(kind, 0.2)
         for i in world.near(x, z):
-            x0, z0, x1, z1, bot, top = world.walls[i]
-            if x0 - r < x < x1 + r and z0 - r < z < z1 + r and bot < feet + 1.0 and top > feet + STEP:
+            bot, top = world.walls[i][6:]
+            if world.inside(i, x, z, r) and bot < feet + 1.0 and top > feet + STEP:
                 probs.append(f"{kind} {sub} at ({x:.1f}, {z:.1f}) [{src}] is inside a wall")
                 break
     return probs
@@ -189,18 +199,19 @@ def overlay(world, name, tx0, tx1, ty0, ty1, scale=4):
         d = ImageDraw.Draw(im, "RGBA"); k = 4 * scale
         def P(x, z):
             return ((x / S + ORIGIN_TX + 0.5 - tx0) * k, (ty1 + 0.5 - (ORIGIN_TY - z / S)) * k)
-        for (x, y, z, w, h, dd, absy, _), (_, _, _, _, bot, top) in zip(world.walls_raw, world.walls):
+        for (x, y, z, w, h, dd, absy, yaw, _), (_, _, _, _, c, s, bot, top) in zip(world.walls_raw, world.walls):
             g = world.terrain_h(x, z)
             rel_bot = bot - g
             lo, hi = pl * FH - 0.6, pl * FH + 0.6
             thin = h < 0.5
             if not (lo <= rel_bot < hi or (thin and lo <= rel_bot + h < hi + 0.3)):
                 continue
-            a0 = P(x - w / 2, z - dd / 2); a1 = P(x + w / 2, z + dd / 2)
+            quad = [P(x + lx * c + lz * s, z - lx * s + lz * c)
+                    for lx, lz in ((-w / 2, -dd / 2), (w / 2, -dd / 2), (w / 2, dd / 2), (-w / 2, dd / 2))]
             if thin:
-                d.rectangle([a0[0], a0[1], a1[0], a1[1]], outline=(0, 255, 255, 140))
+                d.polygon(quad, outline=(0, 255, 255, 140))
             else:
-                d.rectangle([a0[0], a0[1], a1[0], a1[1]], fill=(255, 0, 255, 200))
+                d.polygon(quad, fill=(255, 0, 255, 200))
         for lx, lz, base, h, tx_, tz_ in world.ladders:
             if abs(base - world.terrain_h(lx, lz) - pl * FH) < 1.0:
                 p = P(lx, lz); q2 = P(tx_, tz_)

@@ -1,4 +1,5 @@
 #include "hud.h"
+#include "collision.h"
 #include "math_utils.h"
 #include "xp_system.h"
 #include "inventory.h"
@@ -1332,7 +1333,8 @@ void DrawMinimap(Vector3 playerPos, float playerYaw,
         int wd = (int)(walls[i].depth * scale);
         if (ww < 2) ww = 2;
         if (wd < 2) wd = 2;
-        DrawRectangle(wx - ww/2, wy - wd/2, ww, wd, (Color){100, 100, 100, 180});
+        DrawRectanglePro({(float)wx, (float)wy, (float)ww, (float)wd}, {ww / 2.0f, wd / 2.0f},
+                         -walls[i].yaw * RAD2DEG, (Color){100, 100, 100, 180});
     }
 
     // Draw trees (small green circles for normal, darker for oak)

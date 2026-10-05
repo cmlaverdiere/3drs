@@ -65,10 +65,11 @@ class Out:
     def __init__(self): self.lines = []
     def c(self, title): self.lines += ["", f"# === {title} ==="]
     def raw(self, s): self.lines.append(s)
-    def wall(self, cx, cz, w, d, y, h, mat, abs_=False):
+    def wall(self, cx, cz, w, d, y, h, mat, abs_=False, yaw=0):
         if w <= 0.01 or d <= 0.01 or h <= 0.01:
             return
-        self.lines.append(f"wall {cx:.2f} {y:.2f} {cz:.2f} {w:.2f} {h:.2f} {d:.2f} {mat}" + (" abs" if abs_ else ""))
+        self.lines.append(f"wall {cx:.2f} {y:.2f} {cz:.2f} {w:.2f} {h:.2f} {d:.2f} {mat}" + (" abs" if abs_ else "")
+                          + (f" yaw={yaw:g}" if yaw else ""))
     def p(self, kind, *a):
         self.lines.append(kind + " " + " ".join(v if isinstance(v, str) else f"{v:.2f}" for v in a))
 
@@ -211,7 +212,7 @@ def emit_runs(pl, store, vertical):
 
 
 def emit_diagonals(pl):
-    """Diagonal walls as four overlapping posts along the tile's diagonal (walls are axis-aligned)."""
+    """Diagonal walls: one wall rotated 45 degrees from corner to corner of the tile."""
     n = 0
     for (tx, ty), orient in RES["diag"][pl].items():
         if on_bridge(tx, ty):
@@ -222,16 +223,15 @@ def emit_diagonals(pl):
             twins = [(tx - 1, ty), (tx + 1, ty), (tx, ty - 1), (tx, ty + 1)]
             if CITY_WALL and any(RES["diag"][pl].get(k) == orient for k in twins):
                 h, mat = CITY_WALL
-            y, size = 0.0, (0.55 if mat == "stone" else 0.4)
+            y = 0.0
         else:
             above = any(t in FLOOR.get(pl + 1, {}) for t in nb)
             y = pl * FH
             h = FH - SLAB if above else (WALL_H if pl == 0 else TOP_WALL_H)
-            mat, size = building_material(*nb), 0.6
-        sx = 1 if orient == "\\" else -1      # '\\' runs north-west to south-east
-        for k in (-0.375, -0.125, 0.125, 0.375):
-            out_for(tx).wall(X(tx) + sx * k * S, Z(ty) + k * S, size, size, y, h, mat)
-            n += 1
+            mat = building_material(*nb)
+        yaw = -45 if orient == "\\" else 45      # '\\' runs north-west to south-east (+X, +Z)
+        out_for(tx).wall(X(tx), Z(ty), S * math.sqrt(2) + T, T, y, h, mat, yaw=yaw)
+        n += 1
     return n
 
 

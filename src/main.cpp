@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "collision.h"
 #include <cstdio>
 #include <ctime>
 #include <cstring>
@@ -109,8 +110,9 @@ int main(int argc, char* argv[]) {
 
         g_spatial.Clear();
         for (int i = 0; i < mapData.wallCount; i++) {
-            g_spatial.walls.InsertBox(i, mapData.walls[i].position.x, mapData.walls[i].position.z,
-                                      mapData.walls[i].width, mapData.walls[i].depth);
+            float hx, hz;
+            WallFootprint(mapData.walls[i], &hx, &hz);
+            g_spatial.walls.InsertBox(i, mapData.walls[i].position.x, mapData.walls[i].position.z, hx * 2.0f, hz * 2.0f);
         }
         std::vector<int> nearby;
         g_spatial.walls.Query(0.0f, 0.0f, 20.0f, nearby);

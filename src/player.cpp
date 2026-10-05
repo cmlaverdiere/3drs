@@ -100,7 +100,7 @@ void UpdatePlayerMovement(Camera3D* camera, PlayerRuntime* runtime,
 
         // Step up onto low ledges; pass under walls raised above the head (upper floors)
         if (playerFeetY < wallTop - PLAYER_STEP_HEIGHT && playerFeetY + PLAYER_HEIGHT > wallBottom) {
-            Wall w = walls[idx];  // Make non-const copy for collision functions
+            const Wall& w = walls[idx];
             if (PointInWall(camera->position, w, PLAYER_RADIUS)) {
                 Vector3 oldPos = camera->position;
                 camera->position = ResolveWallCollision(camera->position, w, PLAYER_RADIUS);
@@ -256,13 +256,7 @@ float GetGroundHeight(Vector3 pos, float feetY, const Wall* walls, const std::ve
     for (int idx : nearbyWalls) {
         float wallTerrainY = GetTerrainHeight(walls[idx].position.x, walls[idx].position.z);
         float wallTop = wallTerrainY + walls[idx].position.y + walls[idx].height;
-        float halfW = walls[idx].width / 2.0f;
-        float halfD = walls[idx].depth / 2.0f;
-
-        if (pos.x >= walls[idx].position.x - halfW &&
-            pos.x <= walls[idx].position.x + halfW &&
-            pos.z >= walls[idx].position.z - halfD &&
-            pos.z <= walls[idx].position.z + halfD) {
+        if (PointInWall(pos, walls[idx], 0.0f)) {
             // Surfaces within a step of the feet; higher ones (floors above) are ignored
             if (wallTop > groundY && wallTop <= feetY + PLAYER_STEP_HEIGHT) {
                 groundY = wallTop;
